@@ -41,23 +41,19 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-website`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url }),
-        }
-      );
+      const response = await supabase.functions.invoke('analyze-website', {
+        body: { url }
+      });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Analysis failed");
+      if (response.error) {
+        throw new Error(response.error.message || "Analysis failed");
       }
 
-      const data = await response.json();
+      const data = response.data;
+      
+      if (!data) {
+        throw new Error("No data returned from analysis");
+      }
 
       // Save to database only if user is logged in
       if (user) {
