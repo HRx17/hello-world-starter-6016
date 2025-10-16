@@ -85,18 +85,13 @@ const Index = () => {
         });
       }
 
-      navigate("/results", {
-        state: {
-          analysis: {
-            url,
-            websiteName: data.websiteName || new URL(url).hostname,
-            overallScore: data.overallScore,
-            violations: data.violations,
-            strengths: data.strengths,
-            screenshot: data.screenshot,
-          },
-        },
+      // Refresh projects list and navigate to dashboard
+      toast({
+        title: "Analysis Complete",
+        description: "View your results in the dashboard.",
       });
+      
+      navigate("/dashboard");
     } catch (error) {
       console.error("Analysis error:", error);
       toast({
@@ -132,112 +127,103 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="container mx-auto px-4 py-16 max-w-4xl">
-        {/* User Menu */}
-        <div className="flex justify-end mb-4">
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+    <div className="container mx-auto px-4 py-16 max-w-4xl">
+      {/* Hero Section */}
+      <div className="text-center mb-12 space-y-4">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium text-primary">AI-Powered UX Analysis</span>
         </div>
-        {/* Hero Section */}
-        <div className="text-center mb-12 space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-primary">AI-Powered UX Analysis</span>
-          </div>
-          
-          <h1 className="text-5xl font-bold tracking-tight">
-            UXProbe
-          </h1>
-          
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Instantly evaluate any website's usability with AI-powered heuristic analysis based on Nielsen's 10 Usability Heuristics
-          </p>
-        </div>
+        
+        <h1 className="text-5xl font-bold tracking-tight">
+          UXProbe
+        </h1>
+        
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          Instantly evaluate any website's usability with AI-powered heuristic analysis based on Nielsen's 10 Usability Heuristics
+        </p>
+      </div>
 
-        {/* Main Card */}
-        <Card className="bg-card/50 backdrop-blur shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-2xl">Analyze a Website</CardTitle>
-            <CardDescription>
-              Enter any URL to get a comprehensive usability evaluation with actionable recommendations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <LoadingAnalysis />
-            ) : (
-              <form onSubmit={handleAnalyze} className="space-y-6">
-                <div className="space-y-2">
-                  <label htmlFor="url" className="text-sm font-medium">
-                    Website URL
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="url"
-                      type="url"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://example.com"
-                      required
-                      className="flex-1"
-                    />
-                    <Button type="submit" size="lg" className="px-8">
-                      <Search className="mr-2 h-4 w-4" />
-                      Analyze
+      {/* Main Card */}
+      <Card className="bg-card/50 backdrop-blur shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-2xl">Analyze a Website</CardTitle>
+          <CardDescription>
+            Enter any URL to get a comprehensive usability evaluation with actionable recommendations
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <LoadingAnalysis />
+          ) : (
+            <form onSubmit={handleAnalyze} className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="url" className="text-sm font-medium">
+                  Website URL
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    id="url"
+                    type="url"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://example.com"
+                    required
+                    className="flex-1"
+                  />
+                  <Button type="submit" size="lg" className="px-8">
+                    <Search className="mr-2 h-4 w-4" />
+                    Analyze
+                  </Button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Try these examples:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {exampleUrls.map((exampleUrl) => (
+                    <Button
+                      key={exampleUrl}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setUrl(exampleUrl)}
+                    >
+                      {new URL(exampleUrl).hostname}
                     </Button>
-                  </div>
+                  ))}
                 </div>
+              </div>
+            </form>
+          )}
+        </CardContent>
+      </Card>
 
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Try these examples:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {exampleUrls.map((exampleUrl) => (
-                      <Button
-                        key={exampleUrl}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setUrl(exampleUrl)}
-                      >
-                        {new URL(exampleUrl).hostname}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </form>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-6 mt-12">
-          {[
-            {
-              title: "AI-Powered Analysis",
-              description: "Advanced AI evaluates your site against proven UX principles",
-            },
-            {
-              title: "Actionable Insights",
-              description: "Get specific recommendations you can implement immediately",
-            },
-            {
-              title: "Instant Results",
-              description: "Complete analysis in under 30 seconds",
-            },
-          ].map((feature, index) => (
-            <Card key={index} className="bg-card/30 backdrop-blur border-muted">
-              <CardHeader>
-                <CardTitle className="text-lg">{feature.title}</CardTitle>
-                <CardDescription>{feature.description}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
+      {/* Features */}
+      <div className="grid md:grid-cols-3 gap-6 mt-12">
+        {[
+          {
+            title: "AI-Powered Analysis",
+            description: "Advanced AI evaluates your site against proven UX principles",
+          },
+          {
+            title: "Actionable Insights",
+            description: "Get specific recommendations you can implement immediately",
+          },
+          {
+            title: "Instant Results",
+            description: "Complete analysis in under 30 seconds",
+          },
+        ].map((feature, index) => (
+          <Card key={index} className="bg-card/30 backdrop-blur border-muted">
+            <CardHeader>
+              <CardTitle className="text-lg">{feature.title}</CardTitle>
+              <CardDescription>{feature.description}</CardDescription>
+            </CardHeader>
+          </Card>
+        ))}
       </div>
     </div>
   );
