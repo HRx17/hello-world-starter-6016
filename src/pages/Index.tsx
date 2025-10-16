@@ -1,20 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingAnalysis } from "@/components/LoadingAnalysis";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Sparkles } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { Search, Sparkles, LogOut } from "lucide-react";
 
 const Index = () => {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, isLoading: authLoading, signOut } = useAuth();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, navigate]);
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
     
     // Basic URL validation
     try {
@@ -49,6 +64,27 @@ const Index = () => {
 
       const data = await response.json();
 
+      // Save to database
+      const { data: project } = await supabase
+        .from("projects")
+        .insert({
+          user_id: user.id,
+          name: data.websiteName || new URL(url).hostname,
+          url,
+        })
+        .select()
+        .single();
+
+      if (project) {
+        await supabase.from("analysis_results").insert({
+          project_id: project.id,
+          user_id: user.id,
+          score: data.overallScore,
+          violations: data.violations,
+          screenshot: data.screenshot,
+        });
+      }
+
       navigate("/results", {
         state: {
           analysis: {
@@ -73,6 +109,22 @@ const Index = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Sparkles className="h-8 w-8 text-primary animate-pulse mx-auto mb-2" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   const exampleUrls = [
     "https://amazon.com",
     "https://stripe.com",
@@ -82,6 +134,13 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="container mx-auto px-4 py-16 max-w-4xl">
+        {/* User Menu */}
+        <div className="flex justify-end mb-4">
+          <Button variant="outline" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
         {/* Hero Section */}
         <div className="text-center mb-12 space-y-4">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
