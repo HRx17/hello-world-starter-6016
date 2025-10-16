@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Eye, Sparkles, BarChart3 } from "lucide-react";
+import { Trash2, Eye, Sparkles, BarChart3, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -211,15 +211,28 @@ const Dashboard = () => {
 
                   <div className="flex gap-3">
                     {latestAnalysis && (
-                      <Button
-                        variant="outline"
-                        size="default"
-                        className="flex-1 hover-scale"
-                        onClick={() => handleViewAnalysis(project, latestAnalysis.id)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Analysis
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="default"
+                          className="flex-1 hover-scale"
+                          onClick={() => handleViewAnalysis(project, latestAnalysis.id)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                        {analysisCount > 1 && (
+                          <Button
+                            variant="outline"
+                            size="default"
+                            className="flex-1 hover-scale"
+                            onClick={() => navigate(`/trends/${project.id}`)}
+                          >
+                            <TrendingUp className="h-4 w-4 mr-2" />
+                            Trends
+                          </Button>
+                        )}
+                      </>
                     )}
                     <Button
                       variant="outline"

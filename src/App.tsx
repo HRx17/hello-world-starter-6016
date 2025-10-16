@@ -10,6 +10,8 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Compare from "./pages/Compare";
 import NotFound from "./pages/NotFound";
+import Trends from "./pages/Trends";
+import Settings from "./pages/Settings";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -43,6 +45,22 @@ const App = () => (
                 <DashboardLayout>
                   <Compare />
                 </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/trends/:projectId" 
+            element={
+              <ProtectedRoute>
+                <Trends />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } 
           />

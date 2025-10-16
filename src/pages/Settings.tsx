@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Save } from "lucide-react";
-import DashboardLayout from "@/components/DashboardLayout";
-import { frameworks } from "@/lib/frameworks";
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { FRAMEWORKS } from "@/lib/frameworks";
 
 interface UserSettings {
   default_framework?: string;
@@ -188,9 +188,9 @@ export default function Settings() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {frameworks.map((fw) => (
-                      <SelectItem key={fw.id} value={fw.name}>
-                        {fw.name}
+                    {FRAMEWORKS.map((fw) => (
+                      <SelectItem key={fw.value} value={fw.label}>
+                        {fw.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -6,12 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import DashboardLayout from "@/components/DashboardLayout";
+import { DashboardLayout } from "@/components/DashboardLayout";
 
 interface AnalysisData {
   analyzed_at: string;
   score: number;
-  violations: any[];
+  violations: any;
 }
 
 export default function Trends() {
@@ -56,8 +56,12 @@ export default function Trends() {
 
       if (analysesError) throw analysesError;
 
-      setAnalyses(analysesData || []);
-      processAnalysesData(analysesData || []);
+      const typedData = (analysesData || []).map(a => ({
+        ...a,
+        violations: Array.isArray(a.violations) ? a.violations : JSON.parse(a.violations as string)
+      }));
+      setAnalyses(typedData);
+      processAnalysesData(typedData);
     } catch (error: any) {
       console.error("Error fetching trends:", error);
       toast({
