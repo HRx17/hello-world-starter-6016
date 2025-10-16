@@ -38,9 +38,6 @@ export const Testimonial = ({ name, role, company, content, rating }: Testimonia
           </div>
           <div>
             <div className="font-semibold">{name}</div>
-            <div className="text-sm text-muted-foreground">
-              {role} at {company}
-            </div>
           </div>
         </div>
       </CardContent>
