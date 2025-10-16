@@ -21,7 +21,7 @@ interface AppSidebarProps {
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "New Analysis", url: "/", icon: FileText },
+  { title: "New Analysis", url: "/analyze", icon: FileText },
   { title: "Compare", url: "/compare", icon: GitCompare },
 ];
 
@@ -73,7 +73,8 @@ export function AppSidebar({ onSignOut }: AppSidebarProps) {
         <Button
           variant="outline"
           onClick={onSignOut}
-          className="w-full justify-start"
+          className={collapsed ? "w-full justify-center px-2" : "w-full justify-start"}
+          size={collapsed ? "icon" : "default"}
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span className="ml-2">Sign Out</span>}

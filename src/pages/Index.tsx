@@ -20,20 +20,10 @@ const Index = () => {
   const { toast } = useToast();
   const { user, isLoading: authLoading, signOut } = useAuth();
 
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
+  // Redirect to auth if not logged in (removed - allowing guest access)
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
     
     // Basic URL validation
     try {
@@ -68,35 +58,51 @@ const Index = () => {
 
       const data = await response.json();
 
-      // Save to database
-      const { data: project } = await supabase
-        .from("projects")
-        .insert({
-          user_id: user.id,
-          name: data.websiteName || new URL(url).hostname,
-          url,
-          framework: framework || null,
-        })
-        .select()
-        .single();
+      // Save to database only if user is logged in
+      if (user) {
+        const { data: project } = await supabase
+          .from("projects")
+          .insert({
+            user_id: user.id,
+            name: data.websiteName || new URL(url).hostname,
+            url,
+            framework: framework || null,
+          })
+          .select()
+          .single();
 
-      if (project) {
-        await supabase.from("analysis_results").insert({
-          project_id: project.id,
-          user_id: user.id,
-          score: data.overallScore,
-          violations: data.violations,
-          screenshot: data.screenshot,
+        if (project) {
+          await supabase.from("analysis_results").insert({
+            project_id: project.id,
+            user_id: user.id,
+            score: data.overallScore,
+            violations: data.violations,
+            screenshot: data.screenshot,
+          });
+        }
+
+        // Refresh projects list and navigate to dashboard
+        toast({
+          title: "Analysis Complete",
+          description: "View your results in the dashboard.",
+        });
+        
+        navigate("/dashboard");
+      } else {
+        // Guest user - just show results
+        navigate("/results", {
+          state: {
+            analysis: {
+              url,
+              websiteName: data.websiteName || new URL(url).hostname,
+              overallScore: data.overallScore,
+              violations: data.violations,
+              strengths: data.strengths,
+              screenshot: data.screenshot,
+            },
+          },
         });
       }
-
-      // Refresh projects list and navigate to dashboard
-      toast({
-        title: "Analysis Complete",
-        description: "View your results in the dashboard.",
-      });
-      
-      navigate("/dashboard");
     } catch (error) {
       console.error("Analysis error:", error);
       toast({
@@ -107,11 +113,6 @@ const Index = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
   };
 
   if (authLoading) {

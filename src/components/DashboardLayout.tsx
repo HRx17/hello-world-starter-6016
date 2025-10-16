@@ -21,9 +21,6 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <div className="min-h-screen flex w-full bg-gradient-to-br from-background via-background to-primary/5">
         <AppSidebar onSignOut={handleSignOut} />
         <div className="flex-1 flex flex-col">
-          <header className="h-12 flex items-center border-b px-4 bg-background/50 backdrop-blur">
-            <SidebarTrigger />
-          </header>
           <main className="flex-1 overflow-auto">
             {children}
           </main>
