@@ -1,12 +1,18 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, AlertTriangle, Info, MapPin, Eye } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, MapPin, Sparkles, Loader2 } from "lucide-react";
 import { Violation } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import ReactMarkdown from "react-markdown";
 
 interface ViolationCardProps {
   violation: Violation;
-  violationNumber?: number; // For linking to annotated screenshot
+  violationNumber?: number;
+  framework?: string;
+  url?: string;
 }
 
 const severityConfig = {
@@ -30,9 +36,57 @@ const severityConfig = {
   },
 };
 
-export const ViolationCard = ({ violation, violationNumber }: ViolationCardProps) => {
+export const ViolationCard = ({ violation, violationNumber, framework, url }: ViolationCardProps) => {
   const config = severityConfig[violation.severity];
   const Icon = config.icon;
+  const { toast } = useToast();
+  
+  const [aiRecommendation, setAiRecommendation] = useState<string | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+
+  const getAIRecommendation = async () => {
+    setIsLoadingAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-ai-recommendations', {
+        body: {
+          violation: {
+            heuristic: violation.heuristic,
+            severity: violation.severity,
+            description: violation.description,
+            element: violation.pageElement || violation.location,
+          },
+          framework,
+          url,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        toast({
+          title: "AI Error",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setAiRecommendation(data.recommendation);
+      toast({
+        title: "AI Recommendations Ready",
+        description: "Scroll down to see detailed recommendations",
+      });
+    } catch (error) {
+      console.error('Error getting AI recommendations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to get AI recommendations. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
 
   return (
     <Card className={`${config.color} transition-all hover:shadow-md`}>
@@ -99,7 +153,7 @@ export const ViolationCard = ({ violation, violationNumber }: ViolationCardProps
         )}
         
         {/* Recommendation Section */}
-        <div className="pt-3 border-t bg-background/50 -mx-6 px-6 py-4 rounded-b-lg">
+        <div className="pt-3 border-t bg-background/50 -mx-6 px-6 py-4">
           <div className="flex-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
               💡 Recommended Fix
@@ -107,6 +161,64 @@ export const ViolationCard = ({ violation, violationNumber }: ViolationCardProps
             <p className="text-sm text-foreground leading-relaxed">
               {violation.recommendation}
             </p>
+          </div>
+          
+          {/* AI Recommendations Button */}
+          <div className="mt-4 pt-4 border-t">
+            {!aiRecommendation ? (
+              <Button 
+                onClick={getAIRecommendation}
+                disabled={isLoadingAI}
+                variant="outline"
+                className="w-full gap-2"
+              >
+                {isLoadingAI ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating AI Recommendations...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Get Detailed AI Recommendations
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                  <Sparkles className="h-4 w-4" />
+                  AI-Powered Recommendations
+                </div>
+                <div className="prose prose-sm max-w-none bg-primary/5 rounded-lg p-4 border border-primary/20">
+                  <ReactMarkdown
+                    components={{
+                      code: ({ node, className, children, ...props }) => {
+                        const isInline = !className;
+                        return isInline ? (
+                          <code className="bg-primary/10 px-1.5 py-0.5 rounded text-xs" {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <code className="block bg-background p-3 rounded-md text-xs overflow-x-auto" {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                      pre: ({ children }) => <div className="my-2">{children}</div>,
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc pl-5 mb-2">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal pl-5 mb-2">{children}</ol>,
+                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                      h3: ({ children }) => <h3 className="font-semibold text-sm mt-3 mb-2">{children}</h3>,
+                      strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                    }}
+                  >
+                    {aiRecommendation}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

@@ -28,4 +28,5 @@ export interface AnalysisResult {
   violations: Violation[];
   strengths: Strength[];
   screenshot?: string;
+  framework?: string;
 }

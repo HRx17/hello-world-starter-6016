@@ -296,6 +296,8 @@ const Results = () => {
                             key={index} 
                             violation={violation}
                             violationNumber={violationNumber > 0 ? violationNumber : undefined}
+                            framework={analysis.framework}
+                            url={analysis.url}
                           />
                         );
                       })}

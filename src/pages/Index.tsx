@@ -100,6 +100,7 @@ const Index = () => {
               violations: data.violations,
               strengths: data.strengths,
               screenshot: data.screenshot,
+              framework: framework || undefined,
             },
           },
         });

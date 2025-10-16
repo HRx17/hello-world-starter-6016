@@ -22,6 +22,7 @@ interface Project {
   name: string;
   url: string;
   created_at: string;
+  framework: string | null;
   analysis_results: AnalysisResult[];
 }
 
@@ -110,6 +111,7 @@ const Dashboard = () => {
           violations: analysis.violations,
           strengths: [],
           screenshot: analysis.screenshot,
+          framework: project.framework || undefined,
         },
       },
     });
