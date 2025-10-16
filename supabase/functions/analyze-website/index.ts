@@ -5,8 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const HEURISTIC_ANALYSIS_PROMPT = `You are a UX expert specializing in heuristic evaluation based on Nielsen's 10 Usability Heuristics:
+const HEURISTIC_ANALYSIS_PROMPT = `You are a senior UX auditor specializing in Nielsen's 10 Usability Heuristics. Analyze the website with extreme precision:
 
+**Nielsen's 10 Heuristics:**
 1. Visibility of system status
 2. Match between system and the real world
 3. User control and freedom
@@ -18,13 +19,39 @@ const HEURISTIC_ANALYSIS_PROMPT = `You are a UX expert specializing in heuristic
 9. Help users recognize, diagnose, and recover from errors
 10. Help and documentation
 
-Analyze the provided website screenshot and HTML structure. Identify:
-- VIOLATIONS: Specific usability problems that harm the user experience
-- STRENGTHS: What the website does well
+**Analysis Requirements:**
 
-Be extremely specific: mention exact UI elements, colors, layouts, button text, navigation patterns, and interactions.
-Provide actionable recommendations that a designer can implement immediately.
-Focus on the most impactful issues first.`;
+VIOLATIONS - Identify 3-7 specific issues:
+- Include EXACT locations (header, footer, specific sections)
+- Mention ACTUAL UI elements (button text, form labels, navigation items)
+- Reference COLORS, SIZES, SPACING when relevant
+- Note INTERACTIVE elements (hover states, modals, dropdowns visible in HTML)
+- Specify CSS SELECTORS when identifiable
+- Focus on HIGH-IMPACT issues first, then medium, then low
+
+STRENGTHS - Identify 3-5 positive patterns:
+- What does the site do EXCEPTIONALLY well?
+- Which heuristics are STRONGLY followed?
+- Specific examples of good UX decisions
+
+RECOMMENDATIONS - Must be:
+- ACTIONABLE: Designers can implement without guessing
+- SPECIFIC: Include exact changes ("Change button from X to Y")
+- PRIORITIZED: Most critical fixes first
+- MEASURABLE: Clear success criteria when possible
+
+**Critical Analysis Areas:**
+- Navigation clarity and information architecture
+- Form design and input validation cues
+- Error messaging and system feedback
+- Visual hierarchy and scanability  
+- Mobile responsiveness indicators (check HTML for viewport meta, responsive classes)
+- Accessibility red flags (contrast, alt text, ARIA in HTML)
+- Loading states and progress indicators
+- Call-to-action prominence and clarity
+- Consistency of patterns across page sections
+
+Be ruthlessly specific. Avoid generic feedback like "improve readability" - instead say "Increase line-height from 1.2 to 1.6 on body text for better scanability".`;
 
 const HEURISTIC_EVALUATION_TOOL = {
   type: "function",
@@ -125,6 +152,8 @@ serve(async (req) => {
         url: url,
         formats: ['html', 'markdown', 'screenshot'],
         onlyMainContent: false,
+        includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer'],
+        waitFor: 2000, // Wait for dynamic content to load
       }),
     });
 
@@ -165,7 +194,27 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: `Analyze this website: ${url}\n\nWebsite Title: ${websiteName}\n\nContent:\n${markdown.substring(0, 4000)}`
+                text: `Analyze this website: ${url}
+
+**Website Title:** ${websiteName}
+
+**Page Content (Markdown):**
+${markdown.substring(0, 5000)}
+
+**Key HTML Elements to Inspect:**
+${html.substring(0, 3000)}
+
+Look for:
+- Interactive elements (buttons, forms, links, modals)
+- Navigation structure and patterns
+- Form inputs and validation cues
+- Error messages or system feedback
+- Loading indicators or skeleton screens
+- Mobile/responsive design patterns
+- ARIA labels and accessibility attributes
+- Color contrast issues (if visible in screenshot)
+
+Provide a thorough, specific analysis focusing on the most impactful UX issues.`
               },
               {
                 type: 'image_url',
