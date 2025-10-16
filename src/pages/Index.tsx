@@ -1,11 +1,184 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingAnalysis } from "@/components/LoadingAnalysis";
+import { useToast } from "@/hooks/use-toast";
+import { Search, Sparkles } from "lucide-react";
 
 const Index = () => {
+  const [url, setUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleAnalyze = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid website URL (e.g., https://example.com)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-website`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Analysis failed");
+      }
+
+      const data = await response.json();
+
+      navigate("/results", {
+        state: {
+          analysis: {
+            url,
+            websiteName: data.websiteName || new URL(url).hostname,
+            overallScore: data.overallScore,
+            violations: data.violations,
+            strengths: data.strengths,
+            screenshot: data.screenshot,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Analysis error:", error);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to analyze website. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const exampleUrls = [
+    "https://amazon.com",
+    "https://stripe.com",
+    "https://airbnb.com",
+  ];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      <div className="container mx-auto px-4 py-16 max-w-4xl">
+        {/* Hero Section */}
+        <div className="text-center mb-12 space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-primary">AI-Powered UX Analysis</span>
+          </div>
+          
+          <h1 className="text-5xl font-bold tracking-tight">
+            UXProbe
+          </h1>
+          
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Instantly evaluate any website's usability with AI-powered heuristic analysis based on Nielsen's 10 Usability Heuristics
+          </p>
+        </div>
+
+        {/* Main Card */}
+        <Card className="bg-card/50 backdrop-blur shadow-xl">
+          <CardHeader>
+            <CardTitle className="text-2xl">Analyze a Website</CardTitle>
+            <CardDescription>
+              Enter any URL to get a comprehensive usability evaluation with actionable recommendations
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <LoadingAnalysis />
+            ) : (
+              <form onSubmit={handleAnalyze} className="space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="url" className="text-sm font-medium">
+                    Website URL
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="url"
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://example.com"
+                      required
+                      className="flex-1"
+                    />
+                    <Button type="submit" size="lg" className="px-8">
+                      <Search className="mr-2 h-4 w-4" />
+                      Analyze
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Try these examples:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {exampleUrls.map((exampleUrl) => (
+                      <Button
+                        key={exampleUrl}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setUrl(exampleUrl)}
+                      >
+                        {new URL(exampleUrl).hostname}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Features */}
+        <div className="grid md:grid-cols-3 gap-6 mt-12">
+          {[
+            {
+              title: "AI-Powered Analysis",
+              description: "Advanced AI evaluates your site against proven UX principles",
+            },
+            {
+              title: "Actionable Insights",
+              description: "Get specific recommendations you can implement immediately",
+            },
+            {
+              title: "Instant Results",
+              description: "Complete analysis in under 30 seconds",
+            },
+          ].map((feature, index) => (
+            <Card key={index} className="bg-card/30 backdrop-blur border-muted">
+              <CardHeader>
+                <CardTitle className="text-lg">{feature.title}</CardTitle>
+                <CardDescription>{feature.description}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
