@@ -140,14 +140,20 @@ const Results = () => {
                       {severity} Priority ({items.length})
                     </h3>
                     <div className="space-y-3">
-                      {items.map((violation, index) => (
-                        <ViolationCard 
-                          key={index} 
-                          violation={violation}
-                          screenshot={analysis.screenshot}
-                          onViewScreenshot={() => setIsScreenshotOpen(true)}
-                        />
-                      ))}
+                      {items.map((violation, index) => {
+                        // Calculate global violation number across all severities
+                        const violationNumber = analysis.violations
+                          .filter(v => v.boundingBox)
+                          .findIndex(v => v === violation) + 1;
+                        
+                        return (
+                          <ViolationCard 
+                            key={index} 
+                            violation={violation}
+                            violationNumber={violationNumber > 0 ? violationNumber : undefined}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );

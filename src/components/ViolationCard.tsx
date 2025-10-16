@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 
 interface ViolationCardProps {
   violation: Violation;
-  screenshot?: string;
-  onViewScreenshot?: () => void;
+  violationNumber?: number; // For linking to annotated screenshot
 }
 
 const severityConfig = {
@@ -31,7 +30,7 @@ const severityConfig = {
   },
 };
 
-export const ViolationCard = ({ violation, screenshot, onViewScreenshot }: ViolationCardProps) => {
+export const ViolationCard = ({ violation, violationNumber }: ViolationCardProps) => {
   const config = severityConfig[violation.severity];
   const Icon = config.icon;
 
@@ -42,9 +41,24 @@ export const ViolationCard = ({ violation, screenshot, onViewScreenshot }: Viola
           <div className="flex items-start gap-3 flex-1">
             <Icon className={`${config.iconColor} mt-1 flex-shrink-0`} size={20} />
             <div className="space-y-2 flex-1">
-              <CardTitle className="text-lg">{violation.title}</CardTitle>
+              <div className="flex items-center gap-2">
+                {violationNumber && (
+                  <div
+                    className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs ${
+                      violation.severity === "high"
+                        ? "bg-destructive"
+                        : violation.severity === "medium"
+                        ? "bg-yellow-600"
+                        : "bg-blue-600"
+                    }`}
+                  >
+                    {violationNumber}
+                  </div>
+                )}
+                <CardTitle className="text-lg">{violation.title}</CardTitle>
+              </div>
               
-              {/* Violated Heuristic Badge - Made clear it's a violation */}
+              {/* Violated Heuristic Badge */}
               <div className="inline-flex items-center gap-2 bg-destructive/5 backdrop-blur px-3 py-1.5 rounded-md border border-destructive/20">
                 <span className="text-base">❌</span>
                 <div className="text-xs">
@@ -63,39 +77,6 @@ export const ViolationCard = ({ violation, screenshot, onViewScreenshot }: Viola
         <div>
           <p className="text-sm text-muted-foreground leading-relaxed">{violation.description}</p>
         </div>
-
-        {/* Screenshot Preview Section */}
-        {screenshot && (
-          <div className="bg-muted/30 rounded-lg overflow-hidden border">
-            <div className="p-2 bg-muted/50 border-b flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Page Screenshot
-              </span>
-              {onViewScreenshot && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onViewScreenshot}
-                  className="h-6 text-xs"
-                >
-                  <Eye className="mr-1 h-3 w-3" />
-                  View Full Size
-                </Button>
-              )}
-            </div>
-            <div className="p-2">
-              <img
-                src={screenshot}
-                alt="Page screenshot showing violation area"
-                className="w-full h-auto rounded border cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={onViewScreenshot}
-              />
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Click to view full screenshot and locate the issue
-              </p>
-            </div>
-          </div>
-        )}
         
         {/* Location Text Section */}
         {violation.location && (
