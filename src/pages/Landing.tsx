@@ -169,7 +169,7 @@ const Landing = () => {
           </p>
 
           <div className="flex flex-wrap gap-4 justify-center mb-12 animate-fade-in animation-delay-1000">
-            <Button size="lg" className="text-lg px-8 py-6 hover-scale" onClick={() => navigate("/auth")}>
+            <Button size="lg" className="text-lg px-8 py-6 hover-scale" onClick={() => navigate("/analyze")}>
               Start Free Analysis
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -177,9 +177,9 @@ const Landing = () => {
               size="lg" 
               variant="outline" 
               className="text-lg px-8 py-6 hover-scale"
-              onClick={() => navigate("/analyze")}
+              onClick={() => navigate("/auth")}
             >
-              Try Without Signup
+              Sign Up for More Features
             </Button>
           </div>
 
