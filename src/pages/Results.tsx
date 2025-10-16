@@ -6,15 +6,18 @@ import { ScoreDisplay } from "@/components/ScoreDisplay";
 import { ViolationCard } from "@/components/ViolationCard";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
 import { AnnotatedScreenshot } from "@/components/AnnotatedScreenshot";
+import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { AnalysisResult } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CheckCircle2, ExternalLink, Image as ImageIcon, Download, Share2, Mail } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, Image as ImageIcon, Download, Share2, Mail, Sparkles, UserPlus } from "lucide-react";
 
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const analysis = location.state?.analysis as AnalysisResult | undefined;
   const [isScreenshotOpen, setIsScreenshotOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -113,18 +116,20 @@ const Results = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/dashboard")}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
-            </Button>
+    <>
+      <AnimatedBackground />
+      <div className="min-h-screen">
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                onClick={() => navigate(user ? "/dashboard" : "/analyze")}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {user ? "Back to Dashboard" : "New Analysis"}
+              </Button>
             
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleEmailReport}>
@@ -173,8 +178,46 @@ const Results = () => {
           </div>
         </div>
 
+        {/* Guest User CTA */}
+        {!user && (
+          <Card className="mb-8 bg-gradient-to-br from-primary via-purple-600 to-primary text-white border-0 shadow-2xl">
+            <CardContent className="p-8">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold mb-1">Want to Save These Results?</h3>
+                  <p className="text-white/90">
+                    Create a free account to save your analyses, track improvements over time, and access advanced features like comparisons and PDF exports.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button 
+                  size="lg"
+                  variant="secondary"
+                  onClick={() => navigate("/auth")}
+                  className="flex-1"
+                >
+                  <UserPlus className="mr-2 h-5 w-5" />
+                  Create Free Account
+                </Button>
+                <Button 
+                  size="lg"
+                  variant="outline"
+                  onClick={() => navigate("/analyze")}
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/30"
+                >
+                  New Analysis
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Score Overview */}
-        <Card className="mb-8 bg-card/50 backdrop-blur">
+        <Card className="mb-8 bg-card/50 backdrop-blur border-2 shadow-xl">
           <CardHeader>
             <CardTitle className="text-2xl">Overall Usability Score</CardTitle>
           </CardHeader>
@@ -296,6 +339,7 @@ const Results = () => {
         )}
       </div>
     </div>
+    </>
   );
 };
 
