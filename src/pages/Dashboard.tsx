@@ -138,46 +138,60 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
+    <div className="container mx-auto px-4 py-12 max-w-7xl">
+      <div className="mb-12 space-y-3 animate-fade-in">
+        <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
+          Dashboard
+        </h1>
+        <p className="text-xl text-muted-foreground">
           View and manage your analyzed websites
         </p>
       </div>
 
       {projects.length === 0 ? (
-        <Card className="bg-card/50 backdrop-blur">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No projects yet</h3>
-            <p className="text-muted-foreground text-center mb-6">
-              Start analyzing websites to see them here
+        <Card className="bg-card/50 backdrop-blur border-2 shadow-2xl animate-fade-in animation-delay-200">
+          <CardContent className="flex flex-col items-center justify-center py-20">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center mb-6">
+              <Sparkles className="h-10 w-10 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold mb-3 text-center">No projects yet</h3>
+            <p className="text-muted-foreground text-center mb-8 max-w-md text-lg">
+              Start analyzing websites to unlock powerful UX insights and track improvements over time
             </p>
-            <Button onClick={() => navigate("/")}>
+            <Button 
+              size="lg" 
+              onClick={() => navigate("/analyze")}
+              className="hover-scale text-lg px-8 py-6"
+            >
+              <Sparkles className="h-5 w-5 mr-2" />
               Analyze Your First Website
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 animate-fade-in animation-delay-400">
           {projects.map((project) => {
             const latestAnalysis = project.analysis_results[0];
             const analysisCount = project.analysis_results.length;
 
             return (
-              <Card key={project.id} className="bg-card/50 backdrop-blur hover:shadow-lg transition-shadow">
+              <Card 
+                key={project.id} 
+                className="bg-card/50 backdrop-blur border-2 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg truncate">{project.name}</CardTitle>
-                      <CardDescription className="truncate">
+                      <CardTitle className="text-xl truncate group-hover:text-primary transition-colors">
+                        {project.name}
+                      </CardTitle>
+                      <CardDescription className="truncate text-base">
                         {new URL(project.url).hostname}
                       </CardDescription>
                     </div>
                     {latestAnalysis && (
-                      <Badge className={`${getScoreColor(latestAnalysis.score)} shrink-0`}>
-                        <BarChart3 className="h-3 w-3 mr-1" />
+                      <Badge className={`${getScoreColor(latestAnalysis.score)} shrink-0 text-base px-3 py-1`}>
+                        <BarChart3 className="h-4 w-4 mr-1" />
                         {latestAnalysis.score}
                       </Badge>
                     )}
@@ -196,21 +210,22 @@ const Dashboard = () => {
                     )}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     {latestAnalysis && (
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="flex-1"
+                        size="default"
+                        className="flex-1 hover-scale"
                         onClick={() => handleViewAnalysis(project, latestAnalysis.id)}
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        View
+                        View Analysis
                       </Button>
                     )}
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="default"
+                      className="hover:bg-destructive hover:text-destructive-foreground transition-colors"
                       onClick={() => handleDeleteProject(project.id)}
                     >
                       <Trash2 className="h-4 w-4" />
