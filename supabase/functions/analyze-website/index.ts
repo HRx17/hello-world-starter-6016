@@ -27,6 +27,10 @@ VIOLATIONS - Identify 3-7 specific issues:
 - Reference COLORS, SIZES, SPACING when relevant
 - Note INTERACTIVE elements (hover states, modals, dropdowns visible in HTML)
 - Specify CSS SELECTORS when identifiable
+- **CRITICAL: Provide approximate bounding box coordinates** for where the violation appears on the screenshot (percentage-based: 0-100)
+  - Example: Navigation clutter at top-left would be {x: 5, y: 2, width: 40, height: 8}
+  - Example: Footer issue at bottom would be {x: 0, y: 85, width: 100, height: 15}
+  - Be as accurate as possible by visually locating the issue on the screenshot
 - Focus on HIGH-IMPACT issues first, then medium, then low
 
 STRENGTHS - Identify 3-5 positive patterns:
@@ -50,6 +54,14 @@ RECOMMENDATIONS - Must be:
 - Loading states and progress indicators
 - Call-to-action prominence and clarity
 - Consistency of patterns across page sections
+
+**Screenshot Coordinate Guidelines:**
+- Look carefully at the screenshot to identify where each violation appears
+- Use percentage-based coordinates where 0,0 is top-left and 100,100 is bottom-right
+- For header issues: y typically 0-15%
+- For main content: y typically 15-80%
+- For footer issues: y typically 80-100%
+- Width/height should encompass the problematic area
 
 Be ruthlessly specific. Avoid generic feedback like "improve readability" - instead say "Increase line-height from 1.2 to 1.6 on body text for better scanability".`;
 
@@ -98,6 +110,29 @@ const HEURISTIC_EVALUATION_TOOL = {
               pageElement: { 
                 type: "string",
                 description: "CSS selector or element description if identifiable"
+              },
+              boundingBox: {
+                type: "object",
+                description: "Approximate bounding box coordinates for the violation area on the screenshot. Use percentage-based coordinates (0-100) relative to image dimensions.",
+                properties: {
+                  x: { 
+                    type: "number",
+                    description: "X coordinate as percentage of image width (0-100)"
+                  },
+                  y: { 
+                    type: "number",
+                    description: "Y coordinate as percentage of image height (0-100)"
+                  },
+                  width: { 
+                    type: "number",
+                    description: "Width as percentage of image width (0-100)"
+                  },
+                  height: { 
+                    type: "number",
+                    description: "Height as percentage of image height (0-100)"
+                  }
+                },
+                required: ["x", "y", "width", "height"]
               }
             },
             required: ["heuristic", "severity", "title", "description", "location", "recommendation"]

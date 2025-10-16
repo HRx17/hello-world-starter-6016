@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoreDisplay } from "@/components/ScoreDisplay";
 import { ViolationCard } from "@/components/ViolationCard";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
+import { AnnotatedScreenshot } from "@/components/AnnotatedScreenshot";
 import { AnalysisResult } from "@/lib/types";
 import { ArrowLeft, CheckCircle2, ExternalLink, Image as ImageIcon } from "lucide-react";
 
@@ -112,6 +113,17 @@ const Results = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Annotated Screenshot */}
+        {analysis.screenshot && analysis.violations.some(v => v.boundingBox) && (
+          <div className="mb-8">
+            <AnnotatedScreenshot
+              screenshot={analysis.screenshot}
+              violations={analysis.violations}
+              websiteName={analysis.websiteName}
+            />
+          </div>
+        )}
 
         {/* Violations */}
         {analysis.violations.length > 0 && (
