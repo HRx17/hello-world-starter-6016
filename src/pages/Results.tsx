@@ -1,16 +1,18 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScoreDisplay } from "@/components/ScoreDisplay";
 import { ViolationCard } from "@/components/ViolationCard";
+import { ScreenshotViewer } from "@/components/ScreenshotViewer";
 import { AnalysisResult } from "@/lib/types";
-import { ArrowLeft, CheckCircle2, ExternalLink } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, Image as ImageIcon } from "lucide-react";
 
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const analysis = location.state?.analysis as AnalysisResult | undefined;
+  const [isScreenshotOpen, setIsScreenshotOpen] = useState(false);
 
   useEffect(() => {
     if (!analysis) {
@@ -44,15 +46,27 @@ const Results = () => {
 
           <div className="space-y-2">
             <h1 className="text-4xl font-bold">{analysis.websiteName}</h1>
-            <a
-              href={analysis.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
-            >
-              {analysis.url}
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            <div className="flex items-center gap-4 flex-wrap">
+              <a
+                href={analysis.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+              >
+                {analysis.url}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+              {analysis.screenshot && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsScreenshotOpen(true)}
+                >
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  View Full Screenshot
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -115,7 +129,11 @@ const Results = () => {
                     </h3>
                     <div className="space-y-3">
                       {items.map((violation, index) => (
-                        <ViolationCard key={index} violation={violation} />
+                        <ViolationCard 
+                          key={index} 
+                          violation={violation}
+                          onViewScreenshot={analysis.screenshot ? () => setIsScreenshotOpen(true) : undefined}
+                        />
                       ))}
                     </div>
                   </div>
@@ -145,6 +163,15 @@ const Results = () => {
               </CardContent>
             </Card>
           </div>
+        )}
+        {/* Screenshot Viewer Modal */}
+        {analysis.screenshot && (
+          <ScreenshotViewer
+            screenshot={analysis.screenshot}
+            websiteName={analysis.websiteName}
+            isOpen={isScreenshotOpen}
+            onClose={() => setIsScreenshotOpen(false)}
+          />
         )}
       </div>
     </div>
