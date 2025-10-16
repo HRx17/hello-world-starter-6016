@@ -125,10 +125,10 @@ const Results = () => {
             <div className="flex items-center justify-between mb-4">
               <Button
                 variant="ghost"
-                onClick={() => navigate(user ? "/dashboard" : "/analyze")}
+                onClick={() => navigate(user ? "/dashboard" : "/")}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                {user ? "Back to Dashboard" : "New Analysis"}
+                {user ? "Back to Dashboard" : "Back to Home"}
               </Button>
             
             <div className="flex gap-2">

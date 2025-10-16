@@ -142,11 +142,11 @@ const Index = () => {
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Button
               variant="ghost"
-              onClick={() => navigate("/")}
+              onClick={() => navigate(user ? "/dashboard" : "/")}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Home
+              {user ? "Back to Dashboard" : "Back to Home"}
             </Button>
             
             {user && (
@@ -163,7 +163,9 @@ const Index = () => {
           <div className="text-center mb-12 space-y-4">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
               <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-primary">AI-Powered UX Analysis</span>
+              <span className="text-sm font-medium text-primary">
+                {user ? "Signed In" : "Try Free"} - AI-Powered UX Analysis
+              </span>
             </div>
             
             <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">

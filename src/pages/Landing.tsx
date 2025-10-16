@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FeatureCard } from "@/components/FeatureCard";
 import { Testimonial } from "@/components/Testimonial";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Sparkles, 
   BarChart3, 
@@ -21,6 +23,14 @@ import {
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
+
+  // Redirect logged-in users to dashboard
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, isLoading, navigate]);
 
   const features = [
     {

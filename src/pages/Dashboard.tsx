@@ -29,14 +29,11 @@ const Dashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
+  // Protected route - handled by ProtectedRoute wrapper in App.tsx
+  // No need for manual redirect here
 
   useEffect(() => {
     if (user) {
@@ -124,7 +121,7 @@ const Dashboard = () => {
     return "text-red-600 bg-red-50";
   };
 
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <Skeleton className="h-12 w-64 mb-8" />
