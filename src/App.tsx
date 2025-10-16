@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Results from "./pages/Results";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Compare from "./pages/Compare";
 import NotFound from "./pages/NotFound";
 import { DashboardLayout } from "./components/DashboardLayout";
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<DashboardLayout><Index /></DashboardLayout>} />
           <Route path="/dashboard" element={<DashboardLayout><Dashboard /></DashboardLayout>} />
+          <Route path="/compare" element={<DashboardLayout><Compare /></DashboardLayout>} />
           <Route path="/results" element={<DashboardLayout><Results /></DashboardLayout>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

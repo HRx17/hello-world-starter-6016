@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, LogOut, GitCompare } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -22,6 +22,7 @@ interface AppSidebarProps {
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "New Analysis", url: "/", icon: FileText },
+  { title: "Compare", url: "/compare", icon: GitCompare },
 ];
 
 export function AppSidebar({ onSignOut }: AppSidebarProps) {

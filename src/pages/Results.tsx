@@ -7,13 +7,94 @@ import { ViolationCard } from "@/components/ViolationCard";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
 import { AnnotatedScreenshot } from "@/components/AnnotatedScreenshot";
 import { AnalysisResult } from "@/lib/types";
-import { ArrowLeft, CheckCircle2, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, CheckCircle2, ExternalLink, Image as ImageIcon, Download, Share2, Mail } from "lucide-react";
 
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const analysis = location.state?.analysis as AnalysisResult | undefined;
   const [isScreenshotOpen, setIsScreenshotOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (!analysis) return;
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-report', {
+        body: {
+          analysisData: analysis,
+          projectName: analysis.websiteName,
+        },
+      });
+
+      if (error) throw error;
+
+      // Create download link
+      const blob = new Blob([data], { type: 'text/html' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${analysis.websiteName}-ux-report.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Report Downloaded",
+        description: "Your UX analysis report has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!analysis) return;
+    const shareData = {
+      title: `UX Analysis - ${analysis.websiteName}`,
+      text: `Check out this UX analysis for ${analysis.websiteName}. Overall score: ${analysis.overallScore}/100`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (error) {
+        console.log('Share cancelled');
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "Link Copied",
+        description: "Share link copied to clipboard",
+      });
+    }
+  };
+
+  const handleEmailReport = () => {
+    if (!analysis) return;
+    const subject = encodeURIComponent(`UX Analysis Report - ${analysis.websiteName}`);
+    const body = encodeURIComponent(
+      `Hi,\n\nI've completed a UX analysis for ${analysis.websiteName}.\n\n` +
+      `Overall Score: ${analysis.overallScore}/100\n` +
+      `URL: ${analysis.url}\n` +
+      `Total Violations: ${analysis.violations.length}\n\n` +
+      `View the full report here: ${window.location.href}\n\n` +
+      `Best regards`
+    );
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
 
   useEffect(() => {
     if (!analysis) {
@@ -36,14 +117,35 @@ const Results = () => {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/")}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Analyze Another Website
-          </Button>
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/dashboard")}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleEmailReport}>
+                <Mail className="mr-2 h-4 w-4" />
+                Email
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleShare}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleExportPDF}
+                disabled={isExporting}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {isExporting ? "Generating..." : "Export"}
+              </Button>
+            </div>
+          </div>
 
           <div className="space-y-2">
             <h1 className="text-4xl font-bold">{analysis.websiteName}</h1>

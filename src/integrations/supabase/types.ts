@@ -59,6 +59,38 @@ export type Database = {
           },
         ]
       }
+      comparisons: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          project_ids: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          project_ids: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          project_ids?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comparisons_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -86,6 +118,7 @@ export type Database = {
       projects: {
         Row: {
           created_at: string | null
+          framework: string | null
           id: string
           name: string
           updated_at: string | null
@@ -94,6 +127,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          framework?: string | null
           id?: string
           name: string
           updated_at?: string | null
@@ -102,6 +136,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          framework?: string | null
           id?: string
           name?: string
           updated_at?: string | null

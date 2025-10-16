@@ -2,15 +2,19 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingAnalysis } from "@/components/LoadingAnalysis";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Sparkles, LogOut } from "lucide-react";
+import { FRAMEWORKS } from "@/lib/frameworks";
 
 const Index = () => {
   const [url, setUrl] = useState("");
+  const [framework, setFramework] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -71,6 +75,7 @@ const Index = () => {
           user_id: user.id,
           name: data.websiteName || new URL(url).hostname,
           url,
+          framework: framework || null,
         })
         .select()
         .single();
@@ -158,9 +163,7 @@ const Index = () => {
           ) : (
             <form onSubmit={handleAnalyze} className="space-y-6">
               <div className="space-y-2">
-                <label htmlFor="url" className="text-sm font-medium">
-                  Website URL
-                </label>
+                <Label htmlFor="url">Website URL</Label>
                 <div className="flex gap-2">
                   <Input
                     id="url"
@@ -176,6 +179,25 @@ const Index = () => {
                     Analyze
                   </Button>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="framework">Framework (Optional)</Label>
+                <Select value={framework} onValueChange={setFramework}>
+                  <SelectTrigger id="framework">
+                    <SelectValue placeholder="Select framework if applicable" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FRAMEWORKS.map((fw) => (
+                      <SelectItem key={fw.value} value={fw.value}>
+                        {fw.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Help us provide framework-specific recommendations
+                </p>
               </div>
 
               <div className="pt-4 border-t">
