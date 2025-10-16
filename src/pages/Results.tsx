@@ -132,7 +132,8 @@ const Results = () => {
                         <ViolationCard 
                           key={index} 
                           violation={violation}
-                          onViewScreenshot={analysis.screenshot ? () => setIsScreenshotOpen(true) : undefined}
+                          screenshot={analysis.screenshot}
+                          onViewScreenshot={() => setIsScreenshotOpen(true)}
                         />
                       ))}
                     </div>

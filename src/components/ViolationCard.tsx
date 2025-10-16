@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, AlertTriangle, Info, MapPin, Eye } from "lucide-react";
 import { Violation } from "@/lib/types";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 
 interface ViolationCardProps {
   violation: Violation;
+  screenshot?: string;
   onViewScreenshot?: () => void;
 }
 
@@ -30,24 +31,9 @@ const severityConfig = {
   },
 };
 
-// Nielsen's heuristics with emojis for visual distinction
-const heuristicIcons: Record<string, string> = {
-  "Visibility of system status": "👁️",
-  "Match between system and the real world": "🌍",
-  "User control and freedom": "🎮",
-  "Consistency and standards": "📐",
-  "Error prevention": "🛡️",
-  "Recognition rather than recall": "🧠",
-  "Flexibility and efficiency of use": "⚡",
-  "Aesthetic and minimalist design": "🎨",
-  "Help users recognize, diagnose, and recover from errors": "🔧",
-  "Help and documentation": "📚",
-};
-
-export const ViolationCard = ({ violation, onViewScreenshot }: ViolationCardProps) => {
+export const ViolationCard = ({ violation, screenshot, onViewScreenshot }: ViolationCardProps) => {
   const config = severityConfig[violation.severity];
   const Icon = config.icon;
-  const heuristicEmoji = heuristicIcons[violation.heuristic] || "🔍";
 
   return (
     <Card className={`${config.color} transition-all hover:shadow-md`}>
@@ -58,12 +44,13 @@ export const ViolationCard = ({ violation, onViewScreenshot }: ViolationCardProp
             <div className="space-y-2 flex-1">
               <CardTitle className="text-lg">{violation.title}</CardTitle>
               
-              {/* Prominent Heuristic Badge */}
-              <div className="inline-flex items-center gap-2 bg-background/80 backdrop-blur px-3 py-1.5 rounded-md border">
-                <span className="text-lg">{heuristicEmoji}</span>
-                <span className="text-sm font-medium text-foreground">
-                  {violation.heuristic}
-                </span>
+              {/* Violated Heuristic Badge - Made clear it's a violation */}
+              <div className="inline-flex items-center gap-2 bg-destructive/5 backdrop-blur px-3 py-1.5 rounded-md border border-destructive/20">
+                <span className="text-base">❌</span>
+                <div className="text-xs">
+                  <p className="font-semibold text-destructive uppercase tracking-wide">Violated Heuristic</p>
+                  <p className="text-foreground font-medium">{violation.heuristic}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -76,8 +63,41 @@ export const ViolationCard = ({ violation, onViewScreenshot }: ViolationCardProp
         <div>
           <p className="text-sm text-muted-foreground leading-relaxed">{violation.description}</p>
         </div>
+
+        {/* Screenshot Preview Section */}
+        {screenshot && (
+          <div className="bg-muted/30 rounded-lg overflow-hidden border">
+            <div className="p-2 bg-muted/50 border-b flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Page Screenshot
+              </span>
+              {onViewScreenshot && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onViewScreenshot}
+                  className="h-6 text-xs"
+                >
+                  <Eye className="mr-1 h-3 w-3" />
+                  View Full Size
+                </Button>
+              )}
+            </div>
+            <div className="p-2">
+              <img
+                src={screenshot}
+                alt="Page screenshot showing violation area"
+                className="w-full h-auto rounded border cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={onViewScreenshot}
+              />
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Click to view full screenshot and locate the issue
+              </p>
+            </div>
+          </div>
+        )}
         
-        {/* Prominent Location Section */}
+        {/* Location Text Section */}
         {violation.location && (
           <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg border-l-4 border-primary">
             <MapPin className="text-primary mt-0.5 flex-shrink-0" size={16} />
@@ -99,26 +119,13 @@ export const ViolationCard = ({ violation, onViewScreenshot }: ViolationCardProp
         
         {/* Recommendation Section */}
         <div className="pt-3 border-t bg-background/50 -mx-6 px-6 py-4 rounded-b-lg">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                💡 Recommended Fix
-              </p>
-              <p className="text-sm text-foreground leading-relaxed">
-                {violation.recommendation}
-              </p>
-            </div>
-            {onViewScreenshot && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onViewScreenshot}
-                className="flex-shrink-0"
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                View on Page
-              </Button>
-            )}
+          <div className="flex-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              💡 Recommended Fix
+            </p>
+            <p className="text-sm text-foreground leading-relaxed">
+              {violation.recommendation}
+            </p>
           </div>
         </div>
       </CardContent>
