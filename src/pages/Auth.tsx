@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { Sparkles } from "lucide-react";
+import { loginSchema, signupSchema } from "@/lib/validationSchemas";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -41,13 +42,32 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      // Validate input
+      if (isLogin) {
+        const validation = loginSchema.safeParse({ email, password });
+        if (!validation.success) {
+          throw new Error(validation.error.errors[0].message);
+        }
+      } else {
+        const validation = signupSchema.safeParse({ email, password, fullName });
+        if (!validation.success) {
+          throw new Error(validation.error.errors[0].message);
+        }
+      }
+
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          // Provide user-friendly error messages
+          if (error.message.includes("Invalid login credentials")) {
+            throw new Error("Invalid email or password. Please try again.");
+          }
+          throw error;
+        }
 
         toast({
           title: "Welcome back!",
@@ -55,17 +75,23 @@ const Auth = () => {
         });
       } else {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              full_name: fullName,
+              full_name: fullName.trim(),
             },
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Provide user-friendly error messages
+          if (error.message.includes("already registered")) {
+            throw new Error("This email is already registered. Please sign in instead.");
+          }
+          throw error;
+        }
 
         toast({
           title: "Account created!",
