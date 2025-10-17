@@ -241,6 +241,10 @@ export default function StudyPlanDetail() {
         <Tabs defaultValue="overview" className="w-full">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="plan">
+              <ListTodo className="mr-2 h-4 w-4" />
+              Action Plan ({((study.plan_steps as any[]) || []).length} steps)
+            </TabsTrigger>
             <TabsTrigger value="interviews">
               <Users className="mr-2 h-4 w-4" />
               Interviews ({interviews?.length || 0})
@@ -317,58 +321,164 @@ export default function StudyPlanDetail() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
 
-            {((study.plan_steps as any[]) || []).length > 0 && (
+          <TabsContent value="plan" className="space-y-6">
+            {((study.plan_steps as any[]) || []).length === 0 ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>Action Steps</CardTitle>
+                  <CardTitle>No Action Plan Yet</CardTitle>
                   <CardDescription>
-                    Track your progress through the research plan
+                    Generate AI suggestions first, then convert them to actionable steps
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {((study.plan_steps as any[]) || [])
-                      .sort((a, b) => (a.order || 0) - (b.order || 0))
-                      .map((step) => (
-                        <div 
-                          key={step.id}
-                          className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
-                        >
-                          <button
-                            onClick={() => toggleStepMutation.mutate({ 
-                              stepId: step.id, 
-                              completed: !step.completed 
-                            })}
-                            className="mt-0.5 flex-shrink-0"
-                          >
-                            {step.completed ? (
-                              <CheckCircle2 className="h-5 w-5 text-primary" />
-                            ) : (
-                              <Circle className="h-5 w-5 text-muted-foreground" />
-                            )}
-                          </button>
-                          <div className="flex-1">
-                            <h4 className={`font-medium ${step.completed ? 'line-through text-muted-foreground' : ''}`}>
-                              {step.title}
-                            </h4>
-                            {step.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {step.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
+                  <Button onClick={() => navigate(`/research/study/${id}?tab=overview`)}>
+                    Go to Overview to Generate Plan
+                  </Button>
                 </CardContent>
               </Card>
+            ) : (
+              <>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold">Actionable Steps for Study</h2>
+                    <p className="text-muted-foreground mt-1">
+                      Track your progress and link steps to actual research activities
+                    </p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Badge variant="secondary">
+                      {((study.plan_steps as any[]) || []).filter((s: any) => s.completed).length} / {((study.plan_steps as any[]) || []).length} Completed
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  {((study.plan_steps as any[]) || [])
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
+                    .map((step) => {
+                      const isInterviewStep = step.title.toLowerCase().includes('interview');
+                      const isObservationStep = step.title.toLowerCase().includes('observation') || 
+                                              step.title.toLowerCase().includes('field') ||
+                                              step.title.toLowerCase().includes('diary');
+                      const isPersonaStep = step.title.toLowerCase().includes('persona');
+                      const isAnalysisStep = step.title.toLowerCase().includes('analysis') || 
+                                           step.title.toLowerCase().includes('synthesis');
+
+                      return (
+                        <Card 
+                          key={step.id}
+                          className={`transition-all ${step.completed ? 'opacity-60' : ''}`}
+                        >
+                          <CardHeader>
+                            <div className="flex items-start gap-3">
+                              <button
+                                onClick={() => toggleStepMutation.mutate({ 
+                                  stepId: step.id, 
+                                  completed: !step.completed 
+                                })}
+                                className="mt-1 flex-shrink-0"
+                              >
+                                {step.completed ? (
+                                  <CheckCircle2 className="h-6 w-6 text-primary" />
+                                ) : (
+                                  <Circle className="h-6 w-6 text-muted-foreground" />
+                                )}
+                              </button>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    Step {step.order}
+                                  </Badge>
+                                  {isInterviewStep && (
+                                    <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                      <Users className="h-3 w-3 mr-1" />
+                                      Interview
+                                    </Badge>
+                                  )}
+                                  {isObservationStep && (
+                                    <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20">
+                                      <Lightbulb className="h-3 w-3 mr-1" />
+                                      Observation
+                                    </Badge>
+                                  )}
+                                  {isPersonaStep && (
+                                    <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
+                                      <UserCircle className="h-3 w-3 mr-1" />
+                                      Persona
+                                    </Badge>
+                                  )}
+                                  {isAnalysisStep && (
+                                    <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20">
+                                      Analysis
+                                    </Badge>
+                                  )}
+                                </div>
+                                <h4 className={`font-semibold text-lg ${step.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                  {step.title}
+                                </h4>
+                                {step.description && (
+                                  <p className="text-sm text-muted-foreground mt-2">
+                                    {step.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </CardHeader>
+                          {(isInterviewStep || isObservationStep || isPersonaStep) && !step.completed && (
+                            <CardContent className="pt-0">
+                              <div className="flex gap-2 flex-wrap">
+                                {isInterviewStep && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => setNewInterviewOpen(true)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Schedule Interview
+                                  </Button>
+                                )}
+                                {isObservationStep && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => navigate(`/research/study/${id}/observations`)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Observation
+                                  </Button>
+                                )}
+                                {isPersonaStep && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => navigate(`/research/study/${id}/persona/new`)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Create Persona
+                                  </Button>
+                                )}
+                              </div>
+                            </CardContent>
+                          )}
+                        </Card>
+                      );
+                    })}
+                </div>
+              </>
             )}
           </TabsContent>
 
+
           <TabsContent value="interviews" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Interview Sessions</h2>
+              <div>
+                <h2 className="text-2xl font-bold">Interview Sessions</h2>
+                <p className="text-muted-foreground mt-1">
+                  Plan, schedule, and conduct user interviews
+                </p>
+              </div>
               <Dialog open={newInterviewOpen} onOpenChange={setNewInterviewOpen}>
                 <DialogTrigger asChild>
                   <Button>
@@ -412,36 +522,54 @@ export default function StudyPlanDetail() {
               </Dialog>
             </div>
 
+
             {interviews && interviews.length > 0 ? (
               <div className="grid gap-4">
                 {interviews.map((interview) => (
                   <Card 
                     key={interview.id} 
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
+                    className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
                     onClick={() => navigate(`/research/interview/${interview.id}`)}
                   >
                     <CardHeader>
                       <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle>{interview.participant_name}</CardTitle>
-                          <CardDescription>
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            {interview.participant_name}
+                          </CardTitle>
+                          <CardDescription className="mt-2">
                             {interview.scheduled_at 
                               ? `Scheduled: ${format(new Date(interview.scheduled_at), 'PPP p')}`
                               : 'Not scheduled yet'
                             }
                           </CardDescription>
                         </div>
-                        <Badge>{interview.status}</Badge>
+                        <Badge variant={interview.status === 'completed' ? 'default' : 'secondary'}>
+                          {interview.status}
+                        </Badge>
                       </div>
                     </CardHeader>
                   </Card>
                 ))}
               </div>
             ) : (
-              <Card>
-                <CardHeader>
+              <Card className="border-dashed">
+                <CardHeader className="text-center py-12">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Users className="h-6 w-6 text-muted-foreground" />
+                  </div>
                   <CardTitle>No interviews scheduled</CardTitle>
-                  <CardDescription>Schedule your first interview to begin research</CardDescription>
+                  <CardDescription className="mt-2">
+                    Schedule your first interview to begin gathering user insights
+                  </CardDescription>
+                  <Button 
+                    className="mt-4 mx-auto"
+                    onClick={() => setNewInterviewOpen(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Schedule First Interview
+                  </Button>
                 </CardHeader>
               </Card>
             )}
@@ -449,7 +577,12 @@ export default function StudyPlanDetail() {
 
           <TabsContent value="observations" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Research Observations</h2>
+              <div>
+                <h2 className="text-2xl font-bold">Research Observations</h2>
+                <p className="text-muted-foreground mt-1">
+                  Capture insights, pain points, and behaviors from your research
+                </p>
+              </div>
               <Button onClick={() => navigate(`/research/study/${id}/observations`)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Observation
@@ -482,10 +615,22 @@ export default function StudyPlanDetail() {
                 ))}
               </div>
             ) : (
-              <Card>
-                <CardHeader>
+              <Card className="border-dashed">
+                <CardHeader className="text-center py-12">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Lightbulb className="h-6 w-6 text-muted-foreground" />
+                  </div>
                   <CardTitle>No observations yet</CardTitle>
-                  <CardDescription>Record observations from your research sessions</CardDescription>
+                  <CardDescription className="mt-2">
+                    Record observations from your research sessions, interviews, and field studies
+                  </CardDescription>
+                  <Button 
+                    className="mt-4 mx-auto"
+                    onClick={() => navigate(`/research/study/${id}/observations`)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add First Observation
+                  </Button>
                 </CardHeader>
               </Card>
             )}
@@ -493,7 +638,12 @@ export default function StudyPlanDetail() {
 
           <TabsContent value="personas" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">User Personas</h2>
+              <div>
+                <h2 className="text-2xl font-bold">User Personas</h2>
+                <p className="text-muted-foreground mt-1">
+                  Build personas based on your research findings
+                </p>
+              </div>
               <Button onClick={() => navigate(`/research/study/${id}/persona/new`)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Persona
@@ -528,10 +678,22 @@ export default function StudyPlanDetail() {
                 ))}
               </div>
             ) : (
-              <Card>
-                <CardHeader>
+              <Card className="border-dashed">
+                <CardHeader className="text-center py-12">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <UserCircle className="h-6 w-6 text-muted-foreground" />
+                  </div>
                   <CardTitle>No personas created</CardTitle>
-                  <CardDescription>Create personas based on your research insights</CardDescription>
+                  <CardDescription className="mt-2">
+                    Create user personas based on insights from your research
+                  </CardDescription>
+                  <Button 
+                    className="mt-4 mx-auto"
+                    onClick={() => navigate(`/research/study/${id}/persona/new`)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create First Persona
+                  </Button>
                 </CardHeader>
               </Card>
             )}
