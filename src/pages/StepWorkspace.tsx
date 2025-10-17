@@ -24,6 +24,7 @@ export default function StepWorkspace() {
   const [newInterviewOpen, setNewInterviewOpen] = useState(false);
   const [participantName, setParticipantName] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [enableGuidance, setEnableGuidance] = useState(false);
 
   const { data: study } = useQuery({
     queryKey: ['study-plan', studyId],
@@ -57,7 +58,7 @@ export default function StepWorkspace() {
       if (error) throw error;
       return data;
     },
-    enabled: !!step && !!study,
+    enabled: !!step && !!study && enableGuidance,
   });
 
   const completeStepMutation = useMutation({
@@ -197,17 +198,36 @@ export default function StepWorkspace() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lightbulb className="h-5 w-5" />
-                  Step Guidance
+                  AI-Powered Step Guidance
                 </CardTitle>
                 <CardDescription>
-                  AI-powered recommendations for completing this step effectively
+                  Get personalized recommendations and best practices for completing this step
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {loadingGuidance ? (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Sparkles className="h-4 w-4 animate-pulse" />
-                    Generating personalized guidance...
+                {!enableGuidance && !guidanceData?.guidance ? (
+                  <div className="text-center py-8">
+                    <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                      <Sparkles className="h-8 w-8 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">Need help with this step?</h3>
+                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      Get AI-powered guidance tailored to this specific research step, including actionable tips, best practices, and common pitfalls to avoid.
+                    </p>
+                    <Button 
+                      onClick={() => setEnableGuidance(true)}
+                      size="lg"
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate AI Guidance
+                    </Button>
+                  </div>
+                ) : loadingGuidance ? (
+                  <div className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                      <Sparkles className="h-5 w-5 animate-pulse" />
+                      <span className="text-lg">Generating personalized guidance...</span>
+                    </div>
                   </div>
                 ) : guidanceData?.guidance ? (
                   <div className="prose prose-sm max-w-none dark:prose-invert">
