@@ -14,6 +14,11 @@ import Trends from "./pages/Trends";
 import Settings from "./pages/Settings";
 import Research from "./pages/Research";
 import NewStudyPlan from "./pages/NewStudyPlan";
+import StudyPlanDetail from "./pages/StudyPlanDetail";
+import InterviewSession from "./pages/InterviewSession";
+import ObservationsBoard from "./pages/ObservationsBoard";
+import PersonaBuilder from "./pages/PersonaBuilder";
+import PersonaDetail from "./pages/PersonaDetail";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -79,6 +84,46 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <NewStudyPlan />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/study/:id" 
+            element={
+              <ProtectedRoute>
+                <StudyPlanDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/interview/:id" 
+            element={
+              <ProtectedRoute>
+                <InterviewSession />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/study/:studyId/observations" 
+            element={
+              <ProtectedRoute>
+                <ObservationsBoard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/study/:studyId/persona/:personaId" 
+            element={
+              <ProtectedRoute>
+                <PersonaBuilder />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/persona/:id" 
+            element={
+              <ProtectedRoute>
+                <PersonaDetail />
               </ProtectedRoute>
             } 
           />
