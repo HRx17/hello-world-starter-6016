@@ -12,6 +12,8 @@ import Compare from "./pages/Compare";
 import NotFound from "./pages/NotFound";
 import Trends from "./pages/Trends";
 import Settings from "./pages/Settings";
+import Research from "./pages/Research";
+import NewStudyPlan from "./pages/NewStudyPlan";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -61,6 +63,22 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Settings />
+          </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research" 
+            element={
+              <ProtectedRoute>
+                <Research />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/new-study" 
+            element={
+              <ProtectedRoute>
+                <NewStudyPlan />
               </ProtectedRoute>
             } 
           />

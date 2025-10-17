@@ -91,6 +91,156 @@ export type Database = {
           },
         ]
       }
+      insight_clusters: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          study_plan_id: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          study_plan_id?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          study_plan_id?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insight_clusters_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_sessions: {
+        Row: {
+          conducted_at: string | null
+          created_at: string | null
+          duration_minutes: number | null
+          id: string
+          interview_guide: Json | null
+          notes: string | null
+          participant_details: Json | null
+          participant_name: string
+          scheduled_at: string | null
+          status: string | null
+          study_plan_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conducted_at?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          interview_guide?: Json | null
+          notes?: string | null
+          participant_details?: Json | null
+          participant_name: string
+          scheduled_at?: string | null
+          status?: string | null
+          study_plan_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conducted_at?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          interview_guide?: Json | null
+          notes?: string | null
+          participant_details?: Json | null
+          participant_name?: string
+          scheduled_at?: string | null
+          status?: string | null
+          study_plan_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_sessions_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personas: {
+        Row: {
+          avatar_url: string | null
+          behaviors: Json | null
+          created_at: string | null
+          demographics: Json | null
+          description: string | null
+          goals: string[] | null
+          id: string
+          name: string
+          pain_points: string[] | null
+          study_plan_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          behaviors?: Json | null
+          created_at?: string | null
+          demographics?: Json | null
+          description?: string | null
+          goals?: string[] | null
+          id?: string
+          name: string
+          pain_points?: string[] | null
+          study_plan_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          behaviors?: Json | null
+          created_at?: string | null
+          demographics?: Json | null
+          description?: string | null
+          goals?: string[] | null
+          id?: string
+          name?: string
+          pain_points?: string[] | null
+          study_plan_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personas_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -181,6 +331,116 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_observations: {
+        Row: {
+          cluster_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          interview_session_id: string | null
+          observation_type: string
+          study_plan_id: string | null
+          tags: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cluster_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          interview_session_id?: string | null
+          observation_type: string
+          study_plan_id?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cluster_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          interview_session_id?: string | null
+          observation_type?: string
+          study_plan_id?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_observations_interview_session_id_fkey"
+            columns: ["interview_session_id"]
+            isOneToOne: false
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_observations_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_plans: {
+        Row: {
+          ai_suggestions: Json | null
+          created_at: string | null
+          id: string
+          participant_criteria: string | null
+          problem_statement: string
+          project_id: string | null
+          research_methods: string[] | null
+          solution_goal: string
+          status: string | null
+          timeline: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_suggestions?: Json | null
+          created_at?: string | null
+          id?: string
+          participant_criteria?: string | null
+          problem_statement: string
+          project_id?: string | null
+          research_methods?: string[] | null
+          solution_goal: string
+          status?: string | null
+          timeline?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_suggestions?: Json | null
+          created_at?: string | null
+          id?: string
+          participant_criteria?: string | null
+          problem_statement?: string
+          project_id?: string | null
+          research_methods?: string[] | null
+          solution_goal?: string
+          status?: string | null
+          timeline?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_plans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
