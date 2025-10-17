@@ -4,10 +4,11 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Calendar, Users, Lightbulb, UserCircle, Edit, Sparkles, CheckCircle2, Circle, ListTodo } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Lightbulb, UserCircle, Edit, Sparkles, CheckCircle2, Circle, ListTodo, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ export default function StudyPlanDetail() {
   const [newInterviewOpen, setNewInterviewOpen] = useState(false);
   const [participantName, setParticipantName] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [aiPlanExpanded, setAiPlanExpanded] = useState(false);
 
   const { data: study, isLoading } = useQuery({
     queryKey: ['study-plan', id],
@@ -278,49 +280,105 @@ export default function StudyPlanDetail() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>AI-Generated Study Plan</CardTitle>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => generateAISuggestionsMutation.mutate()}
-                      disabled={generateAISuggestionsMutation.isPending}
-                    >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      {study.ai_suggestions ? "Regenerate Plan" : "Generate Plan"}
-                    </Button>
-                    {study.ai_suggestions && (
+            <Collapsible open={aiPlanExpanded} onOpenChange={setAiPlanExpanded}>
+              <Card>
+                <CardHeader>
+                  <CollapsibleTrigger asChild>
+                    <div className="flex justify-between items-center cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <CardTitle>AI-Generated Study Plan</CardTitle>
+                        {study.ai_suggestions && (
+                          <Badge variant="secondary" className="ml-2">
+                            Ready
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!aiPlanExpanded && study.ai_suggestions && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              convertToStepsMutation.mutate();
+                            }}
+                            disabled={convertToStepsMutation.isPending}
+                          >
+                            <ListTodo className="mr-2 h-4 w-4" />
+                            Convert to Steps
+                          </Button>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="ml-2"
+                        >
+                          {aiPlanExpanded ? (
+                            <>
+                              <ChevronUp className="h-4 w-4 mr-2" />
+                              Collapse
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-4 w-4 mr-2" />
+                              Expand
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsibleTrigger>
+                  {!study.ai_suggestions && !aiPlanExpanded && (
+                    <CardDescription className="mt-2">
+                      Click to generate an AI-powered research plan
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="space-y-4">
+                    <div className="flex gap-2 justify-end">
                       <Button 
-                        variant="default" 
+                        variant="outline" 
                         size="sm"
-                        onClick={() => convertToStepsMutation.mutate()}
-                        disabled={convertToStepsMutation.isPending}
+                        onClick={() => generateAISuggestionsMutation.mutate()}
+                        disabled={generateAISuggestionsMutation.isPending}
                       >
-                        <ListTodo className="mr-2 h-4 w-4" />
-                        Convert to Steps
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        {study.ai_suggestions ? "Regenerate Plan" : "Generate Plan"}
                       </Button>
+                      {study.ai_suggestions && (
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => convertToStepsMutation.mutate()}
+                          disabled={convertToStepsMutation.isPending}
+                        >
+                          <ListTodo className="mr-2 h-4 w-4" />
+                          Convert to Steps
+                        </Button>
+                      )}
+                    </div>
+                    {generateAISuggestionsMutation.isPending ? (
+                      <div className="text-center py-8">
+                        <Sparkles className="h-8 w-8 mx-auto mb-2 animate-pulse text-primary" />
+                        <p className="text-muted-foreground">Generating AI suggestions...</p>
+                      </div>
+                    ) : study.ai_suggestions ? (
+                      <div className="whitespace-pre-wrap text-sm border rounded-lg p-4 bg-muted/50 max-h-96 overflow-y-auto">
+                        {typeof study.ai_suggestions === 'object' && study.ai_suggestions && 'suggestions' in study.ai_suggestions 
+                          ? String(study.ai_suggestions.suggestions)
+                          : JSON.stringify(study.ai_suggestions, null, 2)
+                        }
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">Click "Generate Plan" to create an AI-powered research plan</p>
+                      </div>
                     )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {generateAISuggestionsMutation.isPending ? (
-                  <p className="text-muted-foreground">Generating AI suggestions...</p>
-                ) : study.ai_suggestions ? (
-                  <div className="whitespace-pre-wrap text-sm">
-                    {typeof study.ai_suggestions === 'object' && study.ai_suggestions && 'suggestions' in study.ai_suggestions 
-                      ? String(study.ai_suggestions.suggestions)
-                      : JSON.stringify(study.ai_suggestions, null, 2)
-                    }
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No AI suggestions yet. Click "Generate Plan" to create one.</p>
-                )}
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           </TabsContent>
 
           <TabsContent value="plan" className="space-y-6">
