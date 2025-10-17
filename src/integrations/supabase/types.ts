@@ -395,6 +395,7 @@ export type Database = {
           created_at: string | null
           id: string
           participant_criteria: string | null
+          plan_steps: Json | null
           problem_statement: string
           project_id: string | null
           research_methods: string[] | null
@@ -410,6 +411,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           participant_criteria?: string | null
+          plan_steps?: Json | null
           problem_statement: string
           project_id?: string | null
           research_methods?: string[] | null
@@ -425,6 +427,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           participant_criteria?: string | null
+          plan_steps?: Json | null
           problem_statement?: string
           project_id?: string | null
           research_methods?: string[] | null
