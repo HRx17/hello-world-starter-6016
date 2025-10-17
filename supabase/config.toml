@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.generate-study-plan]
 verify_jwt = false
+
+[functions.parse-ai-to-steps]
+verify_jwt = false

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Calendar, Users, Lightbulb, UserCircle, Edit, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Lightbulb, UserCircle, Edit, Sparkles, CheckCircle2, Circle, ListTodo } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -145,6 +145,63 @@ export default function StudyPlanDetail() {
     },
   });
 
+  const convertToStepsMutation = useMutation({
+    mutationFn: async () => {
+      const aiText = typeof study?.ai_suggestions === 'object' && study?.ai_suggestions && 'suggestions' in study.ai_suggestions 
+        ? String(study.ai_suggestions.suggestions)
+        : JSON.stringify(study?.ai_suggestions);
+
+      const { data, error } = await supabase.functions.invoke('parse-ai-to-steps', {
+        body: { aiSuggestions: aiText }
+      });
+
+      if (error) throw error;
+
+      const { error: updateError } = await supabase
+        .from('study_plans')
+        .update({ plan_steps: data.steps })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+      return data.steps;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-plan', id] });
+      toast.success("Plan converted to actionable steps!");
+    },
+    onError: (error: any) => {
+      if (error.message?.includes('Rate limits exceeded')) {
+        toast.error("Rate limits exceeded, please try again later.");
+      } else if (error.message?.includes('Payment required')) {
+        toast.error("Payment required, please add funds to your workspace.");
+      } else {
+        toast.error("Failed to convert to steps");
+      }
+    },
+  });
+
+  const toggleStepMutation = useMutation({
+    mutationFn: async ({ stepId, completed }: { stepId: string; completed: boolean }) => {
+      const currentSteps = (study?.plan_steps as any[]) || [];
+      const updatedSteps = currentSteps.map(step => 
+        step.id === stepId ? { ...step, completed } : step
+      );
+
+      const { error } = await supabase
+        .from('study_plans')
+        .update({ plan_steps: updatedSteps })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-plan', id] });
+    },
+    onError: () => {
+      toast.error("Failed to update step");
+    },
+  });
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -221,15 +278,28 @@ export default function StudyPlanDetail() {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>AI-Generated Study Plan</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => generateAISuggestionsMutation.mutate()}
-                    disabled={generateAISuggestionsMutation.isPending}
-                  >
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    {study.ai_suggestions ? "Regenerate Plan" : "Generate Plan"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => generateAISuggestionsMutation.mutate()}
+                      disabled={generateAISuggestionsMutation.isPending}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      {study.ai_suggestions ? "Regenerate Plan" : "Generate Plan"}
+                    </Button>
+                    {study.ai_suggestions && (
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => convertToStepsMutation.mutate()}
+                        disabled={convertToStepsMutation.isPending}
+                      >
+                        <ListTodo className="mr-2 h-4 w-4" />
+                        Convert to Steps
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -247,6 +317,53 @@ export default function StudyPlanDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {((study.plan_steps as any[]) || []).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Action Steps</CardTitle>
+                  <CardDescription>
+                    Track your progress through the research plan
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {((study.plan_steps as any[]) || [])
+                      .sort((a, b) => (a.order || 0) - (b.order || 0))
+                      .map((step) => (
+                        <div 
+                          key={step.id}
+                          className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+                        >
+                          <button
+                            onClick={() => toggleStepMutation.mutate({ 
+                              stepId: step.id, 
+                              completed: !step.completed 
+                            })}
+                            className="mt-0.5 flex-shrink-0"
+                          >
+                            {step.completed ? (
+                              <CheckCircle2 className="h-5 w-5 text-primary" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </button>
+                          <div className="flex-1">
+                            <h4 className={`font-medium ${step.completed ? 'line-through text-muted-foreground' : ''}`}>
+                              {step.title}
+                            </h4>
+                            {step.description && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {step.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="interviews" className="space-y-4">

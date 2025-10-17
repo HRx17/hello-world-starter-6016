@@ -552,6 +552,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      parse_ai_suggestions_to_steps: {
+        Args: { ai_text: string }
+        Returns: Json
+      }
       project_shared_with_user: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
