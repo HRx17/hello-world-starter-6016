@@ -19,6 +19,7 @@ import InterviewSession from "./pages/InterviewSession";
 import ObservationsBoard from "./pages/ObservationsBoard";
 import PersonaBuilder from "./pages/PersonaBuilder";
 import PersonaDetail from "./pages/PersonaDetail";
+import StepWorkspace from "./pages/StepWorkspace";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -92,6 +93,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <StudyPlanDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/study/:studyId/step/:stepId" 
+            element={
+              <ProtectedRoute>
+                <StepWorkspace />
               </ProtectedRoute>
             } 
           />

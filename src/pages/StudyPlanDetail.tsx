@@ -369,15 +369,19 @@ export default function StudyPlanDetail() {
                       return (
                         <Card 
                           key={step.id}
-                          className={`transition-all ${step.completed ? 'opacity-60' : ''}`}
+                          className={`transition-all cursor-pointer hover:shadow-md hover:border-primary/50 ${step.completed ? 'opacity-60' : ''}`}
+                          onClick={() => navigate(`/research/study/${id}/step/${step.id}`)}
                         >
                           <CardHeader>
                             <div className="flex items-start gap-3">
                               <button
-                                onClick={() => toggleStepMutation.mutate({ 
-                                  stepId: step.id, 
-                                  completed: !step.completed 
-                                })}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleStepMutation.mutate({ 
+                                    stepId: step.id, 
+                                    completed: !step.completed 
+                                  });
+                                }}
                                 className="mt-1 flex-shrink-0"
                               >
                                 {step.completed ? (
@@ -426,42 +430,11 @@ export default function StudyPlanDetail() {
                               </div>
                             </div>
                           </CardHeader>
-                          {(isInterviewStep || isObservationStep || isPersonaStep) && !step.completed && (
-                            <CardContent className="pt-0">
-                              <div className="flex gap-2 flex-wrap">
-                                {isInterviewStep && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => setNewInterviewOpen(true)}
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Schedule Interview
-                                  </Button>
-                                )}
-                                {isObservationStep && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => navigate(`/research/study/${id}/observations`)}
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Observation
-                                  </Button>
-                                )}
-                                {isPersonaStep && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => navigate(`/research/study/${id}/persona/new`)}
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Create Persona
-                                  </Button>
-                                )}
-                              </div>
-                            </CardContent>
-                          )}
+                          <CardContent className="pt-0">
+                            <p className="text-sm text-muted-foreground">
+                              Click to open workspace with AI guidance and tools →
+                            </p>
+                          </CardContent>
                         </Card>
                       );
                     })}
