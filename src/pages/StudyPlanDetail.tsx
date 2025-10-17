@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Calendar, Users, Lightbulb, UserCircle, Edit } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Lightbulb, UserCircle, Edit, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -111,6 +111,40 @@ export default function StudyPlanDetail() {
     },
   });
 
+  const generateAISuggestionsMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('generate-study-plan', {
+        body: { 
+          problemStatement: study?.problem_statement, 
+          solutionGoal: study?.solution_goal 
+        }
+      });
+
+      if (error) throw error;
+      
+      const { error: updateError } = await supabase
+        .from('study_plans')
+        .update({ ai_suggestions: { suggestions: data.studyPlan } })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+      return data.studyPlan;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-plan', id] });
+      toast.success("AI study plan generated!");
+    },
+    onError: (error: any) => {
+      if (error.message?.includes('Rate limits exceeded')) {
+        toast.error("Rate limits exceeded, please try again later.");
+      } else if (error.message?.includes('Payment required')) {
+        toast.error("Payment required, please add funds to your workspace.");
+      } else {
+        toast.error("Failed to generate AI suggestions");
+      }
+    },
+  });
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -183,21 +217,36 @@ export default function StudyPlanDetail() {
               </CardContent>
             </Card>
 
-            {study.ai_suggestions && (
-              <Card>
-                <CardHeader>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
                   <CardTitle>AI-Generated Study Plan</CardTitle>
-                </CardHeader>
-                <CardContent>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => generateAISuggestionsMutation.mutate()}
+                    disabled={generateAISuggestionsMutation.isPending}
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {study.ai_suggestions ? "Regenerate Plan" : "Generate Plan"}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {generateAISuggestionsMutation.isPending ? (
+                  <p className="text-muted-foreground">Generating AI suggestions...</p>
+                ) : study.ai_suggestions ? (
                   <div className="whitespace-pre-wrap text-sm">
                     {typeof study.ai_suggestions === 'object' && study.ai_suggestions && 'suggestions' in study.ai_suggestions 
                       ? String(study.ai_suggestions.suggestions)
                       : JSON.stringify(study.ai_suggestions, null, 2)
                     }
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                ) : (
+                  <p className="text-muted-foreground">No AI suggestions yet. Click "Generate Plan" to create one.</p>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="interviews" className="space-y-4">
