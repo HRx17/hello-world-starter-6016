@@ -264,7 +264,11 @@ const Index = () => {
                 totalPages={crawlStatus?.total_pages || 0}
                 crawledPages={crawlStatus?.crawled_pages || 0}
                 analyzedPages={crawlStatus?.analyzed_pages || 0}
-                estimatedTimeRemaining={crawlStatus?.estimated_time_remaining}
+                estimatedTimeRemaining={
+                  crawlStatus?.metadata?.estimated_time_remaining 
+                    ? `${Math.floor(crawlStatus.metadata.estimated_time_remaining / 60)}m ${crawlStatus.metadata.estimated_time_remaining % 60}s`
+                    : undefined
+                }
               />
             ) : (
               <LoadingAnalysis />
@@ -292,7 +296,7 @@ const Index = () => {
                   </TabsContent>
                   <TabsContent value="full" className="mt-4">
                     <p className="text-sm text-muted-foreground">
-                      Crawl and analyze your entire website (up to 50 pages). Get comprehensive insights across all pages.
+                      Crawl and analyze your entire website (up to 100 pages). Multi-model AI ensemble for 95%+ accuracy.
                     </p>
                   </TabsContent>
                 </Tabs>

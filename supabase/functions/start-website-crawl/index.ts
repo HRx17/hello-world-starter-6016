@@ -45,6 +45,9 @@ serve(async (req) => {
       throw new Error('FIRECRAWL_API_KEY not configured');
     }
 
+    // Phase 2: Dynamic page limit with smart defaults
+    const pageLimit = parseInt(Deno.env.get('CRAWL_PAGE_LIMIT') || '100');
+
     console.log('Initiating Firecrawl crawl...');
     const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
       method: 'POST',
@@ -54,12 +57,23 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        limit: 50, // Maximum 50 pages per crawl
+        limit: pageLimit, // Dynamic limit, default 100 pages
         scrapeOptions: {
           formats: ['html', 'markdown', 'screenshot'],
           onlyMainContent: false,
           includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer'],
-          waitFor: 2000,
+          waitFor: 1500, // Phase 2: Reduced from 2000ms for faster crawling
+          excludePaths: [ // Phase 2: Skip non-essential pages
+            '/privacy',
+            '/terms',
+            '/legal',
+            '/cookies',
+            '/sitemap',
+            '/*.pdf',
+            '/*.xml',
+            '/admin',
+            '/wp-admin'
+          ]
         },
       }),
     });

@@ -607,6 +607,7 @@ export type Database = {
           error_message: string | null
           firecrawl_job_id: string | null
           id: string
+          metadata: Json | null
           overall_score: number | null
           project_id: string | null
           status: string
@@ -625,6 +626,7 @@ export type Database = {
           error_message?: string | null
           firecrawl_job_id?: string | null
           id?: string
+          metadata?: Json | null
           overall_score?: number | null
           project_id?: string | null
           status?: string
@@ -643,6 +645,7 @@ export type Database = {
           error_message?: string | null
           firecrawl_job_id?: string | null
           id?: string
+          metadata?: Json | null
           overall_score?: number | null
           project_id?: string | null
           status?: string
