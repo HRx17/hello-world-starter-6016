@@ -249,14 +249,18 @@ serve(async (req) => {
       );
     }
 
-    // Check Firecrawl job status
+    // Check Firecrawl job status - include skip parameter to get ALL data
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-    const statusResponse = await fetch(
-      `https://api.firecrawl.dev/v1/crawl/${crawl.firecrawl_job_id}`,
-      {
-        headers: { 'Authorization': `Bearer ${FIRECRAWL_API_KEY}` },
-      }
-    );
+    
+    // For completed crawls, we need to fetch ALL pages using pagination
+    let allData: any[] = [];
+    let nextUrl = `https://api.firecrawl.dev/v1/crawl/${crawl.firecrawl_job_id}`;
+    let statusData: any = null;
+    
+    // Fetch initial status
+    const statusResponse = await fetch(nextUrl, {
+      headers: { 'Authorization': `Bearer ${FIRECRAWL_API_KEY}` },
+    });
 
     if (!statusResponse.ok) {
       const statusCode = statusResponse.status;
@@ -309,9 +313,44 @@ serve(async (req) => {
       );
     }
 
-    const statusData = await statusResponse.json();
+    statusData = await statusResponse.json();
     console.log('Firecrawl status:', statusData.status);
-    console.log('Firecrawl data:', JSON.stringify(statusData).substring(0, 500));
+    console.log('Firecrawl initial response - Status:', statusData.status, 'Completed:', statusData.completed, 'Total:', statusData.total);
+    
+    // If crawl is completed, fetch ALL pages using pagination
+    if (statusData.status === 'completed' && statusData.data) {
+      allData = [...(statusData.data || [])];
+      console.log(`Initial data batch: ${allData.length} pages`);
+      
+      // Keep fetching if there's more data (pagination)
+      while (statusData.next) {
+        console.log(`Fetching next batch from: ${statusData.next}`);
+        const nextResponse = await fetch(statusData.next, {
+          headers: { 'Authorization': `Bearer ${FIRECRAWL_API_KEY}` },
+        });
+        
+        if (!nextResponse.ok) {
+          console.error('Failed to fetch next batch:', nextResponse.status);
+          break;
+        }
+        
+        statusData = await nextResponse.json();
+        if (statusData.data && Array.isArray(statusData.data)) {
+          allData = [...allData, ...statusData.data];
+          console.log(`Fetched ${statusData.data.length} more pages. Total now: ${allData.length}`);
+        }
+        
+        // Safety check - don't loop forever
+        if (allData.length > 1000) {
+          console.warn('Reached 1000 pages limit, stopping pagination');
+          break;
+        }
+      }
+      
+      console.log(`✅ All data fetched! Total pages: ${allData.length}`);
+      // Replace statusData.data with all fetched data
+      statusData.data = allData;
+    }
     
     // Check for Firecrawl errors
     if (!statusData.success && statusData.error) {
@@ -343,7 +382,7 @@ serve(async (req) => {
     const lastProgressTime = crawlMetadata.last_progress_time ? new Date(crawlMetadata.last_progress_time).getTime() : Date.now();
     const now = Date.now();
     const timeSinceLastProgress = now - lastProgressTime;
-    const STUCK_TIMEOUT = 3 * 60 * 1000; // 3 minutes
+    const STUCK_TIMEOUT = 10 * 60 * 1000; // 10 minutes - give Firecrawl more time
     
     // Check if stuck
     if (statusData.status === 'scraping' && currentProgress > 0 && currentProgress === lastProgress && timeSinceLastProgress > STUCK_TIMEOUT) {
@@ -392,17 +431,18 @@ serve(async (req) => {
       .update(updateData)
       .eq('id', crawlId);
 
-    // Check if crawl has data ready (handles both "completed" and "scraping" with full data)
+    // Check if crawl has data ready (only when status is "completed" and we have all the data)
     const hasCompleteData = statusData.data && Array.isArray(statusData.data) && statusData.data.length > 0;
     const isReadyForAnalysis = (
-      (statusData.status === 'completed' || 
-       (statusData.status === 'scraping' && statusData.completed === statusData.total && hasCompleteData)) &&
+      statusData.status === 'completed' &&
+      hasCompleteData &&
+      statusData.completed === statusData.total && // All pages crawled
       crawl.status !== 'analyzing' && 
       crawl.status !== 'completed'
     );
     
     if (isReadyForAnalysis) {
-      console.log(`Crawl ready! Status: ${statusData.status}, Pages: ${statusData.data?.length || 0}`);
+      console.log(`✅ Crawl ready for analysis! Total pages crawled: ${statusData.data?.length || 0}`);
       
       // Validate we have data
       if (!hasCompleteData) {
