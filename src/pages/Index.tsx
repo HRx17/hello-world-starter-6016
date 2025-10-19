@@ -27,6 +27,7 @@ import { HeuristicsSelector } from "@/components/HeuristicsSelector";
 const Index = () => {
   const [url, setUrl] = useState("");
   const [analysisType, setAnalysisType] = useState<"single" | "full">("single");
+  const [crawlMode, setCrawlMode] = useState<"quick" | "light" | "standard" | "comprehensive">("light");
   const [heuristics, setHeuristics] = useState<{ set: string; custom?: string[] }>({
     set: "nn_10",
     custom: [],
@@ -213,6 +214,7 @@ const Index = () => {
           url,
           userId: user?.id || null,
           projectId: null,
+          crawlMode,
         }
       });
 
@@ -226,10 +228,39 @@ const Index = () => {
           });
           return;
         }
+        
+        if (error.message?.includes('credits') || error.message?.includes('402')) {
+          toast({
+            title: "Insufficient Credits",
+            description: error.message || "Not enough Firecrawl credits. Try a lighter crawl mode or upgrade your plan.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         throw error;
       }
 
       if (!data.success) {
+        // Handle specific error codes from edge function
+        if (data.errorCode === 'INSUFFICIENT_CREDITS') {
+          toast({
+            title: "Insufficient Credits",
+            description: data.error || "Not enough Firecrawl credits. Try a lighter crawl mode.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (data.errorCode === 'RATE_LIMIT') {
+          toast({
+            title: "Rate Limit Reached",
+            description: data.error || "Please wait 5-10 minutes and try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         toast({
           title: "Crawl Failed",
           description: data.error || "Failed to start website crawl",
@@ -369,10 +400,78 @@ const Index = () => {
                       Analyze a single page quickly. Perfect for testing specific pages or features.
                     </p>
                   </TabsContent>
-                  <TabsContent value="full" className="mt-4">
+                  <TabsContent value="full" className="mt-4 space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      Crawl and analyze your entire website (up to 100 pages). Multi-model AI ensemble for 95%+ accuracy.
+                      Crawl and analyze your entire website. Multi-model AI ensemble for 95%+ accuracy.
                     </p>
+                    
+                    {/* Crawl Mode Selector */}
+                    <div className="space-y-3 pt-2 border-t">
+                      <Label>Crawl Intensity</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setCrawlMode('quick')}
+                          className={`p-3 rounded-lg border-2 transition-all text-left ${
+                            crawlMode === 'quick'
+                              ? 'border-primary bg-primary/5'
+                              : 'border-muted hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="font-semibold text-sm">Quick Scan</div>
+                          <div className="text-xs text-muted-foreground mt-1">25 pages • ~30 credits</div>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setCrawlMode('light')}
+                          className={`p-3 rounded-lg border-2 transition-all text-left ${
+                            crawlMode === 'light'
+                              ? 'border-primary bg-primary/5'
+                              : 'border-muted hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="font-semibold text-sm flex items-center gap-1">
+                            Light <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Recommended</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">50 pages • ~60 credits</div>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setCrawlMode('standard')}
+                          className={`p-3 rounded-lg border-2 transition-all text-left ${
+                            crawlMode === 'standard'
+                              ? 'border-primary bg-primary/5'
+                              : 'border-muted hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="font-semibold text-sm">Standard</div>
+                          <div className="text-xs text-muted-foreground mt-1">150 pages • ~180 credits</div>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setCrawlMode('comprehensive')}
+                          className={`p-3 rounded-lg border-2 transition-all text-left ${
+                            crawlMode === 'comprehensive'
+                              ? 'border-primary bg-primary/5'
+                              : 'border-muted hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="font-semibold text-sm">Comprehensive</div>
+                          <div className="text-xs text-muted-foreground mt-1">500 pages • ~600 credits</div>
+                        </button>
+                      </div>
+                      
+                      {crawlMode === 'comprehensive' && (
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mt-2">
+                          <p className="text-xs text-amber-700 dark:text-amber-400">
+                            ⚠️ Comprehensive mode requires significant Firecrawl credits. Ensure you have enough credits before proceeding.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </TabsContent>
                 </Tabs>
               </div>

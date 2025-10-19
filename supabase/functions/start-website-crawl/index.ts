@@ -11,9 +11,40 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Define crawl modes with credit-efficient configurations
+  const CRAWL_MODES = {
+    quick: { 
+      limit: 25, 
+      depth: 2, 
+      screenshots: false,
+      estimatedCredits: '25-40'
+    },
+    light: { 
+      limit: 50, 
+      depth: 3, 
+      screenshots: true,
+      estimatedCredits: '50-75'
+    },
+    standard: { 
+      limit: 150, 
+      depth: 5, 
+      screenshots: true,
+      estimatedCredits: '150-225'
+    },
+    comprehensive: { 
+      limit: 500, 
+      depth: 10, 
+      screenshots: true,
+      estimatedCredits: '500-750'
+    }
+  };
+
   try {
-    const { url, userId, projectId } = await req.json();
-    console.log('Starting full website crawl for:', url);
+    const { url, userId, projectId, crawlMode = 'light' } = await req.json();
+    console.log('Starting full website crawl for:', url, 'with mode:', crawlMode);
+    
+    // Get crawl configuration based on selected mode
+    const config = CRAWL_MODES[crawlMode as keyof typeof CRAWL_MODES] || CRAWL_MODES.light;
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -45,10 +76,7 @@ serve(async (req) => {
       throw new Error('FIRECRAWL_API_KEY not configured');
     }
 
-    // Aggressive crawling configuration for maximum page discovery
-    const pageLimit = parseInt(Deno.env.get('CRAWL_PAGE_LIMIT') || '500'); // Increased from 100 to 500
-
-    console.log('Initiating comprehensive Firecrawl crawl...');
+    console.log(`Initiating Firecrawl crawl with ${crawlMode} mode (${config.limit} pages, depth ${config.depth})...`);
     const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
       method: 'POST',
       headers: {
@@ -57,27 +85,27 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        limit: pageLimit, // High limit for comprehensive crawling
+        limit: config.limit,
         scrapeOptions: {
-          formats: ['html', 'markdown', 'screenshot'],
+          formats: config.screenshots 
+            ? ['html', 'markdown', 'screenshot'] 
+            : ['html', 'markdown'],
           onlyMainContent: false,
           includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer', 'main', 'section', 'article'],
-          waitFor: 2000, // Increased wait time for dynamic content
-          removeBase64Images: false, // Keep all images
+          waitFor: 2000,
+          removeBase64Images: false,
         },
-        // Aggressive discovery settings
-        allowBackwardLinks: true, // Follow all internal links
-        allowExternalLinks: false, // Stay on same domain
-        maxDepth: 10, // Deep crawling up to 10 levels
-        ignoreSitemap: false, // Use sitemap if available
-        // Only exclude actual file downloads, not pages
+        allowBackwardLinks: true,
+        allowExternalLinks: false,
+        maxDepth: config.depth,
+        ignoreSitemap: false,
         excludePaths: [
           '*.pdf', '*.zip', '*.tar.gz', '*.exe', '*.dmg',
-          '*.jpg', '*.jpeg', '*.png', '*.gif', '*.svg', '*.ico', // Image files
-          '*.mp3', '*.mp4', '*.avi', '*.mov', // Media files
-          '*.css', '*.js', '*.json', '*.xml' // Asset files
+          '*.jpg', '*.jpeg', '*.png', '*.gif', '*.svg', '*.ico',
+          '*.mp3', '*.mp4', '*.avi', '*.mov',
+          '*.css', '*.js', '*.json', '*.xml'
         ],
-        includePaths: [], // Include everything not explicitly excluded
+        includePaths: [],
       }),
     });
 
@@ -85,7 +113,32 @@ serve(async (req) => {
       const errorText = await firecrawlResponse.text();
       console.error('Firecrawl API error:', firecrawlResponse.status, errorText);
       
-      // Handle rate limiting specifically
+      // Handle insufficient credits (402)
+      if (firecrawlResponse.status === 402) {
+        const suggestedMode = config.limit > 50 ? 'Try "Light" mode (50 pages) or "Quick" mode (25 pages)' : 'Upgrade your Firecrawl plan';
+        
+        await supabase
+          .from('website_crawls')
+          .update({
+            status: 'failed',
+            error_message: `Insufficient Firecrawl credits. ${suggestedMode}`,
+          })
+          .eq('id', crawl.id);
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Insufficient Firecrawl credits to crawl ${config.limit} pages. ${suggestedMode} or upgrade your Firecrawl plan at https://firecrawl.dev/pricing`,
+            errorCode: 'INSUFFICIENT_CREDITS'
+          }),
+          { 
+            status: 402, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      // Handle rate limiting (429)
       if (firecrawlResponse.status === 429) {
         await supabase
           .from('website_crawls')
@@ -98,8 +151,9 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'Firecrawl API rate limit exceeded. Please wait a few minutes and try again.',
-            retryAfter: '5 minutes'
+            error: 'Firecrawl API rate limit exceeded. Please wait 5-10 minutes and try again.',
+            retryAfter: '5 minutes',
+            errorCode: 'RATE_LIMIT'
           }),
           { 
             status: 429, 
