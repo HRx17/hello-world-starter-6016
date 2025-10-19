@@ -188,6 +188,59 @@ export type Database = {
           },
         ]
       }
+      page_analyses: {
+        Row: {
+          analyzed_at: string | null
+          crawl_id: string
+          created_at: string | null
+          html_snapshot: string | null
+          id: string
+          page_title: string | null
+          page_type: string | null
+          page_url: string
+          score: number | null
+          screenshot: string | null
+          strengths: Json | null
+          violations: Json
+        }
+        Insert: {
+          analyzed_at?: string | null
+          crawl_id: string
+          created_at?: string | null
+          html_snapshot?: string | null
+          id?: string
+          page_title?: string | null
+          page_type?: string | null
+          page_url: string
+          score?: number | null
+          screenshot?: string | null
+          strengths?: Json | null
+          violations?: Json
+        }
+        Update: {
+          analyzed_at?: string | null
+          crawl_id?: string
+          created_at?: string | null
+          html_snapshot?: string | null
+          id?: string
+          page_title?: string | null
+          page_type?: string | null
+          page_url?: string
+          score?: number | null
+          screenshot?: string | null
+          strengths?: Json | null
+          violations?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_analyses_crawl_id_fkey"
+            columns: ["crawl_id"]
+            isOneToOne: false
+            referencedRelation: "website_crawls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personas: {
         Row: {
           avatar_url: string | null
@@ -539,6 +592,71 @@ export type Database = {
             columns: ["analysis_id"]
             isOneToOne: false
             referencedRelation: "analysis_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      website_crawls: {
+        Row: {
+          aggregate_strengths: Json | null
+          aggregate_violations: Json | null
+          analyzed_pages: number | null
+          completed_at: string | null
+          crawled_pages: number | null
+          created_at: string | null
+          error_message: string | null
+          firecrawl_job_id: string | null
+          id: string
+          overall_score: number | null
+          project_id: string | null
+          status: string
+          total_pages: number | null
+          updated_at: string | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          aggregate_strengths?: Json | null
+          aggregate_violations?: Json | null
+          analyzed_pages?: number | null
+          completed_at?: string | null
+          crawled_pages?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          firecrawl_job_id?: string | null
+          id?: string
+          overall_score?: number | null
+          project_id?: string | null
+          status?: string
+          total_pages?: number | null
+          updated_at?: string | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          aggregate_strengths?: Json | null
+          aggregate_violations?: Json | null
+          analyzed_pages?: number | null
+          completed_at?: string | null
+          crawled_pages?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          firecrawl_job_id?: string | null
+          id?: string
+          overall_score?: number | null
+          project_id?: string | null
+          status?: string
+          total_pages?: number | null
+          updated_at?: string | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_crawls_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
