@@ -119,31 +119,36 @@ const Index = () => {
           console.error('Status check error:', error);
           stuckCounter++;
           
-          // If errors persist, attempt restart
-          if (stuckCounter > 5) {
-            console.log('Persistent errors detected, attempting auto-recovery...');
-            await handleAutoRestart();
-            return;
+          // Only stop after many consecutive failures (not auto-restart)
+          if (stuckCounter > 10) {
+            clearInterval(pollInterval);
+            setIsLoading(false);
+            toast({
+              title: "Connection Error",
+              description: "Unable to check crawl status. Please refresh and try again.",
+              variant: "destructive",
+            });
           }
+          return;
+        }
+        
+        console.log('📊 Crawl status:', data);
+        
+        // Check if backend signals a restart is needed (only on actual errors)
+        if (data?.should_restart) {
+          console.log('🔄 Backend signaled restart needed due to error');
+          await handleAutoRestart();
           return;
         }
 
         setCrawlStatus(data);
 
-        // Check for stuck state - no progress
+        // Reset stuck counter on successful status check
+        stuckCounter = 0;
+        
+        // Update progress tracking (but don't auto-restart on lack of progress)
         const currentProgress = (data.crawled_pages || 0) + (data.analyzed_pages || 0);
-        if (currentProgress === lastProgress && currentProgress > 0) {
-          stuckCounter++;
-          console.log(`⚠️ No progress detected (${stuckCounter}/${MAX_STUCK_ITERATIONS})`);
-          
-          // Auto-restart if stuck for too long
-          if (stuckCounter >= MAX_STUCK_ITERATIONS) {
-            console.log('🔄 Crawl appears stuck, attempting auto-restart...');
-            await handleAutoRestart();
-            return;
-          }
-        } else {
-          stuckCounter = 0; // Reset counter on progress
+        if (currentProgress !== lastProgress) {
           lastProgress = currentProgress;
         }
 
@@ -174,9 +179,10 @@ const Index = () => {
           });
         }
       } catch (error) {
-        console.error('Critical status check error:', error);
+        console.error('Status check error:', error);
         stuckCounter++;
         
+        // Only show error after multiple consecutive failures
         if (stuckCounter > 5) {
           clearInterval(pollInterval);
           setIsLoading(false);
