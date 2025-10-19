@@ -85,19 +85,67 @@ const Index = () => {
     setPendingNavigation(null);
   }, [handleTerminateAnalysis, navigate, pendingNavigation]);
 
-  // Poll crawl status
+  // Poll crawl status with timeout detection and auto-restart
   useEffect(() => {
     if (!crawlId || !isLoading) return;
 
+    let pollCount = 0;
+    let lastProgress = 0;
+    let stuckCounter = 0;
+    const MAX_STUCK_ITERATIONS = 10; // If no progress for 30s (10 * 3s), restart
+    const MAX_POLL_COUNT = 400; // Max 20 minutes (400 * 3s)
+
     const pollInterval = setInterval(async () => {
       try {
+        pollCount++;
+
+        // Timeout check - 20 minutes max
+        if (pollCount > MAX_POLL_COUNT) {
+          clearInterval(pollInterval);
+          setIsLoading(false);
+          toast({
+            title: "Analysis Timeout",
+            description: "Analysis took too long. Please try with a lighter crawl mode.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         const { data, error } = await supabase.functions.invoke('check-crawl-status', {
           body: { crawlId }
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Status check error:', error);
+          stuckCounter++;
+          
+          // If errors persist, attempt restart
+          if (stuckCounter > 5) {
+            console.log('Persistent errors detected, attempting auto-recovery...');
+            await handleAutoRestart();
+            return;
+          }
+          return;
+        }
 
         setCrawlStatus(data);
+
+        // Check for stuck state - no progress
+        const currentProgress = (data.crawled_pages || 0) + (data.analyzed_pages || 0);
+        if (currentProgress === lastProgress && currentProgress > 0) {
+          stuckCounter++;
+          console.log(`⚠️ No progress detected (${stuckCounter}/${MAX_STUCK_ITERATIONS})`);
+          
+          // Auto-restart if stuck for too long
+          if (stuckCounter >= MAX_STUCK_ITERATIONS) {
+            console.log('🔄 Crawl appears stuck, attempting auto-restart...');
+            await handleAutoRestart();
+            return;
+          }
+        } else {
+          stuckCounter = 0; // Reset counter on progress
+          lastProgress = currentProgress;
+        }
 
         if (data.status === 'completed') {
           clearInterval(pollInterval);
@@ -121,14 +169,62 @@ const Index = () => {
           setIsLoading(false);
           toast({
             title: "Analysis Failed",
-            description: "An error occurred during analysis",
+            description: data.error_message || "An error occurred during analysis. You can try again with a lighter crawl mode.",
             variant: "destructive",
           });
         }
       } catch (error) {
-        console.error('Status check error:', error);
+        console.error('Critical status check error:', error);
+        stuckCounter++;
+        
+        if (stuckCounter > 5) {
+          clearInterval(pollInterval);
+          setIsLoading(false);
+          toast({
+            title: "Connection Error",
+            description: "Unable to check crawl status. Please refresh and try again.",
+            variant: "destructive",
+          });
+        }
       }
     }, 3000); // Poll every 3 seconds
+
+    // Auto-restart function
+    async function handleAutoRestart() {
+      clearInterval(pollInterval);
+      
+      toast({
+        title: "Auto-Recovery",
+        description: "Crawl got stuck. Attempting automatic restart...",
+      });
+
+      try {
+        // Mark old crawl as error
+        await supabase
+          .from('website_crawls')
+          .update({ status: 'error', metadata: { error: 'Auto-restarted due to timeout' } })
+          .eq('id', crawlId);
+
+        // Wait a moment
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Restart the crawl
+        await handleFullWebsiteAnalyze();
+        
+        toast({
+          title: "Restarted",
+          description: "Analysis restarted with fresh crawl",
+        });
+      } catch (error) {
+        console.error('Auto-restart failed:', error);
+        setIsLoading(false);
+        toast({
+          title: "Restart Failed",
+          description: "Unable to restart automatically. Please try manually.",
+          variant: "destructive",
+        });
+      }
+    }
 
     return () => clearInterval(pollInterval);
   }, [crawlId, isLoading, navigate, toast, url]);

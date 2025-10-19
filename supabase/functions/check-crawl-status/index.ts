@@ -211,8 +211,19 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let crawlId: string | undefined;
+  
   try {
-    const { crawlId } = await req.json();
+    const body = await req.json();
+    crawlId = body.crawlId;
+    
+    if (!crawlId) {
+      return new Response(
+        JSON.stringify({ error: 'crawlId is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     console.log('Checking crawl status for:', crawlId);
 
     // Initialize Supabase client
@@ -248,16 +259,82 @@ serve(async (req) => {
     );
 
     if (!statusResponse.ok) {
-      console.error('Firecrawl status check failed');
+      const statusCode = statusResponse.status;
+      console.error(`Firecrawl status check failed with status ${statusCode}`);
+      
+      // Handle specific error cases
+      if (statusCode === 404) {
+        // Crawl job not found or expired
+        await supabase
+          .from('website_crawls')
+          .update({ 
+            status: 'error',
+            metadata: { error: 'Crawl job expired or not found' }
+          })
+          .eq('id', crawlId);
+        
+        return new Response(
+          JSON.stringify({ 
+            status: 'error', 
+            error_message: 'Crawl job expired. Please start a new crawl.',
+            should_restart: true
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (statusCode === 429) {
+        // Rate limited - wait and retry
+        console.log('Rate limited, continuing to poll...');
+        return new Response(
+          JSON.stringify({ 
+            status: crawl.status,
+            message: 'Rate limited, retrying...',
+            crawled_pages: crawl.crawled_pages,
+            analyzed_pages: crawl.analyzed_pages
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Other errors - return current state
       return new Response(
-        JSON.stringify({ status: 'error', message: 'Failed to check crawl status' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          status: crawl.status,
+          crawled_pages: crawl.crawled_pages,
+          analyzed_pages: crawl.analyzed_pages,
+          message: 'Temporary error checking status'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const statusData = await statusResponse.json();
     console.log('Firecrawl status:', statusData.status);
     console.log('Firecrawl data:', JSON.stringify(statusData).substring(0, 500));
+    
+    // Check for Firecrawl errors
+    if (!statusData.success && statusData.error) {
+      console.error('Firecrawl returned error:', statusData.error);
+      
+      // Update crawl with error
+      await supabase
+        .from('website_crawls')
+        .update({ 
+          status: 'error',
+          metadata: { error: statusData.error }
+        })
+        .eq('id', crawlId);
+      
+      return new Response(
+        JSON.stringify({ 
+          status: 'error',
+          error_message: statusData.error,
+          should_restart: true
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Update crawl progress
     await supabase
@@ -308,16 +385,50 @@ serve(async (req) => {
         })
         .eq('id', crawlId);
 
-      // Trigger analysis in background (non-blocking)
-      analyzeAllPages(crawlId, statusData.data, supabase).catch(err => {
+      // Trigger analysis in background with automatic retry on failure
+      analyzeAllPages(crawlId, statusData.data, supabase).catch(async (err) => {
         console.error('Background analysis error:', err);
-        supabase
+        
+        // Mark as error initially
+        await supabase
           .from('website_crawls')
           .update({ 
             status: 'error',
-            metadata: { error: err.message }
+            metadata: { 
+              error: err.message,
+              retry_attempted: true,
+              last_error_at: new Date().toISOString()
+            }
           })
           .eq('id', crawlId);
+        
+        // Attempt one automatic retry after a delay
+        console.log('Attempting automatic retry in 5 seconds...');
+        const retryId = crawlId as string; // We know it's defined here
+        const retryData = statusData.data;
+        const retrySupabase = supabase;
+        
+        setTimeout(async () => {
+          try {
+            console.log('🔄 Retrying analysis for crawl:', retryId);
+            await analyzeAllPages(retryId, retryData, retrySupabase);
+            console.log('✅ Retry successful!');
+          } catch (retryErr) {
+            console.error('❌ Retry failed:', retryErr);
+            const errorMessage = retryErr instanceof Error ? retryErr.message : 'Unknown retry error';
+            await retrySupabase
+              .from('website_crawls')
+              .update({ 
+                status: 'error',
+                metadata: { 
+                  error: errorMessage,
+                  retry_failed: true,
+                  final_error_at: new Date().toISOString()
+                }
+              })
+              .eq('id', retryId);
+          }
+        }, 5000);
       });
     }
 
@@ -340,10 +451,46 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error checking crawl status:', error);
+    
+    // Try to get current crawl state for graceful degradation
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      const { data: crawl } = await supabase
+        .from('website_crawls')
+        .select('*')
+        .eq('id', crawlId)
+        .single();
+      
+      if (crawl) {
+        // Return current state instead of hard error
+        return new Response(
+          JSON.stringify({ 
+            status: crawl.status,
+            crawled_pages: crawl.crawled_pages || 0,
+            analyzed_pages: crawl.analyzed_pages || 0,
+            message: 'Temporary error, continuing...'
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    } catch (fallbackError) {
+      console.error('Fallback also failed:', fallbackError);
+    }
+    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ 
+        status: 'error',
+        error_message: error instanceof Error ? error.message : 'Unknown error occurred',
+        should_restart: true
+      }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
