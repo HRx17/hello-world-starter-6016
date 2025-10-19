@@ -7,6 +7,7 @@ interface CrawlProgressCardProps {
   totalPages: number;
   crawledPages: number;
   analyzedPages: number;
+  estimatedTimeRemaining?: string;
 }
 
 export const CrawlProgressCard = ({
@@ -14,6 +15,7 @@ export const CrawlProgressCard = ({
   totalPages,
   crawledPages,
   analyzedPages,
+  estimatedTimeRemaining,
 }: CrawlProgressCardProps) => {
   const crawlProgress = totalPages > 0 ? (crawledPages / totalPages) * 100 : 0;
   const analysisProgress = totalPages > 0 ? (analyzedPages / totalPages) * 100 : 0;
@@ -76,12 +78,20 @@ export const CrawlProgressCard = ({
         ) : null}
 
         {/* Status Details */}
-        <div className="pt-4 border-t">
+        <div className="pt-4 border-t space-y-2">
           <p className="text-sm text-muted-foreground">
             {status === 'crawling' && 'We\'re crawling your website to discover all pages...'}
-            {status === 'analyzing' && 'Each page is being analyzed for UX issues...'}
+            {status === 'analyzing' && 'Each page is being analyzed with AI for UX issues...'}
             {status === 'completed' && 'All pages have been analyzed successfully!'}
           </p>
+          {status === 'analyzing' && estimatedTimeRemaining && (
+            <div className="flex items-center gap-2 text-sm">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-muted-foreground">
+                Estimated time remaining: <span className="font-medium text-foreground">{estimatedTimeRemaining}</span>
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

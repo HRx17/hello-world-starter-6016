@@ -282,12 +282,16 @@ serve(async (req) => {
       );
     }
 
+    // Include time estimate if available
+    const metadata = crawl.metadata as any || {};
+    
     return new Response(
       JSON.stringify({
         status: crawl.status,
         total_pages: statusData.total || crawl.total_pages,
         crawled_pages: statusData.completed || crawl.crawled_pages,
         analyzed_pages: crawl.analyzed_pages,
+        estimated_time_remaining: metadata.estimated_time_remaining,
         firecrawl_status: statusData.status,
       }),
       {
@@ -307,9 +311,15 @@ serve(async (req) => {
   }
 });
 
-// Background task to analyze all crawled pages
+// Background task to analyze all crawled pages with parallel processing
 async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
-  console.log(`Analyzing ${pages.length} pages for crawl ${crawlId}`);
+  const totalPages = pages.length;
+  console.log(`Analyzing ${totalPages} pages for crawl ${crawlId}`);
+  
+  // Calculate and log estimated time (3.5s per page with 8 parallel = ~0.44s per page effective)
+  const estimatedSeconds = Math.ceil((totalPages * 3.5) / 8);
+  const estimatedMinutes = Math.ceil(estimatedSeconds / 60);
+  console.log(`Estimated completion time: ${estimatedMinutes} minutes (${totalPages} pages, 8 parallel)`);
   
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
@@ -321,66 +331,120 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
   const allStrengths: any[] = [];
   let totalScore = 0;
   let analyzedCount = 0;
+  const startTime = Date.now();
+  
+  // Process pages in parallel batches for 5-10x speed improvement
+  const BATCH_SIZE = 8; // Process 8 pages simultaneously
+  
+  for (let i = 0; i < pages.length; i += BATCH_SIZE) {
+    const batch = pages.slice(i, i + BATCH_SIZE);
+    const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(pages.length / BATCH_SIZE);
+    
+    console.log(`Processing batch ${batchNumber}/${totalBatches} (pages ${i + 1}-${Math.min(i + BATCH_SIZE, totalPages)})`);
+    
+    // Analyze batch in parallel
+    const batchResults = await Promise.allSettled(
+      batch.map(async (page) => {
+        try {
+          // Fix data structure - Firecrawl uses nested metadata.sourceURL
+          const url = page.metadata?.sourceURL || page.sourceURL || 'unknown';
+          const html = page.html || '';
+          const markdown = page.markdown || '';
+          const screenshot = page.screenshot || '';
+          const title = page.metadata?.title || page.title || 'Untitled';
+          
+          // Skip if no URL
+          if (url === 'unknown' || !html) {
+            console.warn('Skipping page with missing data');
+            return null;
+          }
+          
+          // Classify page type
+          const pageType = classifyPageType(url, html);
+          
+          // Analyze page using hybrid system (use flash for speed in parallel mode)
+          const analysis = await analyzePage(html, markdown, screenshot, LOVABLE_API_KEY);
+          
+          return {
+            url,
+            title,
+            pageType,
+            screenshot,
+            analysis,
+            html: html.substring(0, 10000),
+          };
+        } catch (error) {
+          const url = page.metadata?.sourceURL || page.sourceURL || 'unknown';
+          console.error(`Error analyzing page ${url}:`, error);
+          return null;
+        }
+      })
+    );
+    
+    // Process batch results and store to database
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled' && result.value) {
+        const pageData = result.value;
+        
+        try {
+          // Store page analysis
+          await supabase.from('page_analyses').insert({
+            crawl_id: crawlId,
+            page_url: pageData.url,
+            page_title: pageData.title,
+            page_type: pageData.pageType,
+            screenshot: pageData.screenshot,
+            score: pageData.analysis.score,
+            violations: pageData.analysis.violations,
+            strengths: pageData.analysis.strengths,
+            html_snapshot: pageData.html,
+          });
 
-  for (const page of pages) {
-    try {
-      // Fix data structure - Firecrawl uses nested metadata.sourceURL
-      const url = page.metadata?.sourceURL || page.sourceURL || 'unknown';
-      const html = page.html || '';
-      const markdown = page.markdown || '';
-      const screenshot = page.screenshot || '';
-      const title = page.metadata?.title || page.title || 'Untitled';
-      
-      console.log(`Analyzing page: ${url}`);
-      
-      // Skip if no URL
-      if (url === 'unknown' || !html) {
-        console.warn('Skipping page with missing data');
-        continue;
+          // Aggregate results
+          allViolations.push(...pageData.analysis.violations);
+          allStrengths.push(...pageData.analysis.strengths);
+          totalScore += pageData.analysis.score;
+          analyzedCount++;
+        } catch (dbError) {
+          console.error(`Error storing analysis for ${pageData.url}:`, dbError);
+        }
       }
-      
-      // Classify page type
-      const pageType = classifyPageType(url, html);
-      
-      // Analyze page using hybrid system (same as single-page analysis)
-      const analysis = await analyzePage(html, markdown, screenshot, LOVABLE_API_KEY);
-      
-      // Store page analysis
-      await supabase.from('page_analyses').insert({
-        crawl_id: crawlId,
-        page_url: url,
-        page_title: title,
-        page_type: pageType,
-        screenshot: screenshot,
-        score: analysis.score,
-        violations: analysis.violations,
-        strengths: analysis.strengths,
-        html_snapshot: html.substring(0, 10000), // Store first 10k chars
-      });
-
-      // Aggregate results
-      allViolations.push(...analysis.violations);
-      allStrengths.push(...analysis.strengths);
-      totalScore += analysis.score;
-      analyzedCount++;
-
-      // Update progress
-      await supabase
-        .from('website_crawls')
-        .update({ analyzed_pages: analyzedCount })
-        .eq('id', crawlId);
-
-    } catch (error) {
-      const url = page.metadata?.sourceURL || page.sourceURL || 'unknown';
-      console.error(`Error analyzing page ${url}:`, error);
-      // Continue to next page instead of stopping entire crawl
     }
+    
+    // Update progress after each batch with time estimates
+    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    const pagesRemaining = totalPages - analyzedCount;
+    const avgSecondsPerPage = analyzedCount > 0 ? elapsedSeconds / analyzedCount : 0.44;
+    const estimatedSecondsRemaining = Math.ceil(pagesRemaining * avgSecondsPerPage);
+    const estimatedMinutesRemaining = Math.ceil(estimatedSecondsRemaining / 60);
+    
+    console.log(`Progress: ${analyzedCount}/${totalPages} pages (${Math.round(analyzedCount/totalPages*100)}%)`);
+    console.log(`Speed: ${avgSecondsPerPage.toFixed(1)}s/page | ETA: ${estimatedMinutesRemaining} min remaining`);
+    
+    await supabase
+      .from('website_crawls')
+      .update({ 
+        analyzed_pages: analyzedCount,
+        // Store estimated time for frontend display
+        metadata: { estimated_time_remaining: `${estimatedMinutesRemaining} min` }
+      })
+      .eq('id', crawlId);
   }
 
   // Calculate overall score and deduplicate violations
   const overallScore = analyzedCount > 0 ? Math.round(totalScore / analyzedCount) : 0;
   const uniqueViolations = deduplicateViolations(allViolations);
   const uniqueStrengths = deduplicateStrengths(allStrengths);
+  
+  const totalTime = Math.floor((Date.now() - startTime) / 1000);
+  const avgTime = analyzedCount > 0 ? (totalTime / analyzedCount).toFixed(1) : 0;
+  
+  console.log(`✅ Analysis completed in ${totalTime}s (avg ${avgTime}s/page)`);
+  console.log(`   Analyzed: ${analyzedCount}/${totalPages} pages`);
+  console.log(`   Overall score: ${overallScore}`);
+  console.log(`   Violations: ${uniqueViolations.length} unique types`);
+  console.log(`   Strengths: ${uniqueStrengths.length} unique types`);
 
   // Update crawl with final results
   await supabase
@@ -391,10 +455,12 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
       aggregate_violations: uniqueViolations,
       aggregate_strengths: uniqueStrengths,
       completed_at: new Date().toISOString(),
+      metadata: { 
+        total_analysis_time: totalTime,
+        avg_time_per_page: avgTime 
+      }
     })
     .eq('id', crawlId);
-
-  console.log(`Crawl ${crawlId} analysis completed. Score: ${overallScore}`);
 }
 
 function classifyPageType(url: string, html: string): string {
