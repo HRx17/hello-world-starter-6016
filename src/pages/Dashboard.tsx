@@ -17,6 +17,16 @@ interface AnalysisResult {
   screenshot: string;
 }
 
+interface WebsiteCrawl {
+  id: string;
+  overall_score: number;
+  completed_at: string;
+  aggregate_violations: any;
+  status: string;
+  total_pages: number;
+  analyzed_pages: number;
+}
+
 interface Project {
   id: string;
   name: string;
@@ -24,6 +34,7 @@ interface Project {
   created_at: string;
   framework: string | null;
   analysis_results: AnalysisResult[];
+  website_crawls: WebsiteCrawl[];
 }
 
 const Dashboard = () => {
@@ -54,6 +65,15 @@ const Dashboard = () => {
             analyzed_at,
             violations,
             screenshot
+          ),
+          website_crawls (
+            id,
+            overall_score,
+            completed_at,
+            aggregate_violations,
+            status,
+            total_pages,
+            analyzed_pages
           )
         `)
         .order("created_at", { ascending: false });
@@ -98,23 +118,34 @@ const Dashboard = () => {
     }
   };
 
-  const handleViewAnalysis = (project: Project, analysisId: string) => {
-    const analysis = project.analysis_results.find((a) => a.id === analysisId);
-    if (!analysis) return;
+  const handleViewAnalysis = (project: Project, analysisId: string, type: 'single' | 'crawl') => {
+    if (type === 'single') {
+      const analysis = project.analysis_results.find((a) => a.id === analysisId);
+      if (!analysis) return;
 
-    navigate("/results", {
-      state: {
-        analysis: {
-          url: project.url,
-          websiteName: project.name,
-          overallScore: analysis.score,
-          violations: analysis.violations,
-          strengths: [],
-          screenshot: analysis.screenshot,
-          framework: project.framework || undefined,
+      navigate("/results", {
+        state: {
+          analysis: {
+            url: project.url,
+            websiteName: project.name,
+            overallScore: analysis.score,
+            violations: analysis.violations,
+            strengths: [],
+            screenshot: analysis.screenshot,
+            framework: project.framework || undefined,
+          },
         },
-      },
-    });
+      });
+    } else {
+      // Multi-page crawl
+      navigate("/results", {
+        state: {
+          crawlId: analysisId,
+          analysisType: 'full',
+          url: project.url,
+        },
+      });
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -170,8 +201,30 @@ const Dashboard = () => {
       ) : (
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 animate-fade-in animation-delay-400">
           {projects.map((project) => {
-            const latestAnalysis = project.analysis_results[0];
-            const analysisCount = project.analysis_results.length;
+            // Combine and sort all analyses (both single-page and crawls)
+            const singlePageAnalyses = project.analysis_results.map(a => ({
+              id: a.id,
+              type: 'single' as const,
+              score: a.score,
+              date: new Date(a.analyzed_at),
+            }));
+
+            const crawlAnalyses = (project.website_crawls || [])
+              .filter(c => c.status === 'completed')
+              .map(c => ({
+                id: c.id,
+                type: 'crawl' as const,
+                score: c.overall_score,
+                date: new Date(c.completed_at),
+                pages: c.analyzed_pages,
+              }));
+
+            const allAnalyses = [...singlePageAnalyses, ...crawlAnalyses].sort(
+              (a, b) => b.date.getTime() - a.date.getTime()
+            );
+
+            const latestAnalysis = allAnalyses[0];
+            const analysisCount = allAnalyses.length;
 
             return (
               <Card 
@@ -202,10 +255,17 @@ const Dashboard = () => {
                       {analysisCount} {analysisCount === 1 ? "analysis" : "analyses"}
                     </p>
                     {latestAnalysis && (
-                      <p>
-                        Last analyzed:{" "}
-                        {new Date(latestAnalysis.analyzed_at).toLocaleDateString()}
-                      </p>
+                      <>
+                        <p>
+                          Last analyzed:{" "}
+                          {latestAnalysis.date.toLocaleDateString()}
+                        </p>
+                        {latestAnalysis.type === 'crawl' && 'pages' in latestAnalysis && (
+                          <p className="text-primary">
+                            Full site ({latestAnalysis.pages} pages)
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -216,7 +276,7 @@ const Dashboard = () => {
                           variant="outline"
                           size="default"
                           className="flex-1 hover-scale"
-                          onClick={() => handleViewAnalysis(project, latestAnalysis.id)}
+                          onClick={() => handleViewAnalysis(project, latestAnalysis.id, latestAnalysis.type)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           View
