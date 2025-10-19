@@ -229,6 +229,51 @@ const Index = () => {
     return () => clearInterval(pollInterval);
   }, [crawlId, isLoading, navigate, toast, url]);
 
+  // Normalize URL for consistent project matching
+  const normalizeUrl = (urlString: string): string => {
+    try {
+      const urlObj = new URL(urlString);
+      // Remove trailing slash, lowercase hostname
+      return `${urlObj.protocol}//${urlObj.hostname.toLowerCase()}${urlObj.pathname.replace(/\/$/, '')}`;
+    } catch {
+      return urlString;
+    }
+  };
+
+  // Find or create project for a URL
+  const findOrCreateProject = async (urlString: string): Promise<string | null> => {
+    if (!user) return null;
+    
+    const normalized = normalizeUrl(urlString);
+    
+    // Try to find existing project with this URL
+    const { data: existingProjects } = await supabase
+      .from("projects")
+      .select("id, url")
+      .eq("user_id", user.id);
+    
+    // Check if any existing project matches (normalized comparison)
+    const existingProject = existingProjects?.find(p => normalizeUrl(p.url) === normalized);
+    
+    if (existingProject) {
+      return existingProject.id;
+    }
+    
+    // Create new project
+    const { data: newProject } = await supabase
+      .from("projects")
+      .insert({
+        user_id: user.id,
+        name: new URL(urlString).hostname,
+        url: urlString,
+        framework: null,
+      })
+      .select()
+      .single();
+    
+    return newProject?.id || null;
+  };
+
   const handleSinglePageAnalyze = async () => {
     try {
       const response = await supabase.functions.invoke('analyze-website', {
@@ -247,20 +292,11 @@ const Index = () => {
 
       // Save to database only if user is logged in
       if (user) {
-        const { data: project } = await supabase
-          .from("projects")
-          .insert({
-            user_id: user.id,
-            name: data.websiteName || new URL(url).hostname,
-            url,
-            framework: null,
-          })
-          .select()
-          .single();
+        const projectId = await findOrCreateProject(url);
 
-        if (project) {
+        if (projectId) {
           await supabase.from("analysis_results").insert({
-            project_id: project.id,
+            project_id: projectId,
             user_id: user.id,
             score: data.overallScore,
             violations: data.violations,
@@ -279,7 +315,7 @@ const Index = () => {
               strengths: data.strengths,
               screenshot: data.screenshot,
               heuristics: heuristics,
-              projectId: project?.id,
+              projectId: projectId,
             },
           },
         });
@@ -308,12 +344,15 @@ const Index = () => {
     try {
       const maxPages = crawlMode === 'quick' ? 10 : crawlMode === 'light' ? 25 : crawlMode === 'standard' ? 50 : 100;
       
+      // Find or create project before starting crawl
+      const projectId = await findOrCreateProject(url);
+      
       const { data, error } = await supabase.functions.invoke('crawl-website-basic', {
         body: {
           url,
           maxPages,
           userId: user?.id || null,
-          projectId: null,
+          projectId: projectId,
         }
       });
 
@@ -348,11 +387,14 @@ const Index = () => {
 
   const handleFullWebsiteAnalyze = async () => {
     try {
+      // Find or create project before starting crawl
+      const projectId = await findOrCreateProject(url);
+      
       const { data, error } = await supabase.functions.invoke('start-website-crawl', {
         body: {
           url,
           userId: user?.id || null,
-          projectId: null,
+          projectId: projectId,
           crawlMode,
         }
       });

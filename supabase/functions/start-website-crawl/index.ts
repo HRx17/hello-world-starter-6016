@@ -41,7 +41,7 @@ serve(async (req) => {
 
   try {
     const { url, userId, projectId, crawlMode = 'light' } = await req.json();
-    console.log('Starting full website crawl for:', url, 'with mode:', crawlMode);
+    console.log('Starting full website crawl for:', url, 'with mode:', crawlMode, 'User:', userId, 'Project:', projectId);
     
     // Get crawl configuration based on selected mode
     const config = CRAWL_MODES[crawlMode as keyof typeof CRAWL_MODES] || CRAWL_MODES.light;
@@ -51,12 +51,39 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Fallback: Create project if not provided and user is authenticated
+    let finalProjectId = projectId;
+    if (!finalProjectId && userId) {
+      console.log('No projectId provided, creating project as fallback');
+      try {
+        const hostname = new URL(url).hostname;
+        const { data: newProject, error: projectError } = await supabase
+          .from('projects')
+          .insert({
+            user_id: userId,
+            name: hostname,
+            url: url,
+          })
+          .select()
+          .single();
+        
+        if (projectError) {
+          console.error('Failed to create fallback project:', projectError);
+        } else {
+          finalProjectId = newProject.id;
+          console.log('Created fallback project:', finalProjectId);
+        }
+      } catch (err) {
+        console.error('Error creating fallback project:', err);
+      }
+    }
+
     // Create crawl job record
     const { data: crawl, error: crawlError } = await supabase
       .from('website_crawls')
       .insert({
         user_id: userId,
-        project_id: projectId,
+        project_id: finalProjectId,
         url,
         status: 'queued',
       })
