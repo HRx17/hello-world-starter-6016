@@ -523,25 +523,35 @@ async function analyzePage(
 ): Promise<{ score: number; violations: any[]; strengths: any[] }> {
   console.log(`🔍 Starting hybrid analysis (${html.length} chars HTML)`);
   
-  // === PHASE 1: Quick error page detection ===
-  const errorIndicators = [
-    /404/i, /page not found/i, /not found/i,
-    /error \d{3}/i, /oops/i, /something went wrong/i
-  ];
+  // === PHASE 1: More precise error page detection ===
+  // Only skip pages that are CLEARLY error pages, not pages mentioning "404" in content
+  const htmlLower = html.toLowerCase();
+  const markdownLower = markdown.toLowerCase();
   
-  const isErrorPage = errorIndicators.some(regex => 
-    regex.test(markdown) || regex.test(html)
-  );
+  // Check for actual HTTP error pages (title + body content patterns)
+  const hasErrorTitle = /<title[^>]*>.*?(404|not found|error).*?<\/title>/i.test(html);
+  const hasErrorHeading = /<h1[^>]*>.*?(404|page not found|not found).*?<\/h1>/i.test(html);
+  const hasMinimalContent = html.length < 2000; // Error pages are usually small
+  const hasErrorClass = /class="[^"]*error-page|404-page/i.test(html);
+  
+  // Only mark as error if multiple signals indicate it's an error page
+  const errorSignals = [
+    hasErrorTitle,
+    hasErrorHeading && hasMinimalContent,
+    hasErrorClass,
+    /^(404|error|not found|oops)$/i.test(markdown.trim().split('\n')[0]?.trim() || '')
+  ].filter(Boolean).length;
+  
+  const isErrorPage = errorSignals >= 2;
   
   if (isErrorPage) {
-    console.log('⚠️ Error page detected, skipping');
+    console.log('⚠️ Error page detected (multiple signals), skipping');
     return { score: 50, violations: [], strengths: [] };
   }
   
   // === PHASE 2: Smart rule-based pre-filtering ===
   // Catches obvious, high-confidence issues before AI analysis
   const criticalViolations: any[] = [];
-  const htmlLower = html.toLowerCase();
   
   // Critical accessibility violations (high confidence)
   const images = html.match(/<img/gi) || [];

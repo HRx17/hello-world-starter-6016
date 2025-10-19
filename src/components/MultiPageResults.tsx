@@ -285,14 +285,22 @@ const PageAnalysisCard = ({ page }: { page: PageAnalysis }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* Screenshot with Annotations */}
-          {page.screenshot && violationsWithBoundingBoxes.length > 0 && (
+          {/* Screenshot with or without Annotations */}
+          {page.screenshot && (
             <div className="border rounded-lg overflow-hidden bg-muted/30">
-              <AnnotatedScreenshot
-                screenshot={page.screenshot}
-                violations={violationsWithBoundingBoxes}
-                websiteName={page.page_title || 'Page'}
-              />
+              {violationsWithBoundingBoxes.length > 0 ? (
+                <AnnotatedScreenshot
+                  screenshot={page.screenshot}
+                  violations={violationsWithBoundingBoxes}
+                  websiteName={page.page_title || 'Page'}
+                />
+              ) : (
+                <img 
+                  src={page.screenshot} 
+                  alt={`Screenshot of ${page.page_title}`}
+                  className="w-full h-auto"
+                />
+              )}
             </div>
           )}
 
