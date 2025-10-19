@@ -100,10 +100,10 @@ serve(async (req) => {
         maxDepth: config.depth,
         ignoreSitemap: false,
         excludePaths: [
-          '*.pdf', '*.zip', '*.tar.gz', '*.exe', '*.dmg',
-          '*.jpg', '*.jpeg', '*.png', '*.gif', '*.svg', '*.ico',
-          '*.mp3', '*.mp4', '*.avi', '*.mov',
-          '*.css', '*.js', '*.json', '*.xml'
+          '.*\\.pdf$', '.*\\.zip$', '.*\\.tar\\.gz$', '.*\\.exe$', '.*\\.dmg$',
+          '.*\\.jpg$', '.*\\.jpeg$', '.*\\.png$', '.*\\.gif$', '.*\\.svg$', '.*\\.ico$',
+          '.*\\.mp3$', '.*\\.mp4$', '.*\\.avi$', '.*\\.mov$',
+          '.*\\.css$', '.*\\.js$', '.*\\.json$', '.*\\.xml$'
         ],
         includePaths: [],
       }),
