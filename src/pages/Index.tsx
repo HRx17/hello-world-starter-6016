@@ -1,9 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingAnalysis } from "@/components/LoadingAnalysis";
 import { CrawlProgressCard } from "@/components/CrawlProgressCard";
@@ -24,9 +34,54 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [crawlId, setCrawlId] = useState<string | null>(null);
   const [crawlStatus, setCrawlStatus] = useState<any>(null);
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, isLoading: authLoading, signOut } = useAuth();
+
+  // Block navigation during analysis
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLoading) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isLoading]);
+
+  const handleTerminateAnalysis = useCallback(() => {
+    setIsLoading(false);
+    setCrawlId(null);
+    setCrawlStatus(null);
+    
+    toast({
+      title: "Analysis Terminated",
+      description: "The analysis has been stopped",
+      variant: "destructive",
+    });
+  }, [toast]);
+
+  const handleNavigationAttempt = useCallback((path: string) => {
+    if (isLoading) {
+      setPendingNavigation(path);
+      setShowExitDialog(true);
+    } else {
+      navigate(path);
+    }
+  }, [isLoading, navigate]);
+
+  const confirmExit = useCallback(() => {
+    handleTerminateAnalysis();
+    if (pendingNavigation) {
+      navigate(pendingNavigation);
+    }
+    setShowExitDialog(false);
+    setPendingNavigation(null);
+  }, [handleTerminateAnalysis, navigate, pendingNavigation]);
 
   // Poll crawl status
   useEffect(() => {
@@ -228,7 +283,7 @@ const Index = () => {
   ];
 
   return (
-    <DashboardLayout>
+    <DashboardLayout onNavigate={isLoading ? handleNavigationAttempt : undefined}>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
           {/* Hero Section */}
           <div className="text-center mb-12 space-y-4">
@@ -378,6 +433,24 @@ const Index = () => {
         ))}
       </div>
       </div>
+
+      {/* Exit Confirmation Dialog */}
+      <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Terminate Analysis?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The analysis is currently in progress. Leaving this page will terminate the analysis. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay on Page</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmExit} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Terminate & Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 
 interface AppSidebarProps {
   onSignOut: () => void;
+  onNavigate?: (path: string) => void;
 }
 
 const navItems = [
@@ -27,7 +28,7 @@ const navItems = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
-export function AppSidebar({ onSignOut }: AppSidebarProps) {
+export function AppSidebar({ onSignOut, onNavigate }: AppSidebarProps) {
   const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -65,6 +66,12 @@ export function AppSidebar({ onSignOut }: AppSidebarProps) {
                       <NavLink
                         to={item.url}
                         className={getNavCls(active)}
+                        onClick={(e) => {
+                          if (onNavigate) {
+                            e.preventDefault();
+                            onNavigate(item.url);
+                          }
+                        }}
                       >
                         <item.icon className="h-4 w-4" />
                         {!collapsed && <span className="ml-2">{item.title}</span>}

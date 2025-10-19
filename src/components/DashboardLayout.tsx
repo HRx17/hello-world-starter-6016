@@ -7,9 +7,10 @@ import { Sparkles } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  onNavigate?: (path: string) => void;
 }
 
-export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+export const DashboardLayout = ({ children, onNavigate }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
 
@@ -23,7 +24,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <AnimatedBackground />
       <SidebarProvider>
         <div className="min-h-screen flex w-full">
-          <AppSidebar onSignOut={handleSignOut} />
+          <AppSidebar onSignOut={handleSignOut} onNavigate={onNavigate} />
           <div className="flex-1 flex flex-col">
             {/* Header */}
             <header className="w-full border-b bg-background/50 backdrop-blur-xl sticky top-0 z-10">
