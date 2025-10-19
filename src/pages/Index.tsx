@@ -319,11 +319,7 @@ const Index = () => {
                 totalPages={crawlStatus?.total_pages || 0}
                 crawledPages={crawlStatus?.crawled_pages || 0}
                 analyzedPages={crawlStatus?.analyzed_pages || 0}
-                estimatedTimeRemaining={
-                  crawlStatus?.metadata?.estimated_time_remaining 
-                    ? `${Math.floor(crawlStatus.metadata.estimated_time_remaining / 60)}m ${crawlStatus.metadata.estimated_time_remaining % 60}s`
-                    : undefined
-                }
+                estimatedTimeRemaining={crawlStatus?.metadata?.estimated_time_remaining}
               />
             ) : (
               <LoadingAnalysis />

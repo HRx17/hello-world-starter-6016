@@ -84,12 +84,17 @@ export const CrawlProgressCard = ({
             {status === 'analyzing' && 'Each page is being analyzed with AI for UX issues...'}
             {status === 'completed' && 'All pages have been analyzed successfully!'}
           </p>
-          {status === 'analyzing' && estimatedTimeRemaining && (
-            <div className="flex items-center gap-2 text-sm">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          {estimatedTimeRemaining && status === 'analyzing' && (
+            <div className="flex items-center gap-2 text-sm bg-primary/5 p-3 rounded-lg border border-primary/10">
+              <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
               <span className="text-muted-foreground">
-                Estimated time remaining: <span className="font-medium text-foreground">{estimatedTimeRemaining}</span>
+                Estimated time remaining: <span className="font-semibold text-foreground">{estimatedTimeRemaining}</span>
               </span>
+            </div>
+          )}
+          {status === 'crawling' && totalPages > 0 && (
+            <div className="text-xs text-muted-foreground">
+              Analysis will begin once all pages are discovered
             </div>
           )}
         </div>
