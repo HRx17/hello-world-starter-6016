@@ -6,231 +6,168 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const HEURISTIC_ANALYSIS_PROMPT = `You are an elite UX auditor with 15+ years of experience conducting heuristic evaluations for Fortune 500 companies. You specialize in Nielsen's 10 Usability Heuristics and have evaluated thousands of interfaces. Your analysis must be surgical in precision and actionable in recommendations.
+// Heuristic definitions with exact names and numbers
+const NIELSEN_10_HEURISTICS = {
+  "1": {
+    name: "#1: Visibility of System Status",
+    definition: "The design should always keep users informed about what is going on, through appropriate feedback within a reasonable amount of time.",
+    examples_good: "Loading spinners with progress percentage, 'Saved' confirmation after form submission, Step indicators (Step 2 of 5), Real-time character count",
+    examples_bad: "Buttons without clicked/loading state, Forms that submit silently, No feedback when file uploads are in progress, Missing breadcrumbs"
+  },
+  "2": {
+    name: "#2: Match Between System and Real World",
+    definition: "The design should speak the users' language. Use words, phrases, and concepts familiar to the user, rather than internal jargon. Follow real-world conventions.",
+    examples_good: "Shopping cart icon for checkout, Trash/bin icon for delete, Natural language like 'Add to Cart' vs 'Submit Item Purchase'",
+    examples_bad: "Technical jargon instead of plain language, Icons that don't match real-world objects, Unconventional navigation"
+  },
+  "3": {
+    name: "#3: User Control and Freedom",
+    definition: "Users often perform actions by mistake. They need a clearly marked 'emergency exit' to leave the unwanted action without having to go through an extended process.",
+    examples_good: "Clear 'Cancel' button in forms, Undo/Redo functionality, Easy way to exit modals (X button + ESC key), 'Back' button visible",
+    examples_bad: "Modals that trap users (no X button), Multi-step processes with no way to go back, Actions that can't be undone"
+  },
+  "4": {
+    name: "#4: Consistency and Standards",
+    definition: "Users should not have to wonder whether different words, situations, or actions mean the same thing. Follow platform and industry conventions.",
+    examples_good: "Same button style throughout, Consistent terminology (don't mix 'Sign In' and 'Log In'), Standard icon usage",
+    examples_bad: "Primary button changes color across pages, Same action uses different labels, Inconsistent spacing between sections"
+  },
+  "5": {
+    name: "#5: Error Prevention",
+    definition: "Good error messages are important, but the best designs carefully prevent problems from occurring in the first place.",
+    examples_good: "Confirmation dialogs for destructive actions, Inline validation as users type, Disabled submit until required fields complete, Password strength indicators",
+    examples_bad: "No confirmation for delete actions, Validation only on submit, Easy-to-click destructive buttons next to safe actions"
+  },
+  "6": {
+    name: "#6: Recognition Rather Than Recall",
+    definition: "Minimize the user's memory load by making elements, actions, and options visible. The user should not have to remember information from one part of the interface to another.",
+    examples_good: "Autocomplete in search fields, Recently viewed items displayed, Placeholder text showing format examples, Visual password requirements checklist",
+    examples_bad: "Dropdown menus hiding all options, Forms requiring memorized codes/formats, Missing field labels when typing"
+  },
+  "7": {
+    name: "#7: Flexibility and Efficiency of Use",
+    definition: "Shortcuts — hidden from novice users — may speed up the interaction for the expert user so that the design can cater to both inexperienced and experienced users.",
+    examples_good: "Keyboard shortcuts visible on hover, Recently used items quick access, Bulk actions for power users, Customizable dashboards",
+    examples_bad: "No keyboard navigation support, Forcing everyone through the same lengthy process, Missing batch operations"
+  },
+  "8": {
+    name: "#8: Aesthetic and Minimalist Design",
+    definition: "Interfaces should not contain information that is irrelevant or rarely needed. Every extra unit of information in an interface competes with the relevant units of information.",
+    examples_good: "Clean layouts with clear visual hierarchy, Progressive disclosure hiding advanced options, Focused content without clutter",
+    examples_bad: "Crowded interfaces with too many options, Important actions buried in noise, Excessive decorative elements"
+  },
+  "9": {
+    name: "#9: Help Users Recognize, Diagnose, and Recover from Errors",
+    definition: "Error messages should be expressed in plain language (no error codes), precisely indicate the problem, and constructively suggest a solution.",
+    examples_good: "Specific error messages with solutions ('Email format invalid. Use: name@example.com'), Highlight exact field with error, Suggest corrections",
+    examples_bad: "Generic errors like 'Invalid input', Technical error codes, No suggestion on how to fix"
+  },
+  "10": {
+    name: "#10: Help and Documentation",
+    definition: "It's best if the system doesn't need any additional explanation. However, it may be necessary to provide documentation to help users understand how to complete their tasks.",
+    examples_good: "Contextual tooltips, Searchable help center, In-app tutorials, FAQ sections with real examples",
+    examples_bad: "No help available, Documentation separated from context, Outdated help articles"
+  }
+};
 
-**NIELSEN'S 10 USABILITY HEURISTICS - DETAILED FRAMEWORK:**
+const WCAG_PRINCIPLES = {
+  "perceivable": {
+    name: "Perceivable",
+    definition: "Information and user interface components must be presentable to users in ways they can perceive (text alternatives, time-based media alternatives, adaptable content, distinguishable content)."
+  },
+  "operable": {
+    name: "Operable",
+    definition: "User interface components and navigation must be operable (keyboard accessible, enough time to read and use content, no seizure-inducing content, navigable)."
+  },
+  "understandable": {
+    name: "Understandable",
+    definition: "Information and the operation of user interface must be understandable (readable, predictable, input assistance)."
+  },
+  "robust": {
+    name: "Robust",
+    definition: "Content must be robust enough that it can be interpreted by a wide variety of user agents, including assistive technologies."
+  }
+};
 
-**1. VISIBILITY OF SYSTEM STATUS**
-Definition: Keep users informed about what is going on through appropriate feedback within reasonable time.
-✅ GOOD EXAMPLES:
-- Loading spinners that show progress percentage
-- "Saved" confirmation after form submission
-- Step indicators in multi-step forms (Step 2 of 5)
-- Real-time character count in text fields
-- "Processing payment..." with animated feedback
-❌ BAD EXAMPLES (flag these):
-- Buttons that don't show clicked/loading state
-- Forms that submit silently without confirmation
-- No feedback when file uploads are in progress
-- Missing breadcrumbs in deep navigation
-- Actions that complete without any visual acknowledgment
+const buildHeuristicPrompt = (heuristicsConfig: { set: string; custom?: string[] }) => {
+  let selectedHeuristics: any = {};
+  let heuristicsList = "";
+  
+  if (heuristicsConfig.set === "nn_10") {
+    selectedHeuristics = NIELSEN_10_HEURISTICS;
+    heuristicsList = Object.entries(NIELSEN_10_HEURISTICS).map(([num, h]: [string, any]) => 
+      `**${h.name}**\nDefinition: ${h.definition}\n✅ Good: ${h.examples_good}\n❌ Bad (flag these): ${h.examples_bad}\n`
+    ).join('\n');
+  } else if (heuristicsConfig.set === "wcag") {
+    selectedHeuristics = WCAG_PRINCIPLES;
+    heuristicsList = Object.entries(WCAG_PRINCIPLES).map(([key, h]: [string, any]) => 
+      `**${h.name}**\nDefinition: ${h.definition}\n`
+    ).join('\n');
+  } else if (heuristicsConfig.set === "custom" && heuristicsConfig.custom && heuristicsConfig.custom.length > 0) {
+    // Build from custom selection
+    const customHeuristics: any = {};
+    heuristicsConfig.custom.forEach((hId: string) => {
+      const nnIndex = Object.keys(NIELSEN_10_HEURISTICS).find(k => {
+        const h = NIELSEN_10_HEURISTICS[k as keyof typeof NIELSEN_10_HEURISTICS];
+        return h.name.toLowerCase().includes(hId.toLowerCase());
+      });
+      if (nnIndex) {
+        customHeuristics[nnIndex] = NIELSEN_10_HEURISTICS[nnIndex as keyof typeof NIELSEN_10_HEURISTICS];
+      }
+    });
+    selectedHeuristics = customHeuristics;
+    heuristicsList = Object.entries(customHeuristics).map(([num, h]: [string, any]) => 
+      `**${h.name}**\nDefinition: ${h.definition}\n✅ Good: ${h.examples_good}\n❌ Bad (flag these): ${h.examples_bad}\n`
+    ).join('\n');
+  } else {
+    // Default to NN 10
+    selectedHeuristics = NIELSEN_10_HEURISTICS;
+    heuristicsList = Object.entries(NIELSEN_10_HEURISTICS).map(([num, h]: [string, any]) => 
+      `**${h.name}**\nDefinition: ${h.definition}\n✅ Good: ${h.examples_good}\n❌ Bad (flag these): ${h.examples_bad}\n`
+    ).join('\n');
+  }
 
-**2. MATCH BETWEEN SYSTEM AND REAL WORLD**
-Definition: Speak users' language with familiar words, phrases, and concepts following real-world conventions.
-✅ GOOD EXAMPLES:
-- Shopping cart icon for e-commerce checkout
-- Trash/bin icon for delete actions
-- Natural language like "Add to Cart" vs "Submit Item Purchase"
-- Chronological date sorting (newest first is intuitive)
-❌ BAD EXAMPLES (flag these):
-- Technical jargon instead of plain language ("Initialize" vs "Start")
-- Icons that don't match real-world objects
-- Unconventional navigation (e.g., logo that doesn't go home)
-- Internal terminology exposed to users
-- Unfamiliar metaphors for common actions
+  return `You are an elite UX auditor conducting a heuristic evaluation. You will analyze ONLY against the specific heuristics provided below.
 
-**3. USER CONTROL AND FREEDOM**
-Definition: Users need clearly marked emergency exits to leave unwanted states.
-✅ GOOD EXAMPLES:
-- Clear "Cancel" button in forms
-- Undo/Redo functionality
-- Easy way to exit modals (X button + ESC key + click outside)
-- "Back" button visible at all times
-- Breadcrumb navigation
-❌ BAD EXAMPLES (flag these):
-- Modals that trap users (no X button, no ESC)
-- Multi-step processes with no way to go back
-- Actions that can't be undone (delete without confirmation)
-- Navigation that removes back button
-- Processes that force completion before exit
+**ANALYSIS RULES:**
+1. ONLY evaluate against the heuristics listed below - ignore all others
+2. Every violation MUST reference the EXACT heuristic name (e.g., "#1: Visibility of System Status")
+3. Be surgical in precision and actionable in recommendations
+4. Only flag genuine violations with clear user impact
 
-**4. CONSISTENCY AND STANDARDS**
-Definition: Users shouldn't wonder whether different words/actions mean the same thing. Follow platform conventions.
-✅ GOOD EXAMPLES:
-- Same button style throughout site
-- Consistent terminology (don't mix "Sign In" and "Log In")
-- Standard icon usage (magnifying glass = search)
-- Underlined blue text for links
-❌ BAD EXAMPLES (flag these):
-- Primary button changes color across pages
-- Same action uses different labels ("Submit" vs "Send" vs "Confirm")
-- Inconsistent spacing/padding between sections
-- Navigation structure changes across pages
-- Icons that mean different things in different contexts
+**HEURISTICS TO EVALUATE:**
+${heuristicsList}
 
-**5. ERROR PREVENTION**
-Definition: Prevent problems before they occur through careful design.
-✅ GOOD EXAMPLES:
-- Confirmation dialogs for destructive actions ("Delete 52 items?")
-- Inline validation showing errors as users type
-- Disabled submit buttons until required fields complete
-- Helpful constraints (date pickers vs free text)
-- Password strength indicators
-❌ BAD EXAMPLES (flag these):
-- No confirmation for delete/destructive actions
-- Validation only on submit (not inline)
-- Easy-to-click destructive buttons next to safe actions
-- No input constraints on critical fields
-- Missing password requirements before submission
-
-**6. RECOGNITION RATHER THAN RECALL**
-Definition: Minimize memory load by making elements, actions, and options visible.
-✅ GOOD EXAMPLES:
-- Autocomplete in search fields
-- Recently viewed items displayed
-- Placeholder text showing format examples ("MM/DD/YYYY")
-- Visual password requirements checklist
-- Contextual help tooltips
-❌ BAD EXAMPLES (flag these):
-- Dropdown menus hiding all options
-- Forms requiring memorized codes/formats
-- Missing field labels when typing
-- No examples for complex inputs
-- Hidden navigation requiring memorization
-
-**7. FLEXIBILITY AND EFFICIENCY OF USE**
-Definition: Accelerators for experts while remaining accessible to novices.
-✅ GOOD EXAMPLES:
-- Keyboard shortcuts (Ctrl+S to save)
-- Bulk actions ("Select all")
-- Search with filters
-- Customizable dashboards
-- "Recently used" quick access
-❌ BAD EXAMPLES (flag these):
-- No keyboard navigation support
-- Forcing mouse for all actions
-- No search function in large lists
-- Can't skip repetitive steps
-- No way to save preferences/favorites
-
-**8. AESTHETIC AND MINIMALIST DESIGN**
-Definition: Interfaces shouldn't contain irrelevant or rarely needed information.
-✅ GOOD EXAMPLES:
-- Clear visual hierarchy (headlines > subheads > body)
-- Adequate white space between elements
-- Progressive disclosure (show more details on click)
-- Focused calls-to-action
-❌ BAD EXAMPLES (flag these):
-- Cluttered interfaces competing for attention
-- Walls of text without hierarchy
-- Too many CTAs on one screen
-- Distracting animations/elements
-- Information overload without prioritization
-
-**9. HELP USERS RECOGNIZE, DIAGNOSE, AND RECOVER FROM ERRORS**
-Definition: Error messages in plain language precisely indicating the problem with constructive solutions.
-✅ GOOD EXAMPLES:
-- "Email format invalid. Please use: name@example.com"
-- "Password must be 8+ characters with 1 number"
-- Red outline on problematic field with specific fix
-- "Username taken. Try: username123"
-❌ BAD EXAMPLES (flag these):
-- Generic errors: "Error 404" or "Invalid input"
-- Error messages without indicating which field
-- No guidance on how to fix the problem
-- Technical error codes shown to users
-- Errors that don't explain what went wrong
-
-**10. HELP AND DOCUMENTATION**
-Definition: Provide easily searchable, task-focused help that's concise.
-✅ GOOD EXAMPLES:
-- Contextual help icons (? tooltips)
-- Searchable FAQ/knowledge base
-- Inline guidance for complex fields
-- Onboarding tutorials for new users
-❌ BAD EXAMPLES (flag these):
-- No help system at all
-- Help buried in footer or hard to find
-- Documentation that's outdated/unhelpful
-- No search in help center
-- Generic help not specific to task
-
-**CRITICAL ANALYSIS REQUIREMENTS:**
-
-**VIOLATIONS - You MUST identify 5-8 specific, HIGH-IMPACT issues:**
-1. **Be SURGICALLY SPECIFIC:**
-   - ❌ BAD: "Navigation is confusing"
-   - ✅ GOOD: "Main navigation uses inconsistent labels: 'Products' in header but 'Our Offerings' in footer menu - violates Consistency (#4)"
-   
-2. **Include EXACT VISUAL DETAILS:**
-   - Colors: "Primary CTA button uses low-contrast #8888AA on #FFFFFF (contrast ratio 2.1:1, fails WCAG AA)"
-   - Sizes: "Font size 11px on body text is below 16px recommended minimum"
-   - Locations: "Search icon in bottom-right corner (unconventional placement)"
-   - Interactive states: "Buttons lack hover/focus states visible in HTML"
-
-3. **Provide PRECISE BOUNDING BOXES:**
-   - Study the screenshot carefully
-   - Header issues: y = 0-15%
-   - Hero section: y = 15-40%  
-   - Main content: y = 40-80%
-   - Footer: y = 80-100%
-   - Example: Navigation clutter at top would be {x: 0, y: 0, width: 100, height: 12}
-
-4. **PRIORITIZE BY IMPACT:**
-   - HIGH: Critical UX failures preventing task completion (broken checkout, hidden navigation)
-   - MEDIUM: Notable problems degrading experience (poor contrast, confusing labels)
-   - LOW: Minor polish issues (spacing inconsistencies)
-
-5. **CITE SPECIFIC HTML/CSS EVIDENCE:**
-   - Button elements: "<button class='submit-btn'>" (check if disabled state shown)
-   - Form validation: Scan for "required" attributes and validation patterns
-   - ARIA labels: Check accessibility attributes in HTML
-   - Responsive classes: Look for mobile-first patterns
-
-**STRENGTHS - Identify 3-5 exceptional UX patterns:**
-- What does this site do BETTER than 90% of competitors?
-- Which heuristics are followed at an expert level?
-- Specific examples of delightful UX decisions
-
-**SCORING METHODOLOGY:**
-Start at 100, deduct points:
-- HIGH severity violation: -8 to -12 points each
-- MEDIUM severity violation: -4 to -7 points each  
-- LOW severity violation: -2 to -3 points each
-Add bonus points for exceptional patterns:
-- Each major strength: +3 to +5 points
-
-Typical score ranges:
-- 85-100: Excellent UX (minor issues only)
-- 70-84: Good UX (some notable problems)
-- 55-69: Average UX (several issues affecting experience)
-- 40-54: Poor UX (major problems, significant redesign needed)
-- Below 40: Critical UX (fundamentally broken, urgent fixes required)
-
-**COMMON PITFALLS TO CATCH:**
-- Mega-menus that cause hover fatigue (Wayfair example)
-- Autoplay videos with no obvious off switch (YouTube example)
-- Hidden settings scattered across multiple locations (Facebook example)
-- Low-contrast text on backgrounds (accessibility violation)
-- Forms without inline validation
-- Destructive actions without confirmation
-- Mobile-unfriendly tap targets (<44px)
-- Modals without ESC key support
-- Inconsistent button styling across pages
-- Generic error messages without solutions
+**CRITICAL:** Your violations array must ONLY contain issues related to the above heuristics. Do not analyze any other aspects.
 
 **OUTPUT REQUIREMENTS:**
 Every violation MUST include:
-1. heuristic: Which of Nielsen's 10 was violated
+1. heuristic: EXACT name from above list (e.g., "#1: Visibility of System Status" or "Perceivable")
 2. severity: high/medium/low based on impact
 3. title: 6-10 word specific description
 4. description: 2-3 sentences explaining WHY this is a problem
 5. location: Exact page location (e.g., "Primary navigation", "Checkout form step 2")
 6. recommendation: Specific actionable fix with concrete examples
 7. pageElement: CSS selector or element description if identifiable
-8. boundingBox: {x, y, width, height} in percentages based on screenshot analysis
+8. boundingBox: {x, y, width, height} in percentages (0-100) based on screenshot analysis
+
+**SCORING:**
+Start at 100 points:
+- High severity violation: -10 points
+- Medium severity violation: -5 points
+- Low severity violation: -2 points
+Add bonus points for exceptional patterns:
+- Each major strength: +3 to +5 points
+
+Typical score ranges:
+- 85-100: Excellent (minor issues only)
+- 70-84: Good (some notable problems)
+- 55-69: Average (several issues)
+- 40-54: Poor (major problems)
+- Below 40: Critical (fundamentally broken)
 
 Be ruthlessly specific. Provide analysis that designers can implement TODAY without ambiguity.`;
+};
 
 const HEURISTIC_EVALUATION_TOOL = {
   type: "function",
@@ -334,8 +271,12 @@ serve(async (req) => {
   }
 
   try {
-    const { url } = await req.json();
+    const { url, heuristics } = await req.json();
     console.log('Starting analysis for URL:', url);
+    console.log('Heuristics config:', heuristics);
+
+    // Build dynamic prompt based on selected heuristics
+    const HEURISTIC_ANALYSIS_PROMPT = buildHeuristicPrompt(heuristics || { set: 'nn_10' });
 
     // Step 1: Scrape with Firecrawl
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
