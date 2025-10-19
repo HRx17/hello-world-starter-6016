@@ -512,235 +512,256 @@ function classifyPageType(url: string, html: string): string {
   return 'other';
 }
 
-async function analyzePage(html: string, markdown: string, screenshot: string, apiKey: string) {
-  // FULL AI ANALYSIS PIPELINE - Same as single-page analysis
+// Advanced Hybrid UX Analysis System
+// Combines smart rule-based pre-filtering with Claude AI expert analysis
+// Designed to rival Baymard Institute's UX analysis tool
+async function analyzePage(
+  html: string, 
+  markdown: string, 
+  screenshot: string,
+  apiKey: string
+): Promise<{ score: number; violations: any[]; strengths: any[] }> {
+  console.log(`🔍 Starting hybrid analysis (${html.length} chars HTML)`);
   
-  // First, check for error pages and skip analysis
-  const htmlLower = html.toLowerCase();
-  const markdownLower = markdown.toLowerCase();
+  // === PHASE 1: Quick error page detection ===
+  const errorIndicators = [
+    /404/i, /page not found/i, /not found/i,
+    /error \d{3}/i, /oops/i, /something went wrong/i
+  ];
   
-  const isErrorPage = 
-    htmlLower.includes('404') || 
-    htmlLower.includes('page not found') ||
-    htmlLower.includes('error') && (htmlLower.includes('500') || htmlLower.includes('403')) ||
-    markdownLower.includes('404') ||
-    markdownLower.includes('page not found');
+  const isErrorPage = errorIndicators.some(regex => 
+    regex.test(markdown) || regex.test(html)
+  );
   
   if (isErrorPage) {
-    console.log('Skipping error page from analysis');
-    return {
-      score: 100,
-      violations: [],
-      strengths: [],
-    };
+    console.log('⚠️ Error page detected, skipping');
+    return { score: 50, violations: [], strengths: [] };
   }
   
-  // Step 1: Rule-based pattern detection (deterministic baseline)
-  const ruleBasedViolations: any[] = [];
-  const ruleBasedStrengths: any[] = [];
+  // === PHASE 2: Smart rule-based pre-filtering ===
+  // Catches obvious, high-confidence issues before AI analysis
+  const criticalViolations: any[] = [];
+  const htmlLower = html.toLowerCase();
   
-  for (const uiPattern of UI_PATTERN_DATABASE) {
-    for (const badPattern of uiPattern.badPatterns) {
-      if (detectPattern(html, badPattern)) {
-        ruleBasedViolations.push({
-          heuristic: uiPattern.heuristics[0] || "General UX",
-          severity: badPattern.severity,
-          title: badPattern.description,
-          description: `${uiPattern.component}: ${badPattern.description}`,
-          location: uiPattern.component,
-          recommendation: badPattern.recommendation,
-        });
-      }
-    }
-    
-    // Detect strengths (good patterns)
-    for (const goodPattern of uiPattern.goodPatterns) {
-      if (detectPattern(html, goodPattern)) {
-        ruleBasedStrengths.push({
-          heuristic: uiPattern.heuristics[0] || "General UX",
-          description: `${uiPattern.component}: ${goodPattern.description}`,
-        });
-      }
-    }
+  // Critical accessibility violations (high confidence)
+  const images = html.match(/<img/gi) || [];
+  const alts = html.match(/alt=/gi) || [];
+  if (images.length > 3 && alts.length < images.length * 0.5) {
+    criticalViolations.push({
+      heuristic: 'Accessibility',
+      severity: 'high',
+      title: 'Critical: Missing alt text on images',
+      description: `${images.length - alts.length} images lack alt attributes, violating WCAG guidelines`,
+      location: 'Images throughout page',
+      recommendation: 'Add descriptive alt text to all images for screen readers',
+      confidence: 0.95
+    });
   }
-
-  // Step 2: AI Vision-Based Classification using Gemini Pro
+  
+  // Missing viewport (mobile responsiveness)
+  const hasViewport = /<meta[^>]*viewport/i.test(html);
+  if (!hasViewport) {
+    criticalViolations.push({
+      heuristic: 'Flexibility and efficiency',
+      severity: 'high',
+      title: 'Critical: No mobile viewport configuration',
+      description: 'Missing viewport meta tag will break mobile rendering',
+      location: 'HTML <head>',
+      recommendation: 'Add: <meta name="viewport" content="width=device-width, initial-scale=1">',
+      confidence: 1.0
+    });
+  }
+  
+  // Form accessibility
+  const forms = html.match(/<form/gi) || [];
+  const inputs = html.match(/<input/gi) || [];
+  const labels = html.match(/<label/gi) || [];
+  if (forms.length > 0 && labels.length < inputs.length * 0.7) {
+    criticalViolations.push({
+      heuristic: 'Help and documentation',
+      severity: 'high',
+      title: 'Critical: Form inputs lack labels',
+      description: `${inputs.length - labels.length} inputs missing labels (WCAG violation)`,
+      location: 'Forms',
+      recommendation: 'Associate every input with a label element for accessibility',
+      confidence: 0.9
+    });
+  }
+  
+  console.log(`⚡ Pre-filter found ${criticalViolations.length} critical issues`);
+  
+  // === PHASE 3: Claude AI Expert Analysis ===
+  // Use Claude Sonnet for deep UX evaluation with vision
+  console.log('🤖 Initiating Claude AI analysis...');
+  
   let aiViolations: any[] = [];
   let aiStrengths: any[] = [];
   
-  if (screenshot && apiKey) {
-    try {
-      // Stage 1: UI Pattern Classification with Vision
-      const classificationPrompt = `Analyze this screenshot and HTML to identify UI patterns. Focus on:
-1. Navigation structure and usability
-2. Form design and validation
-3. Button/CTA visibility and clarity
-4. Error messaging approach
-5. Loading states and feedback
-6. Modal/dialog design
+  try {
+    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicKey) {
+      console.warn('⚠️ ANTHROPIC_API_KEY not set, skipping AI analysis');
+      throw new Error('No API key');
+    }
 
-For each UI element, provide:
-- Element type and purpose
-- Visual location (percentage-based coordinates: x, y, width, height where 0-100)
-- Usability assessment
+    const analysisPrompt = `You are a senior UX researcher with expertise in Nielsen's 10 heuristics, WCAG accessibility, and conversion optimization. Analyze this webpage with the rigor of Baymard Institute's UX research.
 
-Provide bounding boxes for ALL identified issues.`;
-
-      const classificationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-pro',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: classificationPrompt },
-                { type: 'image_url', image_url: { url: screenshot } }
-              ]
-            }
-          ],
-          temperature: 0.1,
-        })
-      });
-
-      if (classificationResponse.ok) {
-        const classificationData = await classificationResponse.json();
-        const classification = classificationData.choices?.[0]?.message?.content || '';
-
-        // Stage 2: Heuristic Evaluation using Gemini Flash
-        const evaluationPrompt = `Based on Nielsen's 10 Usability Heuristics, evaluate this page.
-
-SCREENSHOT ANALYSIS:
-${classification}
-
-HTML STRUCTURE:
-${html.substring(0, 5000)}
+EVALUATION CRITERIA:
+1. Nielsen's 10 Usability Heuristics
+2. WCAG 2.1 Accessibility Standards
+3. Conversion optimization best practices
+4. Mobile UX patterns
+5. Cognitive load and information architecture
 
 CRITICAL INSTRUCTIONS:
-- Do NOT flag 404 errors, page not found errors, or HTTP status code issues
-- Do NOT flag missing content or empty states that are intentional
-- ONLY flag actual usability violations that affect user experience
-- Focus on UI/UX issues like navigation, forms, buttons, feedback, consistency
+- Report ONLY actual usability violations (not 404s, server errors, or missing content)
+- Focus on functional pages with real user journeys
+- Provide specific, actionable recommendations backed by UX research
+- Include confidence scores (0.0-1.0) for each finding
+- Identify both violations AND strengths
 
-Identify 5-8 specific violations with:
-1. Exact heuristic violated (from Nielsen's 10)
-2. Severity (high/medium/low)
-3. Specific title
-4. Detailed description of the UX issue
-5. Location on page
-6. Actionable recommendation
-7. Bounding box coordinates (x, y, width, height as percentages 0-100)
+HTML Content:
+${html.substring(0, 12000)}
 
-Also identify 3-5 strengths where heuristics are followed well.`;
+Markdown Content:
+${markdown.substring(0, 6000)}
 
-        const evaluationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [{ role: 'user', content: evaluationPrompt }],
-            tools: [{
-              type: "function",
-              function: {
-                name: "evaluate_usability",
-                description: "Return structured heuristic evaluation",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    violations: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          heuristic: { type: "string" },
-                          severity: { type: "string", enum: ["high", "medium", "low"] },
-                          title: { type: "string" },
-                          description: { type: "string" },
-                          location: { type: "string" },
-                          recommendation: { type: "string" },
-                          boundingBox: {
-                            type: "object",
-                            properties: {
-                              x: { type: "number" },
-                              y: { type: "number" },
-                              width: { type: "number" },
-                              height: { type: "number" }
-                            }
-                          }
-                        },
-                        required: ["heuristic", "severity", "title", "description", "location", "recommendation"]
-                      }
-                    },
-                    strengths: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          heuristic: { type: "string" },
-                          description: { type: "string" }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }],
-            tool_choice: { type: "function", function: { name: "evaluate_usability" } }
-          })
-        });
+Analyze with expert precision and report findings.`;
 
-        if (evaluationResponse.ok) {
-          const evaluationData = await evaluationResponse.json();
-          const toolCall = evaluationData.choices?.[0]?.message?.tool_calls?.[0];
-          
-          if (toolCall?.function?.arguments) {
-            const evaluation = JSON.parse(toolCall.function.arguments);
-            aiViolations = evaluation.violations || [];
-            aiStrengths = evaluation.strengths || [];
+    const messages: any[] = [{
+      role: 'user',
+      content: analysisPrompt
+    }];
+
+    // Add screenshot if available
+    if (screenshot) {
+      messages[0].content = [
+        { type: 'text', text: analysisPrompt },
+        { 
+          type: 'image',
+          source: {
+            type: 'url',
+            url: screenshot
           }
         }
-      }
-    } catch (error) {
-      console.error('AI analysis error:', error);
-      // Fall back to rule-based only
+      ];
     }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 4096,
+        messages,
+        tools: [{
+          name: 'report_ux_analysis',
+          description: 'Report comprehensive UX analysis findings with confidence scores',
+          input_schema: {
+            type: 'object',
+            properties: {
+              violations: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    heuristic: { type: 'string', description: 'Nielsen heuristic or UX principle' },
+                    severity: { type: 'string', enum: ['high', 'medium', 'low'] },
+                    title: { type: 'string', description: 'Clear violation title' },
+                    description: { type: 'string', description: 'Detailed explanation with user impact' },
+                    location: { type: 'string', description: 'Where the issue occurs' },
+                    recommendation: { type: 'string', description: 'Specific, actionable fix backed by research' },
+                    confidence: { type: 'number', description: 'Confidence score 0.0-1.0' }
+                  },
+                  required: ['heuristic', 'severity', 'title', 'description', 'location', 'recommendation', 'confidence']
+                }
+              },
+              strengths: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    heuristic: { type: 'string' },
+                    description: { type: 'string' },
+                    confidence: { type: 'number' }
+                  },
+                  required: ['heuristic', 'description', 'confidence']
+                }
+              }
+            },
+            required: ['violations', 'strengths']
+          }
+        }],
+        tool_choice: { type: 'tool', name: 'report_ux_analysis' }
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const toolUse = data.content?.find((c: any) => c.type === 'tool_use');
+      if (toolUse?.input) {
+        aiViolations = toolUse.input.violations || [];
+        aiStrengths = toolUse.input.strengths || [];
+        console.log(`✅ Claude found ${aiViolations.length} violations, ${aiStrengths.length} strengths`);
+      }
+    } else {
+      const errorText = await response.text();
+      console.error('❌ Claude API error:', response.status, errorText);
+    }
+  } catch (error) {
+    console.error('❌ Claude analysis failed:', error);
+    // Continue with rule-based results
   }
-
-  // Step 3: Combine rule-based and AI violations
-  const allViolations = [...ruleBasedViolations, ...aiViolations];
-  const allStrengths = [...ruleBasedStrengths, ...aiStrengths];
-
-  // Step 4: Calculate weighted score
-  let score = 100;
   
-  allViolations.forEach(v => {
-    const weights: { [key: string]: number } = { high: 12, medium: 6, low: 3 };
-    score -= weights[v.severity] || 5;
-  });
+  // === PHASE 4: Intelligent result merging ===
+  // Combine high-confidence rule violations with AI findings
+  // Remove duplicates based on semantic similarity
+  const allViolations = [...criticalViolations, ...aiViolations];
+  const allStrengths = aiStrengths;
   
-  // Bonus for strengths (up to +10)
-  const strengthBonus = Math.min(10, allStrengths.length * 2);
-  score += strengthBonus;
+  // Deduplicate violations (keep highest confidence version)
+  const uniqueViolations = allViolations.reduce((acc, v) => {
+    const similar = acc.find((existing: any) => 
+      existing.title.toLowerCase().includes(v.title.toLowerCase().substring(0, 20)) ||
+      v.title.toLowerCase().includes(existing.title.toLowerCase().substring(0, 20))
+    );
+    
+    if (!similar) {
+      acc.push(v);
+    } else if ((v.confidence || 0.5) > (similar.confidence || 0.5)) {
+      // Replace with higher confidence version
+      acc[acc.indexOf(similar)] = v;
+    }
+    
+    return acc;
+  }, [] as any[]);
   
-  // Clamp between 40-100
-  score = Math.max(40, Math.min(100, Math.round(score)));
-
+  // === PHASE 5: Scoring algorithm ===
+  // Weighted scoring based on severity and confidence
+  const severityWeights = { high: 20, medium: 10, low: 4 };
+  const totalDeductions = uniqueViolations.reduce((sum: number, v: any) => {
+    const weight = severityWeights[v.severity as keyof typeof severityWeights] || 10;
+    const confidence = v.confidence || 0.7;
+    return sum + (weight * confidence);
+  }, 0);
+  
+  const score = Math.max(0, Math.min(100, 100 - totalDeductions));
+  
+  console.log(`📊 Final: ${score} score | ${uniqueViolations.length} violations | ${allStrengths.length} strengths`);
+  
   return {
     score,
-    violations: allViolations,
-    strengths: allStrengths,
+    violations: uniqueViolations,
+    strengths: allStrengths
   };
 }
 
 function deduplicateViolations(violations: any[]): any[] {
-  const seen = new Set();
+  const seen = new Set<string>();
   return violations.filter(v => {
     const key = `${v.heuristic}-${v.title}`;
     if (seen.has(key)) return false;
@@ -750,9 +771,9 @@ function deduplicateViolations(violations: any[]): any[] {
 }
 
 function deduplicateStrengths(strengths: any[]): any[] {
-  const seen = new Set();
+  const seen = new Set<string>();
   return strengths.filter(s => {
-    const key = `${s.heuristic}-${s.description?.substring(0, 50)}`;
+    const key = `${s.heuristic}-${s.description}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
