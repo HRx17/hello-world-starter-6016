@@ -3,7 +3,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScoreDisplay } from "@/components/ScoreDisplay";
 import { ViolationCard } from "@/components/ViolationCard";
-import { CheckCircle2, FileText, AlertTriangle } from "lucide-react";
+import { CheckCircle2, FileText, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AnnotatedScreenshot } from "@/components/AnnotatedScreenshot";
+import { useState } from "react";
 
 interface PageAnalysis {
   id: string;
@@ -142,17 +145,13 @@ export const MultiPageResults = ({ crawl, pages, websiteName }: MultiPageResults
             ))}
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4 mt-6">
-            {pages.map((page) => (
-              <PageAnalysisCard key={page.id} page={page} />
-            ))}
+          <TabsContent value="all" className="mt-6">
+            <PageCarousel pages={pages} />
           </TabsContent>
 
           {Object.entries(pagesByType).map(([type, typePages]) => (
-            <TabsContent key={type} value={type} className="space-y-4 mt-6">
-              {typePages.map((page) => (
-                <PageAnalysisCard key={page.id} page={page} />
-              ))}
+            <TabsContent key={type} value={type} className="mt-6">
+              <PageCarousel pages={typePages} />
             </TabsContent>
           ))}
         </Tabs>
@@ -183,12 +182,83 @@ export const MultiPageResults = ({ crawl, pages, websiteName }: MultiPageResults
   );
 };
 
+const PageCarousel = ({ pages }: { pages: PageAnalysis[] }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const handlePrevious = () => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : pages.length - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev < pages.length - 1 ? prev + 1 : 0));
+  };
+
+  if (pages.length === 0) {
+    return <div className="text-center text-muted-foreground py-8">No pages found</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Carousel Controls */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePrevious}
+          disabled={pages.length <= 1}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Previous
+        </Button>
+        <div className="text-sm text-muted-foreground">
+          Page {currentIndex + 1} of {pages.length}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleNext}
+          disabled={pages.length <= 1}
+        >
+          Next
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+
+      {/* Current Page Card */}
+      <PageAnalysisCard page={pages[currentIndex]} />
+
+      {/* Dot Navigation */}
+      {pages.length > 1 && (
+        <div className="flex justify-center gap-2 py-2">
+          {pages.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`h-2 rounded-full transition-all ${
+                idx === currentIndex
+                  ? 'w-8 bg-primary'
+                  : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+              }`}
+              aria-label={`Go to page ${idx + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const PageAnalysisCard = ({ page }: { page: PageAnalysis }) => {
+  const [showAllViolations, setShowAllViolations] = useState(false);
+  
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600";
     if (score >= 60) return "text-yellow-600";
     return "text-red-600";
   };
+
+  const violationsWithBoundingBoxes = page.violations?.filter(v => v.boundingBox) || [];
+  const displayViolations = showAllViolations ? page.violations : page.violations?.slice(0, 3);
 
   return (
     <Card>
@@ -214,15 +284,27 @@ const PageAnalysisCard = ({ page }: { page: PageAnalysis }) => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Screenshot with Annotations */}
+          {page.screenshot && violationsWithBoundingBoxes.length > 0 && (
+            <div className="border rounded-lg overflow-hidden bg-muted/30">
+              <AnnotatedScreenshot
+                screenshot={page.screenshot}
+                violations={violationsWithBoundingBoxes}
+                websiteName={page.page_title || 'Page'}
+              />
+            </div>
+          )}
+
+          {/* Violations List */}
           {page.violations && page.violations.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold mb-2">
+              <h4 className="text-sm font-semibold mb-3">
                 Issues Found ({page.violations.length})
               </h4>
               <div className="space-y-2">
-                {page.violations.slice(0, 3).map((violation, idx) => (
-                  <div key={idx} className="text-sm p-3 rounded bg-muted/50">
+                {displayViolations?.map((violation, idx) => (
+                  <div key={idx} className="text-sm p-3 rounded bg-muted/50 border">
                     <div className="flex items-start gap-2">
                       <Badge 
                         variant={
@@ -239,15 +321,59 @@ const PageAnalysisCard = ({ page }: { page: PageAnalysis }) => {
                         <p className="text-muted-foreground text-xs mt-1">
                           {violation.description}
                         </p>
+                        {violation.location && (
+                          <p className="text-muted-foreground text-xs mt-1">
+                            📍 {violation.location}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
-                {page.violations.length > 3 && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    +{page.violations.length - 3} more issues
-                  </p>
+                {page.violations.length > 3 && !showAllViolations && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAllViolations(true)}
+                    className="w-full"
+                  >
+                    Show {page.violations.length - 3} more issues
+                  </Button>
                 )}
+                {showAllViolations && page.violations.length > 3 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAllViolations(false)}
+                    className="w-full"
+                  >
+                    Show less
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Strengths */}
+          {page.strengths && page.strengths.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold mb-3 text-green-700 dark:text-green-400">
+                Strengths ({page.strengths.length})
+              </h4>
+              <div className="space-y-2">
+                {page.strengths.slice(0, 3).map((strength, idx) => (
+                  <div key={idx} className="text-sm p-3 rounded bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-medium text-green-900 dark:text-green-100">{strength.heuristic}</p>
+                        <p className="text-green-700 dark:text-green-300 text-xs mt-1">
+                          {strength.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

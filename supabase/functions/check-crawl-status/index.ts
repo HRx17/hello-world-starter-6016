@@ -511,6 +511,26 @@ function classifyPageType(url: string, html: string): string {
 async function analyzePage(html: string, markdown: string, screenshot: string, apiKey: string) {
   // FULL AI ANALYSIS PIPELINE - Same as single-page analysis
   
+  // First, check for error pages and skip analysis
+  const htmlLower = html.toLowerCase();
+  const markdownLower = markdown.toLowerCase();
+  
+  const isErrorPage = 
+    htmlLower.includes('404') || 
+    htmlLower.includes('page not found') ||
+    htmlLower.includes('error') && (htmlLower.includes('500') || htmlLower.includes('403')) ||
+    markdownLower.includes('404') ||
+    markdownLower.includes('page not found');
+  
+  if (isErrorPage) {
+    console.log('Skipping error page from analysis');
+    return {
+      score: 100,
+      violations: [],
+      strengths: [],
+    };
+  }
+  
   // Step 1: Rule-based pattern detection (deterministic baseline)
   const ruleBasedViolations: any[] = [];
   const ruleBasedStrengths: any[] = [];
@@ -596,14 +616,20 @@ ${classification}
 HTML STRUCTURE:
 ${html.substring(0, 5000)}
 
+CRITICAL INSTRUCTIONS:
+- Do NOT flag 404 errors, page not found errors, or HTTP status code issues
+- Do NOT flag missing content or empty states that are intentional
+- ONLY flag actual usability violations that affect user experience
+- Focus on UI/UX issues like navigation, forms, buttons, feedback, consistency
+
 Identify 5-8 specific violations with:
-1. Exact heuristic violated
+1. Exact heuristic violated (from Nielsen's 10)
 2. Severity (high/medium/low)
 3. Specific title
-4. Detailed description
+4. Detailed description of the UX issue
 5. Location on page
 6. Actionable recommendation
-7. Bounding box coordinates (x, y, width, height as percentages)
+7. Bounding box coordinates (x, y, width, height as percentages 0-100)
 
 Also identify 3-5 strengths where heuristics are followed well.`;
 
