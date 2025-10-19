@@ -353,14 +353,14 @@ serve(async (req) => {
 // Background task to analyze all crawled pages with parallel processing
 async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
   const totalPages = pages.length;
-  console.log(`Analyzing ${totalPages} pages for crawl ${crawlId}`);
+  console.log(`🚀 Starting comprehensive analysis of ${totalPages} pages for crawl ${crawlId}`);
   
-  // Calculate estimated time (rule-based is much faster: ~0.5s per page with 8 parallel)
-  const estimatedSeconds = Math.ceil((totalPages * 0.5) / 8);
+  // Estimate based on hybrid analysis speed (2-3s per page with Claude)
+  const estimatedSeconds = Math.ceil((totalPages * 2.5) / 8); // 8 parallel
   const estimatedMinutes = Math.ceil(estimatedSeconds / 60);
-  console.log(`Estimated completion time: ${estimatedMinutes} minutes (${totalPages} pages, 8 parallel, rule-based)`);
+  console.log(`⏱️ Estimated completion: ${estimatedMinutes} minutes (${totalPages} pages, 8 parallel)`);
   
-  const LOVABLE_API_KEY = ''; // Not used anymore - pure rule-based analysis
+  const LOVABLE_API_KEY = ''; // Not used - using Anthropic directly
 
   const allViolations: any[] = [];
   const allStrengths: any[] = [];
@@ -390,40 +390,30 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
           const title = page.metadata?.title || page.title || 'Untitled';
           const statusCode = page.metadata?.statusCode || page.statusCode;
           
-          // CRITICAL: Skip 404 and error pages based on HTTP status code
-          if (statusCode && (statusCode === 404 || statusCode >= 500)) {
-            console.log(`⚠️ Skipping page with error status ${statusCode}: ${url}`);
+          // Skip ONLY if it's a clear HTTP error AND looks like error page
+          const isHttpError = statusCode && (statusCode === 404 || statusCode >= 500);
+          const hasErrorTitle = /<title[^>]*>.*?(404|not found|error).*?<\/title>/i.test(html);
+          const isSmallPage = html.length < 2000;
+          
+          // Only skip if it's clearly an error page (status code + error title + small size)
+          if (isHttpError && hasErrorTitle && isSmallPage) {
+            console.log(`⚠️ Skipping confirmed error page (${statusCode}): ${url}`);
             return null;
           }
           
-          // Skip if no URL or HTML content
+          // Skip if absolutely no content
           if (url === 'unknown' || !html || html.length < 100) {
-            console.warn(`⚠️ Skipping page with missing/minimal data: ${url}`);
-            return null;
-          }
-          
-          // Additional check: Skip if page looks like an error page
-          const looksLikeErrorPage = (
-            /<title[^>]*>.*?(404|not found|error).*?<\/title>/i.test(html) &&
-            html.length < 3000 // Error pages are typically small
-          );
-          
-          if (looksLikeErrorPage) {
-            console.log(`⚠️ Skipping detected error page: ${url}`);
+            console.warn(`⚠️ Skipping page with no content: ${url}`);
             return null;
           }
           
           // Classify page type
           const pageType = classifyPageType(url, html);
           
+          console.log(`📄 Analyzing: ${url.substring(0, 60)}...`);
+          
           // Analyze page using hybrid AI system
           const analysis = await analyzePage(html, markdown, screenshot, LOVABLE_API_KEY);
-          
-          // Skip storing pages with no violations and low content (likely error pages)
-          if (analysis.violations.length === 0 && html.length < 2000) {
-            console.log(`⚠️ Skipping minimal page: ${url}`);
-            return null;
-          }
           
           return {
             url,

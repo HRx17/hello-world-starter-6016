@@ -45,10 +45,10 @@ serve(async (req) => {
       throw new Error('FIRECRAWL_API_KEY not configured');
     }
 
-    // Phase 2: Dynamic page limit with smart defaults
-    const pageLimit = parseInt(Deno.env.get('CRAWL_PAGE_LIMIT') || '100');
+    // Aggressive crawling configuration for maximum page discovery
+    const pageLimit = parseInt(Deno.env.get('CRAWL_PAGE_LIMIT') || '500'); // Increased from 100 to 500
 
-    console.log('Initiating Firecrawl crawl...');
+    console.log('Initiating comprehensive Firecrawl crawl...');
     const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
       method: 'POST',
       headers: {
@@ -57,22 +57,27 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        limit: pageLimit, // Dynamic limit, default 100 pages
+        limit: pageLimit, // High limit for comprehensive crawling
         scrapeOptions: {
           formats: ['html', 'markdown', 'screenshot'],
           onlyMainContent: false,
-          includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer'],
-          waitFor: 1500,
+          includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer', 'main', 'section', 'article'],
+          waitFor: 2000, // Increased wait time for dynamic content
+          removeBase64Images: false, // Keep all images
         },
-        // Exclude common non-content pages and file types
+        // Aggressive discovery settings
+        allowBackwardLinks: true, // Follow all internal links
+        allowExternalLinks: false, // Stay on same domain
+        maxDepth: 10, // Deep crawling up to 10 levels
+        ignoreSitemap: false, // Use sitemap if available
+        // Only exclude actual file downloads, not pages
         excludePaths: [
-          '*.pdf', '*.zip', '*.doc', '*.docx',
-          '*/admin/*', '*/login/*', '*/wp-admin/*',
-          '*/404', '*/error'
+          '*.pdf', '*.zip', '*.tar.gz', '*.exe', '*.dmg',
+          '*.jpg', '*.jpeg', '*.png', '*.gif', '*.svg', '*.ico', // Image files
+          '*.mp3', '*.mp4', '*.avi', '*.mov', // Media files
+          '*.css', '*.js', '*.json', '*.xml' // Asset files
         ],
-        // Only follow valid HTTP/HTTPS links
-        allowBackwardLinks: false,
-        allowExternalLinks: false,
+        includePaths: [], // Include everything not explicitly excluded
       }),
     });
 
