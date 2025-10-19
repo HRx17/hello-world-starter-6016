@@ -336,13 +336,60 @@ serve(async (req) => {
       );
     }
 
-    // Update crawl progress
+    // Detect if Firecrawl is stuck (no progress for too long)
+    const currentProgress = statusData.completed || 0;
+    const crawlMetadata = crawl.metadata as any || {};
+    const lastProgress = crawlMetadata.last_progress || 0;
+    const lastProgressTime = crawlMetadata.last_progress_time ? new Date(crawlMetadata.last_progress_time).getTime() : Date.now();
+    const now = Date.now();
+    const timeSinceLastProgress = now - lastProgressTime;
+    const STUCK_TIMEOUT = 3 * 60 * 1000; // 3 minutes
+    
+    // Check if stuck
+    if (statusData.status === 'scraping' && currentProgress > 0 && currentProgress === lastProgress && timeSinceLastProgress > STUCK_TIMEOUT) {
+      console.error(`🚨 Firecrawl appears stuck! No progress for ${Math.round(timeSinceLastProgress / 1000)}s`);
+      
+      // Mark as error and signal restart
+      await supabase
+        .from('website_crawls')
+        .update({ 
+          status: 'error',
+          metadata: { 
+            error: 'Crawl stuck - no progress detected',
+            stuck_at_pages: currentProgress,
+            stuck_duration_ms: timeSinceLastProgress
+          }
+        })
+        .eq('id', crawlId);
+      
+      return new Response(
+        JSON.stringify({ 
+          status: 'error',
+          error_message: 'Crawl appears stuck. Please restart.',
+          should_restart: true
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Update crawl progress and track progress changes
+    const updateData: any = {
+      total_pages: statusData.total || 0,
+      crawled_pages: statusData.completed || 0,
+    };
+    
+    // Update progress tracking metadata
+    if (currentProgress !== lastProgress) {
+      updateData.metadata = {
+        ...crawlMetadata,
+        last_progress: currentProgress,
+        last_progress_time: new Date().toISOString()
+      };
+    }
+    
     await supabase
       .from('website_crawls')
-      .update({
-        total_pages: statusData.total || 0,
-        crawled_pages: statusData.completed || 0,
-      })
+      .update(updateData)
       .eq('id', crawlId);
 
     // Check if crawl has data ready (handles both "completed" and "scraping" with full data)
