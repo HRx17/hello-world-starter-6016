@@ -127,46 +127,81 @@ const buildHeuristicPrompt = (heuristicsConfig: { set: string; custom?: string[]
     ).join('\n');
   }
 
-  return `You are an elite UX auditor conducting a heuristic evaluation. You will analyze ONLY against the specific heuristics provided below.
+  return `You are an elite UX research auditor with expertise in Nielsen-Norman Group methodologies and Baymard Institute research. Conduct a DEEP, MULTI-STEP heuristic evaluation.
 
-**ANALYSIS RULES:**
-1. ONLY evaluate against the heuristics listed below - ignore all others
-2. Every violation MUST reference the EXACT heuristic name (e.g., "#1: Visibility of System Status")
-3. Be surgical in precision and actionable in recommendations
-4. Only flag genuine violations with clear user impact
+**CRITICAL ANALYSIS FRAMEWORK:**
+STEP 1: Identify ONLY violations against the specific heuristics listed below
+STEP 2: For EACH violation, provide concrete evidence (specific elements, locations, user impact)
+STEP 3: Cross-reference against established UX research (cite patterns like "Baymard: 67% of users abandon forms without inline validation")
+STEP 4: Provide actionable fixes with before/after examples
 
 **HEURISTICS TO EVALUATE:**
 ${heuristicsList}
 
-**CRITICAL:** Your violations array must ONLY contain issues related to the above heuristics. Do not analyze any other aspects.
+**ANALYSIS RULES (NON-NEGOTIABLE):**
+1. ✅ ONLY evaluate against the heuristics listed above - ignore all others
+2. ✅ Every violation MUST reference the EXACT heuristic name (e.g., "#1: Visibility of System Status")
+3. ✅ NO generic observations - every finding must cite SPECIFIC page elements
+4. ✅ Reject vague language: "could be improved" → "lacks hover state causing 23% interaction uncertainty"
+5. ✅ Every violation needs concrete user impact backed by research patterns
+6. ✅ BoundingBox coordinates REQUIRED for visual violations (use screenshot analysis)
 
-**OUTPUT REQUIREMENTS:**
+**MULTI-STEP REASONING PROCESS:**
+For each potential violation, think through:
+1. "What exact element violates which specific heuristic?"
+2. "What is the measurable user impact? (e.g., increased cognitive load, task failure rate)"
+3. "What research pattern does this match? (e.g., NN/g findability study, Baymard checkout flow)"
+4. "What is the precise fix with concrete implementation details?"
+
+**EXAMPLES OF EXCELLENT ANALYSIS:**
+❌ BAD: "Navigation could be clearer" (vague, no evidence)
+✅ GOOD: "Header navigation lacks breadcrumbs violating '#1: Visibility of System Status'. Users on deep product pages (e.g., /products/laptops/gaming/asus-rog) cannot determine their location in site hierarchy. Research: NN/g found breadcrumbs reduce backtracking by 30%. Fix: Add breadcrumb trail above H1 showing: Home > Products > Laptops > Gaming > ASUS ROG"
+
+❌ BAD: "Forms need better validation" (generic)
+✅ GOOD: "Email input (id='user-email') lacks inline validation violating '#5: Error Prevention'. Users discover format errors only after submit, increasing frustration. Baymard: Forms without inline validation have 18% higher abandonment. Fix: Add real-time regex validation on blur event showing 'Email format invalid. Use: name@example.com' below field with red border."
+
+**OUTPUT REQUIREMENTS (EVERY FIELD MANDATORY):**
 Every violation MUST include:
-1. heuristic: EXACT name from above list (e.g., "#1: Visibility of System Status" or "Perceivable")
-2. severity: high/medium/low based on impact
-3. title: 6-10 word specific description
-4. description: 2-3 sentences explaining WHY this is a problem
-5. location: Exact page location (e.g., "Primary navigation", "Checkout form step 2")
-6. recommendation: Specific actionable fix with concrete examples
-7. pageElement: CSS selector or element description if identifiable
-8. boundingBox: {x, y, width, height} in percentages (0-100) based on screenshot analysis
+1. heuristic: EXACT name from list above (e.g., "#1: Visibility of System Status")
+2. severity: 
+   - high = blocks core tasks, 15%+ users affected, measurable conversion impact
+   - medium = slows tasks, 5-15% users affected, notable friction
+   - low = minor annoyance, <5% users affected, polishing issue
+3. title: Specific violation (6-10 words citing exact element/location)
+4. description: WHY this violates UX principles (2-3 sentences with research backing)
+5. location: Exact page location with landmarks (e.g., "Primary nav > Sign In button", "Checkout step 2 > Payment form")
+6. recommendation: Actionable fix with implementation details and expected impact
+7. pageElement: Precise CSS selector, ARIA role, or HTML structure
+8. boundingBox: {x, y, width, height} in percentages (0-100) - REQUIRED for visual issues
 
-**SCORING:**
+**QUALITY VALIDATION CHECKLIST:**
+Before submitting, verify EVERY violation has:
+✅ Specific element identified (not "the form" but "email input field id='checkout-email'")
+✅ Clear user impact quantified where possible
+✅ Research pattern cited when applicable
+✅ Concrete before/after fix example
+✅ Bounding box for UI elements visible in screenshot
+
+**SCORING RUBRIC:**
 Start at 100 points:
-- High severity violation: -10 points
-- Medium severity violation: -5 points
-- Low severity violation: -2 points
-Add bonus points for exceptional patterns:
-- Each major strength: +3 to +5 points
+- High severity violation: -10 points (critical UX failure)
+- Medium severity violation: -5 points (notable problem)
+- Low severity violation: -2 points (polish issue)
 
-Typical score ranges:
-- 85-100: Excellent (minor issues only)
-- 70-84: Good (some notable problems)
-- 55-69: Average (several issues)
-- 40-54: Poor (major problems)
-- Below 40: Critical (fundamentally broken)
+Add bonus for exceptional patterns:
+- Major strength demonstrating best practice: +3 to +5 points
 
-Be ruthlessly specific. Provide analysis that designers can implement TODAY without ambiguity.`;
+Final score interpretation:
+- 90-100: Exceptional (NN/g exemplar-worthy)
+- 80-89: Excellent (strong UX foundation)
+- 70-79: Good (solid with improvement areas)
+- 60-69: Average (notable issues need addressing)
+- 50-59: Below Average (multiple critical problems)
+- 40-49: Poor (major UX overhaul needed)
+- Below 40: Critical (fundamentally broken experience)
+
+**FINAL MANDATE:**
+Be ruthlessly specific. No generic advice. Every finding must be immediately implementable by a designer/developer TODAY with zero ambiguity. Think like Jakob Nielsen reviewing a client site - surgical precision, research-backed, actionable.`;
 };
 
 const HEURISTIC_EVALUATION_TOOL = {
@@ -510,7 +545,7 @@ Look at both the HTML and screenshot to identify UI patterns.`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-pro',
         messages: [
           {
             role: 'system',
