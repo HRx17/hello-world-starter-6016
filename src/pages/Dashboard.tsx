@@ -5,9 +5,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Eye, Sparkles, BarChart3, TrendingUp } from "lucide-react";
+import { Trash2, Eye, Sparkles, BarChart3, TrendingUp, Calendar, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AnalysisResult {
   id: string;
@@ -272,15 +280,66 @@ const Dashboard = () => {
                   <div className="flex gap-3">
                     {latestAnalysis && (
                       <>
-                        <Button
-                          variant="outline"
-                          size="default"
-                          className="flex-1 hover-scale"
-                          onClick={() => handleViewAnalysis(project, latestAnalysis.id, latestAnalysis.type)}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </Button>
+                        {analysisCount === 1 ? (
+                          <Button
+                            variant="outline"
+                            size="default"
+                            className="flex-1 hover-scale"
+                            onClick={() => handleViewAnalysis(project, latestAnalysis.id, latestAnalysis.type)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="default"
+                                className="flex-1 hover-scale"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Reports
+                                <ChevronDown className="h-4 w-4 ml-2" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-64">
+                              <DropdownMenuLabel>Select Report Date</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {allAnalyses.map((analysis, index) => (
+                                <DropdownMenuItem
+                                  key={analysis.id}
+                                  onClick={() => handleViewAnalysis(project, analysis.id, analysis.type)}
+                                  className="flex items-center justify-between gap-2"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4" />
+                                    <span>
+                                      {analysis.date.toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric', 
+                                        year: 'numeric' 
+                                      })}
+                                    </span>
+                                    {index === 0 && (
+                                      <Badge variant="secondary" className="text-xs">Latest</Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {analysis.type === 'crawl' && 'pages' in analysis && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {analysis.pages}p
+                                      </Badge>
+                                    )}
+                                    <Badge className={`${getScoreColor(analysis.score)} text-xs`}>
+                                      {analysis.score}
+                                    </Badge>
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                         {analysisCount > 1 && (
                           <Button
                             variant="outline"
