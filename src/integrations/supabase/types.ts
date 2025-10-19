@@ -473,6 +473,7 @@ export type Database = {
         Row: {
           created_at: string | null
           default_framework: string | null
+          default_heuristics: Json | null
           email_notifications: boolean | null
           id: string
           theme: string | null
@@ -483,6 +484,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           default_framework?: string | null
+          default_heuristics?: Json | null
           email_notifications?: boolean | null
           id?: string
           theme?: string | null
@@ -493,6 +495,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           default_framework?: string | null
+          default_heuristics?: Json | null
           email_notifications?: boolean | null
           id?: string
           theme?: string | null

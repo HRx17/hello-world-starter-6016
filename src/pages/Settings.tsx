@@ -10,10 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Save } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { FRAMEWORKS } from "@/lib/frameworks";
+import { HeuristicsSelector } from "@/components/HeuristicsSelector";
 
 interface UserSettings {
-  default_framework?: string;
+  default_heuristics?: {
+    set: string;
+    custom?: string[];
+  };
   email_notifications: boolean;
   weekly_reports: boolean;
   theme: string;
@@ -27,7 +30,10 @@ export default function Settings() {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [settings, setSettings] = useState<UserSettings>({
-    default_framework: "Nielsen's 10 Heuristics",
+    default_heuristics: {
+      set: "nn_10",
+      custom: [],
+    },
     email_notifications: true,
     weekly_reports: false,
     theme: "system",
@@ -66,8 +72,12 @@ export default function Settings() {
         .single();
 
       if (userSettings) {
+        const heuristics = userSettings.default_heuristics as { set: string; custom?: string[] } | null;
         setSettings({
-          default_framework: userSettings.default_framework || "Nielsen's 10 Heuristics",
+          default_heuristics: heuristics || {
+            set: "nn_10",
+            custom: [],
+          },
           email_notifications: userSettings.email_notifications ?? true,
           weekly_reports: userSettings.weekly_reports ?? false,
           theme: userSettings.theme || "system",
@@ -99,7 +109,7 @@ export default function Settings() {
         .from("user_settings")
         .upsert({
           user_id: user.id,
-          default_framework: settings.default_framework,
+          default_heuristics: settings.default_heuristics,
           email_notifications: settings.email_notifications,
           weekly_reports: settings.weekly_reports,
           theme: settings.theme,
@@ -175,27 +185,13 @@ export default function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Analysis Preferences</CardTitle>
-              <CardDescription>Set your default analysis settings</CardDescription>
+              <CardDescription>Choose which heuristics to use for website analysis</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="framework">Default Framework</Label>
-                <Select
-                  value={settings.default_framework}
-                  onValueChange={(value) => setSettings({ ...settings, default_framework: value })}
-                >
-                  <SelectTrigger id="framework">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FRAMEWORKS.map((fw) => (
-                      <SelectItem key={fw.value} value={fw.label}>
-                        {fw.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <HeuristicsSelector
+                value={settings.default_heuristics || { set: "nn_10" }}
+                onChange={(value) => setSettings({ ...settings, default_heuristics: value })}
+              />
             </CardContent>
           </Card>
 

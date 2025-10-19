@@ -6,12 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingAnalysis } from "@/components/LoadingAnalysis";
-import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Sparkles, LogOut, ArrowLeft } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { FRAMEWORKS } from "@/lib/frameworks";
+import { DashboardLayout } from "@/components/DashboardLayout";
 
 const Index = () => {
   const [url, setUrl] = useState("");
@@ -131,31 +131,8 @@ const Index = () => {
   ];
 
   return (
-    <>
-      <AnimatedBackground />
-      <div className="min-h-screen flex flex-col">
-        {/* Header */}
-        <header className="border-b bg-background/50 backdrop-blur-xl sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <Button
-              variant="ghost"
-              onClick={() => navigate(user ? "/dashboard" : "/")}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {user ? "Back to Dashboard" : "Back to Home"}
-            </Button>
-            
-            {user && (
-              <Button variant="ghost" onClick={() => signOut()}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </Button>
-            )}
-          </div>
-        </header>
-
-        <div className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
+    <DashboardLayout>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
           {/* Hero Section */}
           <div className="text-center mb-12 space-y-4">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
@@ -272,9 +249,8 @@ const Index = () => {
           </Card>
         ))}
       </div>
-        </div>
       </div>
-    </>
+    </DashboardLayout>
   );
 };
 

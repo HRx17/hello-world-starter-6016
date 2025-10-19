@@ -33,8 +33,15 @@ export function AppSidebar({ onSignOut }: AppSidebarProps) {
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
-  const getNavCls = (isActive: boolean) =>
-    isActive ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/50";
+  const isActive = (url: string) => {
+    if (url === currentPath) return true;
+    // For nested routes, check if current path starts with the base route
+    if (url !== "/" && currentPath.startsWith(url + "/")) return true;
+    return false;
+  };
+
+  const getNavCls = (active: boolean) =>
+    active ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/50";
 
   return (
     <Sidebar className={collapsed ? "w-14" : "w-60"} collapsible="icon">
@@ -51,13 +58,13 @@ export function AppSidebar({ onSignOut }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
-                const isActive = currentPath === item.url;
+                const active = isActive(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink
                         to={item.url}
-                        className={getNavCls(isActive)}
+                        className={getNavCls(active)}
                       >
                         <item.icon className="h-4 w-4" />
                         {!collapsed && <span className="ml-2">{item.title}</span>}
