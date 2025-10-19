@@ -257,6 +257,7 @@ serve(async (req) => {
 
     const statusData = await statusResponse.json();
     console.log('Firecrawl status:', statusData.status);
+    console.log('Firecrawl data:', JSON.stringify(statusData).substring(0, 500));
 
     // Update crawl progress
     await supabase
@@ -270,6 +271,28 @@ serve(async (req) => {
     // If crawl is complete, start analysis
     if (statusData.status === 'completed' && crawl.status !== 'analyzing' && crawl.status !== 'completed') {
       console.log('Crawl completed, starting analysis...');
+      console.log('Pages data available:', statusData.data ? 'Yes' : 'No');
+      console.log('Number of pages:', statusData.data?.length || 0);
+      
+      // Validate we have data
+      if (!statusData.data || statusData.data.length === 0) {
+        console.error('No pages data available from Firecrawl');
+        await supabase
+          .from('website_crawls')
+          .update({ 
+            status: 'error',
+            metadata: { error: 'No pages data received from crawl' }
+          })
+          .eq('id', crawlId);
+        
+        return new Response(
+          JSON.stringify({ 
+            status: 'error', 
+            message: 'No pages data received from crawl' 
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       
       await supabase
         .from('website_crawls')
@@ -277,9 +300,17 @@ serve(async (req) => {
         .eq('id', crawlId);
 
       // Trigger analysis in background (non-blocking)
-      analyzeAllPages(crawlId, statusData.data, supabase).catch(err => 
-        console.error('Background analysis error:', err)
-      );
+      analyzeAllPages(crawlId, statusData.data, supabase).catch(err => {
+        console.error('Background analysis error:', err);
+        // Update status to error if analysis fails
+        supabase
+          .from('website_crawls')
+          .update({ 
+            status: 'error',
+            metadata: { error: err.message }
+          })
+          .eq('id', crawlId);
+      });
     }
 
     // Include time estimate if available
