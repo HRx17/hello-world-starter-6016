@@ -81,13 +81,26 @@ const Index = () => {
           });
         }
 
-        // Refresh projects list and navigate to dashboard
+        // Show results immediately
         toast({
           title: "Analysis Complete",
-          description: "View your results in the dashboard.",
+          description: "Viewing your results now.",
         });
         
-        navigate("/dashboard");
+        navigate("/results", {
+          state: {
+            analysis: {
+              url,
+              websiteName: data.websiteName || new URL(url).hostname,
+              overallScore: data.overallScore,
+              violations: data.violations,
+              strengths: data.strengths,
+              screenshot: data.screenshot,
+              heuristics: heuristics,
+              projectId: project?.id,
+            },
+          },
+        });
       } else {
         // Guest user - just show results
         navigate("/results", {
