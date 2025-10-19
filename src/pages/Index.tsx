@@ -3,19 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingAnalysis } from "@/components/LoadingAnalysis";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Sparkles } from "lucide-react";
-import { FRAMEWORKS } from "@/lib/frameworks";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { HeuristicsSelector } from "@/components/HeuristicsSelector";
 
 const Index = () => {
   const [url, setUrl] = useState("");
-  const [framework, setFramework] = useState<string>("");
+  const [heuristics, setHeuristics] = useState<{ set: string; custom?: string[] }>({
+    set: "nn_10",
+    custom: [],
+  });
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -63,7 +65,7 @@ const Index = () => {
             user_id: user.id,
             name: data.websiteName || new URL(url).hostname,
             url,
-            framework: framework || null,
+            framework: null, // Framework field kept for backward compatibility
           })
           .select()
           .single();
@@ -75,6 +77,7 @@ const Index = () => {
             score: data.overallScore,
             violations: data.violations,
             screenshot: data.screenshot,
+            heuristics: heuristics,
           });
         }
 
@@ -96,7 +99,7 @@ const Index = () => {
               violations: data.violations,
               strengths: data.strengths,
               screenshot: data.screenshot,
-              framework: framework || undefined,
+              heuristics: heuristics,
             },
           },
         });
@@ -183,23 +186,8 @@ const Index = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="framework">Framework (Optional)</Label>
-                <Select value={framework} onValueChange={setFramework}>
-                  <SelectTrigger id="framework">
-                    <SelectValue placeholder="Select framework if applicable" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FRAMEWORKS.map((fw) => (
-                      <SelectItem key={fw.value} value={fw.value}>
-                        {fw.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Help us provide framework-specific recommendations
-                </p>
+              <div className="space-y-4 pt-4 border-t">
+                <HeuristicsSelector value={heuristics} onChange={setHeuristics} />
               </div>
 
               <div className="pt-4 border-t">
