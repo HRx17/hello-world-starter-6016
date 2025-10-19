@@ -62,8 +62,17 @@ serve(async (req) => {
           formats: ['html', 'markdown', 'screenshot'],
           onlyMainContent: false,
           includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer'],
-          waitFor: 1500, // Reduced from 2000ms for faster crawling
+          waitFor: 1500,
         },
+        // Exclude common non-content pages and file types
+        excludePaths: [
+          '*.pdf', '*.zip', '*.doc', '*.docx',
+          '*/admin/*', '*/login/*', '*/wp-admin/*',
+          '*/404', '*/error'
+        ],
+        // Only follow valid HTTP/HTTPS links
+        allowBackwardLinks: false,
+        allowExternalLinks: false,
       }),
     });
 

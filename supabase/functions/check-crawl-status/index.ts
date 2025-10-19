@@ -388,18 +388,42 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
           const markdown = page.markdown || '';
           const screenshot = page.screenshot || '';
           const title = page.metadata?.title || page.title || 'Untitled';
+          const statusCode = page.metadata?.statusCode || page.statusCode;
           
-          // Skip if no URL
-          if (url === 'unknown' || !html) {
-            console.warn('Skipping page with missing data');
+          // CRITICAL: Skip 404 and error pages based on HTTP status code
+          if (statusCode && (statusCode === 404 || statusCode >= 500)) {
+            console.log(`⚠️ Skipping page with error status ${statusCode}: ${url}`);
+            return null;
+          }
+          
+          // Skip if no URL or HTML content
+          if (url === 'unknown' || !html || html.length < 100) {
+            console.warn(`⚠️ Skipping page with missing/minimal data: ${url}`);
+            return null;
+          }
+          
+          // Additional check: Skip if page looks like an error page
+          const looksLikeErrorPage = (
+            /<title[^>]*>.*?(404|not found|error).*?<\/title>/i.test(html) &&
+            html.length < 3000 // Error pages are typically small
+          );
+          
+          if (looksLikeErrorPage) {
+            console.log(`⚠️ Skipping detected error page: ${url}`);
             return null;
           }
           
           // Classify page type
           const pageType = classifyPageType(url, html);
           
-          // Analyze page using pure rule-based algorithmic system (no external AI)
+          // Analyze page using hybrid AI system
           const analysis = await analyzePage(html, markdown, screenshot, LOVABLE_API_KEY);
+          
+          // Skip storing pages with no violations and low content (likely error pages)
+          if (analysis.violations.length === 0 && html.length < 2000) {
+            console.log(`⚠️ Skipping minimal page: ${url}`);
+            return null;
+          }
           
           return {
             url,
