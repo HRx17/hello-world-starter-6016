@@ -7,29 +7,91 @@ import { ViolationCard } from "@/components/ViolationCard";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
 import { AnnotatedScreenshot } from "@/components/AnnotatedScreenshot";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
+import { MultiPageResults } from "@/components/MultiPageResults";
 import { AnalysisResult } from "@/lib/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, CheckCircle2, ExternalLink, Image as ImageIcon, Download, Share2, Mail, Sparkles, UserPlus } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, Image as ImageIcon, Download, Share2, Mail, Sparkles, UserPlus, Loader2 } from "lucide-react";
 
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // Single page analysis
   const analysis = location.state?.analysis as AnalysisResult | undefined;
+  
+  // Multi-page analysis
+  const crawlId = location.state?.crawlId as string | undefined;
+  const analysisType = location.state?.analysisType as string | undefined;
+  const urlFromState = location.state?.url as string | undefined;
+  
+  const [crawlData, setCrawlData] = useState<any>(null);
+  const [pageAnalyses, setPageAnalyses] = useState<any[]>([]);
+  const [isLoadingCrawl, setIsLoadingCrawl] = useState(false);
+  
   const [isScreenshotOpen, setIsScreenshotOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Load multi-page crawl data
+  useEffect(() => {
+    if (!crawlId || analysisType !== 'full') return;
+
+    const loadCrawlData = async () => {
+      setIsLoadingCrawl(true);
+      try {
+        // Get crawl details
+        const { data: crawl, error: crawlError } = await supabase
+          .from('website_crawls')
+          .select('*')
+          .eq('id', crawlId)
+          .single();
+
+        if (crawlError) throw crawlError;
+        setCrawlData(crawl);
+
+        // Get all page analyses
+        const { data: pages, error: pagesError } = await supabase
+          .from('page_analyses')
+          .select('*')
+          .eq('crawl_id', crawlId)
+          .order('score', { ascending: false });
+
+        if (pagesError) throw pagesError;
+        setPageAnalyses(pages || []);
+      } catch (error) {
+        console.error('Error loading crawl data:', error);
+        toast({
+          title: "Error Loading Results",
+          description: "Failed to load analysis results",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingCrawl(false);
+      }
+    };
+
+    loadCrawlData();
+  }, [crawlId, analysisType, toast]);
+
   const handleExportPDF = async () => {
-    if (!analysis) return;
+    if (!analysis && !crawlData) return;
     setIsExporting(true);
     try {
+      const exportData = analysis || {
+        websiteName: new URL(crawlData.url).hostname,
+        url: crawlData.url,
+        overallScore: crawlData.overall_score,
+        violations: crawlData.aggregate_violations,
+        strengths: crawlData.aggregate_strengths,
+      };
+
       const { data, error } = await supabase.functions.invoke('generate-report', {
         body: {
-          analysisData: analysis,
-          projectName: analysis.websiteName,
+          analysisData: exportData,
+          projectName: exportData.websiteName,
         },
       });
 
@@ -40,7 +102,7 @@ const Results = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${analysis.websiteName}-ux-report.html`;
+      a.download = `${exportData.websiteName}-ux-report.html`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -63,10 +125,12 @@ const Results = () => {
   };
 
   const handleShare = async () => {
-    if (!analysis) return;
+    const websiteName = analysis?.websiteName || (crawlData ? new URL(crawlData.url).hostname : '');
+    const score = analysis?.overallScore || crawlData?.overall_score;
+    
     const shareData = {
-      title: `UX Analysis - ${analysis.websiteName}`,
-      text: `Check out this UX analysis for ${analysis.websiteName}. Overall score: ${analysis.overallScore}/100`,
+      title: `UX Analysis - ${websiteName}`,
+      text: `Check out this UX analysis for ${websiteName}. Overall score: ${score}/100`,
       url: window.location.href,
     };
 
@@ -86,13 +150,17 @@ const Results = () => {
   };
 
   const handleEmailReport = () => {
-    if (!analysis) return;
-    const subject = encodeURIComponent(`UX Analysis Report - ${analysis.websiteName}`);
+    const websiteName = analysis?.websiteName || (crawlData ? new URL(crawlData.url).hostname : '');
+    const url = analysis?.url || crawlData?.url;
+    const score = analysis?.overallScore || crawlData?.overall_score;
+    const violationCount = analysis?.violations.length || crawlData?.aggregate_violations?.length || 0;
+
+    const subject = encodeURIComponent(`UX Analysis Report - ${websiteName}`);
     const body = encodeURIComponent(
-      `Hi,\n\nI've completed a UX analysis for ${analysis.websiteName}.\n\n` +
-      `Overall Score: ${analysis.overallScore}/100\n` +
-      `URL: ${analysis.url}\n` +
-      `Total Violations: ${analysis.violations.length}\n\n` +
+      `Hi,\n\nI've completed a UX analysis for ${websiteName}.\n\n` +
+      `Overall Score: ${score}/100\n` +
+      `URL: ${url}\n` +
+      `Total Violations: ${violationCount}\n\n` +
       `View the full report here: ${window.location.href}\n\n` +
       `Best regards`
     );
@@ -100,11 +168,138 @@ const Results = () => {
   };
 
   useEffect(() => {
-    if (!analysis) {
+    if (!analysis && !crawlId) {
       navigate("/");
     }
-  }, [analysis, navigate]);
+  }, [analysis, crawlId, navigate]);
 
+  if (!analysis && !crawlId) {
+    return null;
+  }
+
+  // Loading state for multi-page analysis
+  if (analysisType === 'full' && isLoadingCrawl) {
+    return (
+      <>
+        <AnimatedBackground />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="text-lg text-muted-foreground">Loading analysis results...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Render multi-page results
+  if (analysisType === 'full' && crawlData) {
+    const websiteName = new URL(crawlData.url).hostname;
+
+    return (
+      <>
+        <AnimatedBackground />
+        <div className="min-h-screen">
+          <div className="container mx-auto px-4 py-8 max-w-6xl">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate(user ? "/dashboard" : "/")}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  {user ? "Back to Dashboard" : "Back to Home"}
+                </Button>
+              
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleEmailReport}>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Email
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleShare}>
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleExportPDF}
+                    disabled={isExporting}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {isExporting ? "Generating..." : "Export"}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h1 className="text-4xl font-bold">{websiteName}</h1>
+                <div className="flex items-center gap-4">
+                  <a
+                    href={crawlData.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+                  >
+                    {crawlData.url}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Guest User CTA */}
+            {!user && (
+              <Card className="mb-8 bg-gradient-to-br from-primary via-purple-600 to-primary text-white border-0 shadow-2xl">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold mb-1">Want to Save These Results?</h3>
+                      <p className="text-white/90">
+                        Create a free account to save your analyses, track improvements over time, and access advanced features.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button 
+                      size="lg"
+                      variant="secondary"
+                      onClick={() => navigate("/auth")}
+                      className="flex-1"
+                    >
+                      <UserPlus className="mr-2 h-5 w-5" />
+                      Create Free Account
+                    </Button>
+                    <Button 
+                      size="lg"
+                      variant="outline"
+                      onClick={() => navigate("/")}
+                      className="bg-white/10 hover:bg-white/20 text-white border-white/30"
+                    >
+                      New Analysis
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Multi-page results */}
+            <MultiPageResults
+              crawl={crawlData}
+              pages={pageAnalyses}
+              websiteName={websiteName}
+            />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Render single-page results (existing code)
   if (!analysis) {
     return null;
   }

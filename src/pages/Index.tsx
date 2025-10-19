@@ -4,44 +4,79 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingAnalysis } from "@/components/LoadingAnalysis";
+import { CrawlProgressCard } from "@/components/CrawlProgressCard";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Sparkles } from "lucide-react";
+import { Search, Sparkles, Globe } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { HeuristicsSelector } from "@/components/HeuristicsSelector";
 
 const Index = () => {
   const [url, setUrl] = useState("");
+  const [analysisType, setAnalysisType] = useState<"single" | "full">("single");
   const [heuristics, setHeuristics] = useState<{ set: string; custom?: string[] }>({
     set: "nn_10",
     custom: [],
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [crawlId, setCrawlId] = useState<string | null>(null);
+  const [crawlStatus, setCrawlStatus] = useState<any>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, isLoading: authLoading, signOut } = useAuth();
 
-  // Redirect to auth if not logged in (removed - allowing guest access)
+  // Poll crawl status
+  useEffect(() => {
+    if (!crawlId || !isLoading) return;
 
-  const handleAnalyze = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Basic URL validation
-    try {
-      new URL(url);
-    } catch {
-      toast({
-        title: "Invalid URL",
-        description: "Please enter a valid website URL (e.g., https://example.com)",
-        variant: "destructive",
-      });
-      return;
-    }
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('check-crawl-status', {
+          body: { crawlId }
+        });
 
-    setIsLoading(true);
+        if (error) throw error;
 
+        setCrawlStatus(data);
+
+        if (data.status === 'completed') {
+          clearInterval(pollInterval);
+          setIsLoading(false);
+          
+          toast({
+            title: "Analysis Complete",
+            description: `Successfully analyzed ${data.analyzed_pages} pages`,
+          });
+
+          // Navigate to results with crawl ID
+          navigate("/results", {
+            state: {
+              crawlId,
+              analysisType: 'full',
+              url,
+            },
+          });
+        } else if (data.status === 'error') {
+          clearInterval(pollInterval);
+          setIsLoading(false);
+          toast({
+            title: "Analysis Failed",
+            description: "An error occurred during analysis",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Status check error:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [crawlId, isLoading, navigate, toast, url]);
+
+  const handleSinglePageAnalyze = async () => {
     try {
       const response = await supabase.functions.invoke('analyze-website', {
         body: { url }
@@ -65,7 +100,7 @@ const Index = () => {
             user_id: user.id,
             name: data.websiteName || new URL(url).hostname,
             url,
-            framework: null, // Framework field kept for backward compatibility
+            framework: null,
           })
           .select()
           .single();
@@ -81,12 +116,6 @@ const Index = () => {
           });
         }
 
-        // Show results immediately
-        toast({
-          title: "Analysis Complete",
-          description: "Viewing your results now.",
-        });
-        
         navigate("/results", {
           state: {
             analysis: {
@@ -102,7 +131,6 @@ const Index = () => {
           },
         });
       } else {
-        // Guest user - just show results
         navigate("/results", {
           state: {
             analysis: {
@@ -119,12 +147,65 @@ const Index = () => {
       }
     } catch (error) {
       console.error("Analysis error:", error);
+      throw error;
+    }
+  };
+
+  const handleFullWebsiteAnalyze = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('start-website-crawl', {
+        body: {
+          url,
+          userId: user?.id || null,
+          projectId: null,
+        }
+      });
+
+      if (error) throw error;
+
+      setCrawlId(data.crawlId);
+      
+      toast({
+        title: "Crawl Started",
+        description: "Discovering and analyzing all pages...",
+      });
+    } catch (error) {
+      console.error("Crawl error:", error);
+      throw error;
+    }
+  };
+
+  const handleAnalyze = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid website URL (e.g., https://example.com)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setCrawlId(null);
+    setCrawlStatus(null);
+
+    try {
+      if (analysisType === "single") {
+        await handleSinglePageAnalyze();
+      } else {
+        await handleFullWebsiteAnalyze();
+      }
+    } catch (error) {
       toast({
         title: "Analysis Failed",
         description: error instanceof Error ? error.message : "Failed to analyze website. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -177,9 +258,45 @@ const Index = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <LoadingAnalysis />
+            crawlId ? (
+              <CrawlProgressCard
+                status={crawlStatus?.status || 'queued'}
+                totalPages={crawlStatus?.total_pages || 0}
+                crawledPages={crawlStatus?.crawled_pages || 0}
+                analyzedPages={crawlStatus?.analyzed_pages || 0}
+              />
+            ) : (
+              <LoadingAnalysis />
+            )
           ) : (
             <form onSubmit={handleAnalyze} className="space-y-6">
+              {/* Analysis Type Selector */}
+              <div className="space-y-3">
+                <Label>Analysis Type</Label>
+                <Tabs value={analysisType} onValueChange={(v) => setAnalysisType(v as "single" | "full")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="single" className="flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      Single Page
+                    </TabsTrigger>
+                    <TabsTrigger value="full" className="flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      Full Website
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="single" className="mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Analyze a single page quickly. Perfect for testing specific pages or features.
+                    </p>
+                  </TabsContent>
+                  <TabsContent value="full" className="mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Crawl and analyze your entire website (up to 50 pages). Get comprehensive insights across all pages.
+                    </p>
+                  </TabsContent>
+                </Tabs>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="url">Website URL</Label>
                 <div className="flex gap-2">
@@ -193,15 +310,20 @@ const Index = () => {
                     className="flex-1"
                   />
                   <Button type="submit" size="lg" className="px-8">
-                    <Search className="mr-2 h-4 w-4" />
-                    Analyze
+                    {analysisType === "single" ? (
+                      <><Search className="mr-2 h-4 w-4" />Analyze</>
+                    ) : (
+                      <><Globe className="mr-2 h-4 w-4" />Crawl & Analyze</>
+                    )}
                   </Button>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t">
-                <HeuristicsSelector value={heuristics} onChange={setHeuristics} />
-              </div>
+              {analysisType === "single" && (
+                <div className="space-y-4 pt-4 border-t">
+                  <HeuristicsSelector value={heuristics} onChange={setHeuristics} />
+                </div>
+              )}
 
               <div className="pt-4 border-t">
                 <p className="text-sm text-muted-foreground mb-3">
