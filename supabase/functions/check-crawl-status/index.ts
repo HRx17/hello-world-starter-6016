@@ -268,14 +268,20 @@ serve(async (req) => {
       })
       .eq('id', crawlId);
 
-    // If crawl is complete, start analysis
-    if (statusData.status === 'completed' && crawl.status !== 'analyzing' && crawl.status !== 'completed') {
-      console.log('Crawl completed, starting analysis...');
-      console.log('Pages data available:', statusData.data ? 'Yes' : 'No');
-      console.log('Number of pages:', statusData.data?.length || 0);
+    // Check if crawl has data ready (handles both "completed" and "scraping" with full data)
+    const hasCompleteData = statusData.data && Array.isArray(statusData.data) && statusData.data.length > 0;
+    const isReadyForAnalysis = (
+      (statusData.status === 'completed' || 
+       (statusData.status === 'scraping' && statusData.completed === statusData.total && hasCompleteData)) &&
+      crawl.status !== 'analyzing' && 
+      crawl.status !== 'completed'
+    );
+    
+    if (isReadyForAnalysis) {
+      console.log(`Crawl ready! Status: ${statusData.status}, Pages: ${statusData.data?.length || 0}`);
       
       // Validate we have data
-      if (!statusData.data || statusData.data.length === 0) {
+      if (!hasCompleteData) {
         console.error('No pages data available from Firecrawl');
         await supabase
           .from('website_crawls')
@@ -296,13 +302,15 @@ serve(async (req) => {
       
       await supabase
         .from('website_crawls')
-        .update({ status: 'analyzing' })
+        .update({ 
+          status: 'analyzing',
+          analyzed_pages: 0
+        })
         .eq('id', crawlId);
 
       // Trigger analysis in background (non-blocking)
       analyzeAllPages(crawlId, statusData.data, supabase).catch(err => {
         console.error('Background analysis error:', err);
-        // Update status to error if analysis fails
         supabase
           .from('website_crawls')
           .update({ 
@@ -347,16 +355,12 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
   const totalPages = pages.length;
   console.log(`Analyzing ${totalPages} pages for crawl ${crawlId}`);
   
-  // Calculate and log estimated time (3.5s per page with 8 parallel = ~0.44s per page effective)
-  const estimatedSeconds = Math.ceil((totalPages * 3.5) / 8);
+  // Calculate estimated time (rule-based is much faster: ~0.5s per page with 8 parallel)
+  const estimatedSeconds = Math.ceil((totalPages * 0.5) / 8);
   const estimatedMinutes = Math.ceil(estimatedSeconds / 60);
-  console.log(`Estimated completion time: ${estimatedMinutes} minutes (${totalPages} pages, 8 parallel)`);
+  console.log(`Estimated completion time: ${estimatedMinutes} minutes (${totalPages} pages, 8 parallel, rule-based)`);
   
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
-    console.error('LOVABLE_API_KEY not configured');
-    return;
-  }
+  const LOVABLE_API_KEY = ''; // Not used anymore - pure rule-based analysis
 
   const allViolations: any[] = [];
   const allStrengths: any[] = [];
@@ -394,7 +398,7 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
           // Classify page type
           const pageType = classifyPageType(url, html);
           
-          // Analyze page using hybrid system (use flash for speed in parallel mode)
+          // Analyze page using pure rule-based algorithmic system (no external AI)
           const analysis = await analyzePage(html, markdown, screenshot, LOVABLE_API_KEY);
           
           return {
