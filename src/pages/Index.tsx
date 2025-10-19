@@ -28,6 +28,7 @@ const Index = () => {
   const [url, setUrl] = useState("");
   const [analysisType, setAnalysisType] = useState<"single" | "full">("single");
   const [crawlMode, setCrawlMode] = useState<"quick" | "light" | "standard" | "comprehensive">("light");
+  const [useBasicCrawl, setUseBasicCrawl] = useState(false);
   const [heuristics, setHeuristics] = useState<{ set: string; custom?: string[] }>({
     set: "nn_10",
     custom: [],
@@ -207,6 +208,48 @@ const Index = () => {
     }
   };
 
+  const handleBasicCrawl = async () => {
+    try {
+      const maxPages = crawlMode === 'quick' ? 10 : crawlMode === 'light' ? 25 : crawlMode === 'standard' ? 50 : 100;
+      
+      const { data, error } = await supabase.functions.invoke('crawl-website-basic', {
+        body: {
+          url,
+          maxPages,
+          userId: user?.id || null,
+          projectId: null,
+        }
+      });
+
+      if (error) throw error;
+
+      if (!data.success) {
+        toast({
+          title: "Crawl Failed",
+          description: data.error || "Failed to crawl website",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // If basic crawl returned pages, set crawl ID for status checking
+      if (data.crawlId) {
+        setCrawlId(data.crawlId);
+        toast({
+          title: "Free Crawl Started",
+          description: `Analyzing ${data.totalPages} pages (no screenshots, simple HTML only)`,
+        });
+      }
+    } catch (error) {
+      console.error("Basic crawl error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start crawl",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleFullWebsiteAnalyze = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('start-website-crawl', {
@@ -307,6 +350,8 @@ const Index = () => {
     try {
       if (analysisType === "single") {
         await handleSinglePageAnalyze();
+      } else if (useBasicCrawl) {
+        await handleBasicCrawl();
       } else {
         await handleFullWebsiteAnalyze();
       }
@@ -434,7 +479,9 @@ const Index = () => {
                           <div className="font-semibold text-sm flex items-center gap-1">
                             Light <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Recommended</span>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1">50 pages • ~60 credits</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {useBasicCrawl ? '25 pages • Free' : '50 pages • ~60 credits'}
+                          </div>
                         </button>
                         
                         <button
@@ -447,7 +494,9 @@ const Index = () => {
                           }`}
                         >
                           <div className="font-semibold text-sm">Standard</div>
-                          <div className="text-xs text-muted-foreground mt-1">150 pages • ~180 credits</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {useBasicCrawl ? '50 pages • Free' : '150 pages • ~180 credits'}
+                          </div>
                         </button>
                         
                         <button
@@ -460,15 +509,31 @@ const Index = () => {
                           }`}
                         >
                           <div className="font-semibold text-sm">Comprehensive</div>
-                          <div className="text-xs text-muted-foreground mt-1">500 pages • ~600 credits</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {useBasicCrawl ? '100 pages • Free' : '500 pages • ~600 credits'}
+                          </div>
                         </button>
                       </div>
                       
-                      {crawlMode === 'comprehensive' && (
+                      {crawlMode === 'comprehensive' && !useBasicCrawl && (
                         <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mt-2">
                           <p className="text-xs text-amber-700 dark:text-amber-400">
                             ⚠️ Comprehensive mode requires significant Firecrawl credits. Ensure you have enough credits before proceeding.
                           </p>
+                        </div>
+                      )}
+
+                      {useBasicCrawl && (
+                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 mt-2">
+                          <p className="text-xs text-orange-700 dark:text-orange-400 font-medium mb-1">
+                            ⚠️ Limitations of Free Basic Crawl:
+                          </p>
+                          <ul className="text-xs text-orange-600 dark:text-orange-500 space-y-0.5">
+                            <li>• Won't work on JavaScript-heavy sites (SPAs)</li>
+                            <li>• No screenshots for visual analysis</li>
+                            <li>• May be blocked by anti-bot systems</li>
+                            <li>• Best for simple HTML/CSS websites</li>
+                          </ul>
                         </div>
                       )}
                     </div>
