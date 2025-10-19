@@ -43,6 +43,10 @@ export const MultiPageResults = ({ crawl, pages, websiteName }: MultiPageResults
     low: crawl.aggregate_violations?.filter((v) => v.severity === "low") || [],
   };
 
+  // Separate pages by quality: error/violated pages vs good pages
+  const errorPages = pages.filter(page => page.score < 70 || (page.violations?.length || 0) > 5);
+  const goodPages = pages.filter(page => page.score >= 70 && (page.violations?.length || 0) <= 5);
+
   const pagesByType = pages.reduce((acc, page) => {
     const type = page.page_type || 'other';
     if (!acc[type]) acc[type] = [];
@@ -138,6 +142,14 @@ export const MultiPageResults = ({ crawl, pages, websiteName }: MultiPageResults
             <TabsTrigger value="all">
               All Pages ({pages.length})
             </TabsTrigger>
+            <TabsTrigger value="error" className="text-destructive">
+              <AlertTriangle className="h-4 w-4 mr-1" />
+              Issues ({errorPages.length})
+            </TabsTrigger>
+            <TabsTrigger value="good" className="text-green-600">
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Good ({goodPages.length})
+            </TabsTrigger>
             {Object.entries(pagesByType).map(([type, typePages]) => (
               <TabsTrigger key={type} value={type} className="capitalize">
                 {type} ({typePages.length})
@@ -147,6 +159,42 @@ export const MultiPageResults = ({ crawl, pages, websiteName }: MultiPageResults
 
           <TabsContent value="all" className="mt-6">
             <PageCarousel pages={pages} />
+          </TabsContent>
+
+          <TabsContent value="error" className="mt-6">
+            {errorPages.length > 0 ? (
+              <PageCarousel pages={errorPages} />
+            ) : (
+              <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                <CardContent className="py-8 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
+                  <p className="text-lg font-semibold text-green-900 dark:text-green-100">
+                    No Critical Issues Found
+                  </p>
+                  <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                    All pages are performing well!
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="good" className="mt-6">
+            {goodPages.length > 0 ? (
+              <PageCarousel pages={goodPages} />
+            ) : (
+              <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+                <CardContent className="py-8 text-center">
+                  <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-3" />
+                  <p className="text-lg font-semibold text-red-900 dark:text-red-100">
+                    All Pages Need Attention
+                  </p>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                    Focus on the issues identified to improve user experience.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {Object.entries(pagesByType).map(([type, typePages]) => (

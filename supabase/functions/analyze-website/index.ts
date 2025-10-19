@@ -101,8 +101,9 @@ serve(async (req) => {
 
     console.log(`  Evaluating ${heuristicsToEvaluate.length} heuristics...`);
 
-    // Run all heuristic evaluations in parallel for speed
-    const heuristicEvaluations = await Promise.all(
+    // Run all heuristic evaluations in parallel for maximum efficiency
+    // Using Promise.allSettled to ensure one failure doesn't stop all analyses
+    const heuristicEvaluations = await Promise.allSettled(
       heuristicsToEvaluate.map(h =>
         evaluatePerHeuristic(
           h.key,
@@ -117,9 +118,20 @@ serve(async (req) => {
       )
     );
 
+    // Extract successful evaluations only
+    const successfulEvaluations = heuristicEvaluations
+      .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+      .map(result => result.value);
+    
+    // Log any failures
+    const failedEvaluations = heuristicEvaluations.filter(r => r.status === 'rejected');
+    if (failedEvaluations.length > 0) {
+      console.warn(`  ${failedEvaluations.length} heuristic evaluations failed, continuing with ${successfulEvaluations.length}`);
+    }
+
     // Combine all violations and strengths
-    const allViolations = heuristicEvaluations.flatMap(e => e.violations);
-    const allStrengths = heuristicEvaluations.flatMap(e => e.strengths);
+    const allViolations = successfulEvaluations.flatMap(e => e.violations);
+    const allStrengths = successfulEvaluations.flatMap(e => e.strengths);
     
     console.log(`✓ Stage 3 complete: ${allViolations.length} violations, ${allStrengths.length} strengths`);
 
