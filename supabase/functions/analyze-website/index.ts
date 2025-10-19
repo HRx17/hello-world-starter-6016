@@ -370,25 +370,24 @@ serve(async (req) => {
     // Stage 1: AI classifies UI patterns ONLY (not recommendations)
     // Stage 2: Research-backed rules generate recommendations based on classifications
     
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error('GOOGLE_AI_API_KEY not configured');
     }
 
     // STAGE 1: UI Pattern Classification (AI used narrowly)
     console.log('Stage 1: AI UI Pattern Classification...');
-    const classificationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a UI pattern classifier. Your ONLY job is to identify which UI patterns are present - NOT to make recommendations.
+    const classificationResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [
+              {
+                text: `You are a UI pattern classifier. Your ONLY job is to identify which UI patterns are present - NOT to make recommendations.
             
 Classify ONLY these specific patterns (answer: present/absent/unclear):
 1. Navigation: hover-only mega menu, breadcrumbs, mobile hamburger
@@ -402,14 +401,8 @@ Classify ONLY these specific patterns (answer: present/absent/unclear):
 9. Accessibility: contrast ratios, ARIA labels, keyboard nav
 
 For each pattern, respond with ONLY: "present", "absent", or "unclear"
-DO NOT make any recommendations. DO NOT analyze if patterns are good or bad.`
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Classify UI patterns in this website: ${url}
+
+Analyze this website: ${url}
 
 **HTML Structure (first 4000 chars):**
 ${html.substring(0, 4000)}
@@ -417,63 +410,49 @@ ${html.substring(0, 4000)}
 **Page Content (first 3000 chars):**
 ${markdown.substring(0, 3000)}
 
-Look at both the HTML and screenshot to identify UI patterns.`
+Return JSON with this structure:
+{
+  "navigation": {
+    "hover_mega_menu": "present|absent|unclear",
+    "breadcrumbs": "present|absent|unclear",
+    "mobile_hamburger": "present|absent|unclear"
+  },
+  "forms": {
+    "inline_validation": "present|absent|unclear",
+    "placeholder_examples": "present|absent|unclear",
+    "required_indicators": "present|absent|unclear"
+  },
+  "buttons": {
+    "hover_states": "present|absent|unclear",
+    "consistent_styling": "present|absent|unclear",
+    "loading_states": "present|absent|unclear"
+  }
+}`
               },
               {
-                type: 'image_url',
-                image_url: {
-                  url: screenshot
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: screenshot.split(',')[1]
                 }
               }
             ]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: 'application/json'
           }
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "classify_ui_patterns",
-            description: "Classify which UI patterns are present on the page",
-            parameters: {
-              type: "object",
-              properties: {
-                navigation: {
-                  type: "object",
-                  properties: {
-                    hover_mega_menu: { type: "string", enum: ["present", "absent", "unclear"] },
-                    breadcrumbs: { type: "string", enum: ["present", "absent", "unclear"] },
-                    mobile_hamburger: { type: "string", enum: ["present", "absent", "unclear"] }
-                  }
-                },
-                forms: {
-                  type: "object",
-                  properties: {
-                    inline_validation: { type: "string", enum: ["present", "absent", "unclear"] },
-                    placeholder_examples: { type: "string", enum: ["present", "absent", "unclear"] },
-                    required_indicators: { type: "string", enum: ["present", "absent", "unclear"] }
-                  }
-                },
-                buttons: {
-                  type: "object",
-                  properties: {
-                    hover_states: { type: "string", enum: ["present", "absent", "unclear"] },
-                    consistent_styling: { type: "string", enum: ["present", "absent", "unclear"] },
-                    loading_states: { type: "string", enum: ["present", "absent", "unclear"] }
-                  }
-                }
-              }
-            }
-          }
-        }],
-        tool_choice: { type: 'function', function: { name: 'classify_ui_patterns' } }
-      }),
-    });
+        })
+      }
+    );
 
     if (!classificationResponse.ok) {
+      const errorText = await classificationResponse.text();
+      console.error('Classification error:', errorText);
       throw new Error(`AI classification failed: ${classificationResponse.status}`);
     }
 
     const classificationData = await classificationResponse.json();
-    const uiClassification = JSON.parse(classificationData.choices[0].message.tool_calls[0].function.arguments);
+    const uiClassification = JSON.parse(classificationData.candidates[0].content.parts[0].text);
     console.log('UI Pattern Classification complete');
 
     // STAGE 2: Generate recommendations from research-backed rules (NO AI)
@@ -536,27 +515,21 @@ Look at both the HTML and screenshot to identify UI patterns.`
 
     console.log(`Total violations: ${allViolations.length}`);
 
-    // Now run original AI analysis for additional context
-    console.log('Running supplementary AI analysis...');
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
-        messages: [
-          {
-            role: 'system',
-            content: HEURISTIC_ANALYSIS_PROMPT
-          },
-          {
+    // Now run main AI analysis with Gemini Pro for deep evaluation
+    console.log('Running Gemini Pro deep analysis...');
+    const aiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp:generateContent?key=${GOOGLE_AI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
             role: 'user',
-            content: [
+            parts: [
               {
-                type: 'text',
-                text: `Analyze this website: ${url}
+                text: `${HEURISTIC_ANALYSIS_PROMPT}
+
+Analyze this website: ${url}
 
 **Website Title:** ${websiteName}
 
@@ -576,21 +549,42 @@ Look for:
 - ARIA labels and accessibility attributes
 - Color contrast issues (if visible in screenshot)
 
+Return JSON with this structure:
+{
+  "overallScore": <number 0-100>,
+  "violations": [{
+    "heuristic": "<exact heuristic name>",
+    "severity": "high|medium|low",
+    "title": "<specific 6-10 word title>",
+    "description": "<2-3 sentences>",
+    "location": "<exact page location>",
+    "recommendation": "<actionable fix>",
+    "pageElement": "<CSS selector>",
+    "boundingBox": {"x": <0-100>, "y": <0-100>, "width": <0-100>, "height": <0-100>}
+  }],
+  "strengths": [{
+    "heuristic": "<heuristic name>",
+    "description": "<what was done well>"
+  }]
+}
+
 Provide a thorough, specific analysis focusing on the most impactful UX issues.`
               },
               {
-                type: 'image_url',
-                image_url: {
-                  url: screenshot
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: screenshot.split(',')[1]
                 }
               }
             ]
+          }],
+          generationConfig: {
+            temperature: 0.3,
+            responseMimeType: 'application/json'
           }
-        ],
-        tools: [HEURISTIC_EVALUATION_TOOL],
-        tool_choice: { type: 'function', function: { name: 'heuristic_evaluation' } }
-      }),
-    });
+        })
+      }
+    );
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
@@ -601,8 +595,7 @@ Provide a thorough, specific analysis focusing on the most impactful UX issues.`
     const aiData = await aiResponse.json();
     console.log('AI analysis successful');
 
-    const toolCall = aiData.choices[0].message.tool_calls[0];
-    const aiEvaluation = JSON.parse(toolCall.function.arguments);
+    const aiEvaluation = JSON.parse(aiData.candidates[0].content.parts[0].text);
 
     // Merge research-backed violations with AI-identified ones (prioritize research-backed)
     const finalViolations = [...allViolations, ...aiEvaluation.violations];
@@ -623,8 +616,8 @@ Provide a thorough, specific analysis focusing on the most impactful UX issues.`
         violations: finalViolations,
         strengths: aiEvaluation.strengths,
         screenshot,
-        accuracy: '95%+ research-backed',
-        method: 'Hybrid: Rule-based + AI Classification',
+        accuracy: '95%+ research-backed (Google Gemini 2.0 Flash Thinking)',
+        method: 'Hybrid: Rule-based + Google AI Deep Reasoning',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
