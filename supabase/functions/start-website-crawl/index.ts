@@ -62,18 +62,7 @@ serve(async (req) => {
           formats: ['html', 'markdown', 'screenshot'],
           onlyMainContent: false,
           includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer'],
-          waitFor: 1500, // Phase 2: Reduced from 2000ms for faster crawling
-          excludePaths: [ // Phase 2: Skip non-essential pages
-            '/privacy',
-            '/terms',
-            '/legal',
-            '/cookies',
-            '/sitemap',
-            '/*.pdf',
-            '/*.xml',
-            '/admin',
-            '/wp-admin'
-          ]
+          waitFor: 1500, // Reduced from 2000ms for faster crawling
         },
       }),
     });
