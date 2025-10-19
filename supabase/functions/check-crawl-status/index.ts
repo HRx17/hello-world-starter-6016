@@ -324,12 +324,23 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
 
   for (const page of pages) {
     try {
-      console.log(`Analyzing page: ${page.url}`);
+      // Fix data structure - Firecrawl uses nested metadata.sourceURL
+      const url = page.metadata?.sourceURL || page.sourceURL || 'unknown';
+      const html = page.html || '';
+      const markdown = page.markdown || '';
+      const screenshot = page.screenshot || '';
+      const title = page.metadata?.title || page.title || 'Untitled';
       
-      const { html, markdown, screenshot, metadata } = page;
+      console.log(`Analyzing page: ${url}`);
+      
+      // Skip if no URL
+      if (url === 'unknown' || !html) {
+        console.warn('Skipping page with missing data');
+        continue;
+      }
       
       // Classify page type
-      const pageType = classifyPageType(page.url, html);
+      const pageType = classifyPageType(url, html);
       
       // Analyze page using hybrid system (same as single-page analysis)
       const analysis = await analyzePage(html, markdown, screenshot, LOVABLE_API_KEY);
@@ -337,8 +348,8 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
       // Store page analysis
       await supabase.from('page_analyses').insert({
         crawl_id: crawlId,
-        page_url: page.url,
-        page_title: metadata?.title || 'Untitled',
+        page_url: url,
+        page_title: title,
         page_type: pageType,
         screenshot: screenshot,
         score: analysis.score,
@@ -360,7 +371,9 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
         .eq('id', crawlId);
 
     } catch (error) {
-      console.error(`Error analyzing page ${page.url}:`, error);
+      const url = page.metadata?.sourceURL || page.sourceURL || 'unknown';
+      console.error(`Error analyzing page ${url}:`, error);
+      // Continue to next page instead of stopping entire crawl
     }
   }
 
@@ -399,36 +412,203 @@ function classifyPageType(url: string, html: string): string {
 }
 
 async function analyzePage(html: string, markdown: string, screenshot: string, apiKey: string) {
-  // Simplified version of the hybrid analysis from analyze-website
-  // Rule-based pattern detection
-  const detectedPatterns: any[] = [];
+  // FULL AI ANALYSIS PIPELINE - Same as single-page analysis
+  
+  // Step 1: Rule-based pattern detection (deterministic baseline)
+  const ruleBasedViolations: any[] = [];
+  const ruleBasedStrengths: any[] = [];
+  
   for (const uiPattern of UI_PATTERN_DATABASE) {
     for (const badPattern of uiPattern.badPatterns) {
       if (detectPattern(html, badPattern)) {
-        detectedPatterns.push({
+        ruleBasedViolations.push({
           heuristic: uiPattern.heuristics[0] || "General UX",
           severity: badPattern.severity,
           title: badPattern.description,
           description: `${uiPattern.component}: ${badPattern.description}`,
+          location: uiPattern.component,
           recommendation: badPattern.recommendation,
+        });
+      }
+    }
+    
+    // Detect strengths (good patterns)
+    for (const goodPattern of uiPattern.goodPatterns) {
+      if (detectPattern(html, goodPattern)) {
+        ruleBasedStrengths.push({
+          heuristic: uiPattern.heuristics[0] || "General UX",
+          description: `${uiPattern.component}: ${goodPattern.description}`,
         });
       }
     }
   }
 
-  // Calculate score
+  // Step 2: AI Vision-Based Classification using Gemini Pro
+  let aiViolations: any[] = [];
+  let aiStrengths: any[] = [];
+  
+  if (screenshot && apiKey) {
+    try {
+      // Stage 1: UI Pattern Classification with Vision
+      const classificationPrompt = `Analyze this screenshot and HTML to identify UI patterns. Focus on:
+1. Navigation structure and usability
+2. Form design and validation
+3. Button/CTA visibility and clarity
+4. Error messaging approach
+5. Loading states and feedback
+6. Modal/dialog design
+
+For each UI element, provide:
+- Element type and purpose
+- Visual location (percentage-based coordinates: x, y, width, height where 0-100)
+- Usability assessment
+
+Provide bounding boxes for ALL identified issues.`;
+
+      const classificationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-pro',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: classificationPrompt },
+                { type: 'image_url', image_url: { url: screenshot } }
+              ]
+            }
+          ],
+          temperature: 0.1,
+        })
+      });
+
+      if (classificationResponse.ok) {
+        const classificationData = await classificationResponse.json();
+        const classification = classificationData.choices?.[0]?.message?.content || '';
+
+        // Stage 2: Heuristic Evaluation using Gemini Flash
+        const evaluationPrompt = `Based on Nielsen's 10 Usability Heuristics, evaluate this page.
+
+SCREENSHOT ANALYSIS:
+${classification}
+
+HTML STRUCTURE:
+${html.substring(0, 5000)}
+
+Identify 5-8 specific violations with:
+1. Exact heuristic violated
+2. Severity (high/medium/low)
+3. Specific title
+4. Detailed description
+5. Location on page
+6. Actionable recommendation
+7. Bounding box coordinates (x, y, width, height as percentages)
+
+Also identify 3-5 strengths where heuristics are followed well.`;
+
+        const evaluationResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{ role: 'user', content: evaluationPrompt }],
+            tools: [{
+              type: "function",
+              function: {
+                name: "evaluate_usability",
+                description: "Return structured heuristic evaluation",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    violations: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          heuristic: { type: "string" },
+                          severity: { type: "string", enum: ["high", "medium", "low"] },
+                          title: { type: "string" },
+                          description: { type: "string" },
+                          location: { type: "string" },
+                          recommendation: { type: "string" },
+                          boundingBox: {
+                            type: "object",
+                            properties: {
+                              x: { type: "number" },
+                              y: { type: "number" },
+                              width: { type: "number" },
+                              height: { type: "number" }
+                            }
+                          }
+                        },
+                        required: ["heuristic", "severity", "title", "description", "location", "recommendation"]
+                      }
+                    },
+                    strengths: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          heuristic: { type: "string" },
+                          description: { type: "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }],
+            tool_choice: { type: "function", function: { name: "evaluate_usability" } }
+          })
+        });
+
+        if (evaluationResponse.ok) {
+          const evaluationData = await evaluationResponse.json();
+          const toolCall = evaluationData.choices?.[0]?.message?.tool_calls?.[0];
+          
+          if (toolCall?.function?.arguments) {
+            const evaluation = JSON.parse(toolCall.function.arguments);
+            aiViolations = evaluation.violations || [];
+            aiStrengths = evaluation.strengths || [];
+          }
+        }
+      }
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      // Fall back to rule-based only
+    }
+  }
+
+  // Step 3: Combine rule-based and AI violations
+  const allViolations = [...ruleBasedViolations, ...aiViolations];
+  const allStrengths = [...ruleBasedStrengths, ...aiStrengths];
+
+  // Step 4: Calculate weighted score
   let score = 100;
-  detectedPatterns.forEach(p => {
-    if (p.severity === 'high') score -= 10;
-    else if (p.severity === 'medium') score -= 5;
-    else score -= 2;
+  
+  allViolations.forEach(v => {
+    const weights: { [key: string]: number } = { high: 12, medium: 6, low: 3 };
+    score -= weights[v.severity] || 5;
   });
-  score = Math.max(40, Math.min(100, score));
+  
+  // Bonus for strengths (up to +10)
+  const strengthBonus = Math.min(10, allStrengths.length * 2);
+  score += strengthBonus;
+  
+  // Clamp between 40-100
+  score = Math.max(40, Math.min(100, Math.round(score)));
 
   return {
     score,
-    violations: detectedPatterns,
-    strengths: [], // Simplified - can be enhanced
+    violations: allViolations,
+    strengths: allStrengths,
   };
 }
 
