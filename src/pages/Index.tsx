@@ -216,7 +216,27 @@ const Index = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error types
+        if (error.message?.includes('rate limit') || error.message?.includes('429')) {
+          toast({
+            title: "Rate Limit Reached",
+            description: "Firecrawl API rate limit exceeded. Please wait 5-10 minutes and try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
+
+      if (!data.success) {
+        toast({
+          title: "Crawl Failed",
+          description: data.error || "Failed to start website crawl",
+          variant: "destructive",
+        });
+        return;
+      }
 
       setCrawlId(data.crawlId);
       
@@ -226,7 +246,11 @@ const Index = () => {
       });
     } catch (error) {
       console.error("Crawl error:", error);
-      throw error;
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start crawl",
+        variant: "destructive",
+      });
     }
   };
 

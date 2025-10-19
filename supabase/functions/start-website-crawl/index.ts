@@ -83,17 +83,41 @@ serve(async (req) => {
 
     if (!firecrawlResponse.ok) {
       const errorText = await firecrawlResponse.text();
-      console.error('Firecrawl crawl error:', errorText);
+      console.error('Firecrawl API error:', firecrawlResponse.status, errorText);
       
+      // Handle rate limiting specifically
+      if (firecrawlResponse.status === 429) {
+        await supabase
+          .from('website_crawls')
+          .update({
+            status: 'failed',
+            error_message: 'Rate limit exceeded. Please wait a few minutes before trying again.',
+          })
+          .eq('id', crawl.id);
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Firecrawl API rate limit exceeded. Please wait a few minutes and try again.',
+            retryAfter: '5 minutes'
+          }),
+          { 
+            status: 429, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      // Handle other errors
       await supabase
         .from('website_crawls')
         .update({
           status: 'failed',
-          error_message: `Firecrawl crawl failed: ${errorText}`,
+          error_message: `Firecrawl error: ${errorText}`,
         })
         .eq('id', crawl.id);
       
-      throw new Error(`Firecrawl crawl failed: ${firecrawlResponse.status}`);
+      throw new Error(`Firecrawl API error (${firecrawlResponse.status}): ${errorText}`);
     }
 
     const firecrawlData = await firecrawlResponse.json();
