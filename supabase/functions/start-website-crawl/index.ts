@@ -11,31 +11,35 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Define crawl modes with credit-efficient configurations
+  // Define crawl modes with precise page limits and smart depth control
   const CRAWL_MODES = {
     quick: { 
       limit: 25, 
       depth: 2, 
       screenshots: false,
-      estimatedCredits: '25-40'
+      estimatedCredits: '25-35',
+      description: 'Homepage + key pages only'
     },
     light: { 
       limit: 50, 
-      depth: 3, 
+      depth: 2, 
       screenshots: true,
-      estimatedCredits: '50-75'
+      estimatedCredits: '50-60',
+      description: 'Main sections and important pages'
     },
     standard: { 
       limit: 150, 
-      depth: 5, 
+      depth: 3, 
       screenshots: true,
-      estimatedCredits: '150-225'
+      estimatedCredits: '150-175',
+      description: 'Most pages, excluding deep nested content'
     },
     comprehensive: { 
       limit: 500, 
-      depth: 10, 
+      depth: 4, 
       screenshots: true,
-      estimatedCredits: '500-750'
+      estimatedCredits: '500-550',
+      description: 'Complete site crawl, all accessible pages'
     }
   };
 
@@ -103,7 +107,7 @@ serve(async (req) => {
       throw new Error('FIRECRAWL_API_KEY not configured');
     }
 
-    console.log(`Initiating Firecrawl crawl with ${crawlMode} mode (${config.limit} pages, depth ${config.depth})...`);
+    console.log(`Initiating Firecrawl crawl with ${crawlMode} mode: ${config.limit} pages max, depth ${config.depth}`);
     const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/crawl', {
       method: 'POST',
       headers: {
@@ -119,18 +123,25 @@ serve(async (req) => {
             : ['html', 'markdown'],
           onlyMainContent: false,
           includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer', 'main', 'section', 'article'],
-          waitFor: 2000,
+          waitFor: 1500,
           removeBase64Images: false,
         },
-        allowBackwardLinks: true,
+        allowBackwardLinks: false, // CRITICAL: Prevent crawling back to parent pages
         allowExternalLinks: false,
         maxDepth: config.depth,
         ignoreSitemap: false,
+        deduplicateSimilarPages: true, // CRITICAL: Skip duplicate/similar pages
         excludePaths: [
+          // Files
           '.*\\.pdf$', '.*\\.zip$', '.*\\.tar\\.gz$', '.*\\.exe$', '.*\\.dmg$',
           '.*\\.jpg$', '.*\\.jpeg$', '.*\\.png$', '.*\\.gif$', '.*\\.svg$', '.*\\.ico$',
           '.*\\.mp3$', '.*\\.mp4$', '.*\\.avi$', '.*\\.mov$',
-          '.*\\.css$', '.*\\.js$', '.*\\.json$', '.*\\.xml$'
+          '.*\\.css$', '.*\\.js$', '.*\\.json$', '.*\\.xml$',
+          // Common unnecessary pages
+          '/tag/', '/tags/', '/category/', '/categories/',
+          '/author/', '/authors/', '/archive/', '/archives/',
+          '/page/[0-9]+', '/print/', '/feed/', '/rss/',
+          '\\?print=', '\\?share=', '\\?replytocom='
         ],
         includePaths: [],
       }),
