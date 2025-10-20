@@ -60,6 +60,51 @@ function removeDuplicates(violations: HeuristicViolation[]): HeuristicViolation[
 }
 
 function removeGenericFindings(violations: HeuristicViolation[]): HeuristicViolation[] {
+  // Technical issues that should NEVER appear as heuristic violations
+  const technicalPatterns = [
+    /viewport\s+meta\s+tag/i,
+    /missing\s+viewport/i,
+    /meta\s+tag/i,
+    /charset/i,
+    /html\s+lang/i,
+    /alt\s+attribute/i,
+    /alt\s+text/i,
+    /aria-label/i,
+    /semantic\s+html/i,
+    /<head>/i,
+    /DOCTYPE/i,
+    /SEO/i,
+    /meta\s+description/i,
+    /og:image/i,
+    /favicon/i,
+    /sitemap/i,
+    /robots\.txt/i,
+    /schema\.org/i,
+    /JSON-LD/i,
+    /HTML\s+validation/i,
+    /W3C/i,
+    /heading\s+hierarchy/i,
+    /h1.*h2.*h3/i,
+    /landmark\s+roles/i,
+    /<main>/i,
+    /<nav>/i,
+    /<header>/i,
+    /<footer>/i,
+    /WCAG/i,
+    /accessibility\s+attribute/i,
+    /aria-/i,
+    /role=/i,
+    /tabindex/i,
+    /screen\s+reader/i,
+    /page\s+speed/i,
+    /load\s+time/i,
+    /performance/i,
+    /optimization/i,
+    /minif/i,
+    /compression/i,
+    /caching/i
+  ];
+
   const genericPhrases = [
     'could be improved',
     'might be better',
@@ -68,36 +113,58 @@ function removeGenericFindings(violations: HeuristicViolation[]): HeuristicViola
     'should possibly',
     'generally',
     'overall',
-    'in general'
+    'in general',
+    'would benefit from',
+    'it is recommended'
   ];
 
   return violations.filter(v => {
-    const text = `${v.title} ${v.description}`.toLowerCase();
+    const fullText = `${v.title} ${v.description} ${v.location} ${v.pageElement}`.toLowerCase();
     
-    // Reject if contains generic phrases
-    if (genericPhrases.some(phrase => text.includes(phrase))) {
-      console.log(`  Rejected generic finding: ${v.title}`);
+    // CRITICAL: Reject any technical/implementation issues
+    if (technicalPatterns.some(pattern => pattern.test(fullText))) {
+      console.log(`  ❌ Rejected technical issue (NOT a heuristic violation): ${v.title}`);
+      return false;
+    }
+
+    // Reject if contains generic/vague phrases
+    if (genericPhrases.some(phrase => fullText.includes(phrase))) {
+      console.log(`  ❌ Rejected generic finding: ${v.title}`);
       return false;
     }
 
     // Reject if title is too short (< 5 words = too vague)
     if (v.title.split(' ').length < 5) {
-      console.log(`  Rejected vague title: ${v.title}`);
+      console.log(`  ❌ Rejected vague title: ${v.title}`);
       return false;
     }
 
     // Reject if no specific element identified
     if (!v.pageElement || v.pageElement === 'unknown' || v.pageElement === 'general') {
-      console.log(`  Rejected non-specific element: ${v.title}`);
+      console.log(`  ❌ Rejected non-specific element: ${v.title}`);
       return false;
     }
 
-    // Reject if bounding box is missing for visual violations
-    if (v.severity === 'high' && !v.boundingBox) {
-      console.log(`  Rejected high severity without bounding box: ${v.title}`);
+    // Reject if missing research backing (should always have specific citation)
+    if (!v.researchBacking || v.researchBacking.length < 20) {
+      console.log(`  ❌ Rejected violation without research backing: ${v.title}`);
       return false;
     }
 
+    // Reject if missing quantified user impact
+    if (!v.userImpact || v.userImpact.length < 10) {
+      console.log(`  ❌ Rejected violation without user impact: ${v.title}`);
+      return false;
+    }
+
+    // Verify severity matches description
+    const hasQuantifiedImpact = /\d+%|\d+x|significantly|substantially/i.test(v.userImpact);
+    if (v.severity === 'high' && !hasQuantifiedImpact) {
+      console.log(`  ❌ Rejected high severity without quantified impact: ${v.title}`);
+      return false;
+    }
+
+    console.log(`  ✅ Validated: ${v.title}`);
     return true;
   });
 }
