@@ -24,214 +24,268 @@ interface HeuristicStrength {
 }
 
 const HEURISTIC_SPECIFIC_PROMPTS: Record<string, string> = {
-  "visibility": `Evaluate ONLY "Visibility of System Status" (#1)
+  "visibility": `# HEURISTIC #1: Visibility of System Status
 
-FOCUS AREAS:
-- Loading states and progress indicators
-- Form submission feedback
-- Hover/focus states on interactive elements
-- Current page indicators in navigation
-- System status messages (success, error, warning)
-- Real-time updates and notifications
+**CRITICAL: This is about USER-PERCEIVABLE feedback, NOT technical implementation.**
 
-EVIDENCE TO EXAMINE:
-- Visual elements showing state changes
-- Presence/absence of loading spinners
-- Button states (default, hover, active, disabled)
-- Form validation feedback timing
+## WHAT THIS HEURISTIC IS:
+✅ Do users know what the system is doing right now?
+✅ Can users see loading/progress/status changes?
+✅ Do interactive elements show state (hover, active, disabled)?
 
-RESEARCH BACKING:
-- NN/g: Users need feedback within 0.1s for instant, 1s for flow, 10s for attention limit
-- Baymard: 67% of users abandon processes without clear progress indicators
+## WHAT THIS IS NOT:
+❌ Technical HTML/meta tag issues (viewport, charset, etc.)
+❌ Code structure or implementation details
+❌ Performance metrics or load times
+❌ SEO or accessibility attributes
 
-Return ONLY violations where users cannot perceive system status.`,
+## VALID VIOLATIONS (User Experience):
+- Forms submit with no feedback → user doesn't know if it worked
+- Buttons have no hover state → user can't tell if they're clickable
+- Long operations with no progress bar → user doesn't know to wait
+- No indication of current page in navigation → user is lost
 
-  "match_real_world": `Evaluate ONLY "Match Between System and Real World" (#2)
+## RESEARCH EVIDENCE REQUIRED:
+- NN/g: Users need feedback within 0.1s (instant), 1s (flow), 10s (attention limit)
+- Baymard: 67% abandon without progress indicators
 
-FOCUS AREAS:
-- Icon meanings and familiarity (shopping cart, trash, search, etc.)
-- Language and terminology (technical jargon vs plain language)
-- Metaphors and mental models
-- Visual representations matching real-world objects
+ONLY report violations affecting REAL USERS' ability to understand system state.`,
 
-EVIDENCE TO EXAMINE:
-- Icon choices (standard vs custom)
-- Button labels (technical vs user-friendly)
-- Navigation terminology
-- Visual metaphors used
+  "match_real_world": `# HEURISTIC #2: Match Between System and Real World
 
-RESEARCH BACKING:
-- NN/g: Users rely on familiar patterns; deviations increase cognitive load by 20-40%
-- Jakob's Law: Users prefer your site to work like others they know
+**CRITICAL: This is about LANGUAGE and METAPHORS, NOT code quality.**
 
-Return ONLY violations where terminology/visuals don't match user expectations.`,
+## WHAT THIS HEURISTIC IS:
+✅ Do icons/labels match user expectations? (trash = delete, magnifying glass = search)
+✅ Is language user-friendly vs technical jargon?
+✅ Do visual metaphors make sense? (folder icons for folders)
 
-  "user_control": `Evaluate ONLY "User Control and Freedom" (#3)
+## WHAT THIS IS NOT:
+❌ HTML semantics or tag usage
+❌ Code naming conventions
+❌ Technical accuracy of implementation
+❌ SEO or metadata issues
 
-FOCUS AREAS:
-- Cancel buttons in forms/dialogs
-- Undo/Redo functionality
-- Modal exit methods (X button, ESC key, backdrop click)
-- Back button visibility
-- Ability to recover from errors
+## VALID VIOLATIONS (User Experience):
+- "Terminate session" instead of "Log out" → confusing jargon
+- Unfamiliar icons with no labels → users don't recognize meaning
+- Shopping cart labeled "Purchase container" → doesn't match mental model
 
-EVIDENCE TO EXAMINE:
-- Modal/dialog closing mechanisms
-- Form abandonment options
-- Destructive action confirmations
-- Navigation escape routes
+## RESEARCH EVIDENCE:
+- Jakob's Law: Users expect your site to work like others
+- NN/g: Unfamiliar patterns increase cognitive load 20-40%
 
-RESEARCH BACKING:
-- NN/g: 20% of errors are caused by accidental actions; users need emergency exits
-- Baymard: Forms without clear cancel/back options have 15% higher abandonment
+ONLY report language/visual mismatches affecting real user comprehension.`,
 
-Return ONLY violations where users feel trapped or can't undo mistakes.`,
+  "user_control": `# HEURISTIC #3: User Control and Freedom
 
-  "consistency": `Evaluate ONLY "Consistency and Standards" (#4)
+**CRITICAL: This is about ESCAPE ROUTES and UNDO, NOT functionality.**
 
-FOCUS AREAS:
-- Visual consistency (buttons, colors, typography across pages)
-- Terminology consistency (same action = same label)
-- Layout patterns (similar elements in similar locations)
-- Icon usage (same icon = same meaning)
+## WHAT THIS HEURISTIC IS:
+✅ Can users cancel, go back, or close dialogs easily?
+✅ Is there undo for mistakes?
+✅ Can users exit workflows midway?
 
-EVIDENCE TO EXAMINE:
-- Button styling variations
-- Label terminology for similar actions
-- Spacing and alignment patterns
-- Icon representations
+## WHAT THIS IS NOT:
+❌ Missing features or functionality
+❌ Technical implementation of controls
+❌ Browser back button behavior
+❌ Code architecture
 
-RESEARCH BACKING:
-- NN/g: Inconsistency increases cognitive load and learning time by 30-50%
+## VALID VIOLATIONS (User Experience):
+- Modal with no close button → user is trapped
+- Destructive action with no confirm/undo → user can't recover from mistakes
+- Multi-step form with no back button → user can't fix earlier errors
+
+## RESEARCH EVIDENCE:
+- NN/g: 20% of errors are accidental; need emergency exits
+- Baymard: Forms without clear cancel have 15% higher abandonment
+
+ONLY report violations where users feel trapped or can't undo actions.`,
+
+  "consistency": `# HEURISTIC #4: Consistency and Standards
+
+**CRITICAL: This is about VISUAL and BEHAVIORAL consistency, NOT code.**
+
+## WHAT THIS HEURISTIC IS:
+✅ Do similar elements look/behave the same across pages?
+✅ Same action = same label everywhere?
+✅ Consistent button styling, colors, spacing?
+
+## WHAT THIS IS NOT:
+❌ Code consistency or architecture
+❌ HTML validation or standards compliance
+❌ Technical naming conventions
+❌ Framework or library usage
+
+## VALID VIOLATIONS (User Experience):
+- Primary buttons are blue on page 1, red on page 2 → visual inconsistency
+- "Submit" on one form, "Send" on another → terminology inconsistency
+- Navigation in different positions across pages → layout inconsistency
+
+## RESEARCH EVIDENCE:
+- NN/g: Inconsistency increases cognitive load 30-50%
 - Fitts's Law: Consistent placement reduces interaction time
 
-Return ONLY violations where similar elements behave differently or look different.`,
+ONLY report visual/behavioral inconsistencies visible to users.`,
 
-  "error_prevention": `Evaluate ONLY "Error Prevention" (#5)
+  "error_prevention": `# HEURISTIC #5: Error Prevention
 
-FOCUS AREAS:
-- Inline form validation (real-time feedback)
-- Confirmation dialogs for destructive actions
-- Input constraints (date pickers, dropdowns vs free text)
-- Auto-save and recovery features
-- Disabled states preventing invalid actions
+**CRITICAL: This is about PREVENTING user mistakes, NOT technical errors.**
 
-EVIDENCE TO EXAMINE:
-- Form validation triggers (on submit vs on blur)
-- Delete/destructive action confirmations
-- Input field types and constraints
-- Error prevention mechanisms
+## WHAT THIS HEURISTIC IS:
+✅ Does the design help users avoid errors before they happen?
+✅ Are there confirmations for dangerous actions?
+✅ Does inline validation prevent bad input?
 
-RESEARCH BACKING:
+## WHAT THIS IS NOT:
+❌ Technical error handling in code
+❌ Browser compatibility issues
+❌ Missing HTML attributes (viewport, lang, etc.)
+❌ Code-level validations
+
+## VALID VIOLATIONS (User Experience):
+- Delete button with no confirmation → user might accidentally delete
+- Password field with no strength indicator → user creates weak password
+- Date input as free text instead of picker → user enters invalid format
+
+## RESEARCH EVIDENCE:
 - Baymard: Forms without inline validation have 18% higher abandonment
 - NN/g: Prevention is 10x better than good error messages
 
-Return ONLY violations where users can make preventable errors.`,
+ONLY report design patterns that let users make preventable mistakes.`,
 
-  "recognition": `Evaluate ONLY "Recognition Rather Than Recall" (#6)
+  "recognition": `# HEURISTIC #6: Recognition Rather Than Recall
 
-FOCUS AREAS:
-- Visible options vs hidden menus
-- Autocomplete and search suggestions
-- Recently viewed items
-- Placeholder examples showing expected format
-- Visible labels (not just placeholders)
+**CRITICAL: This is about MEMORY BURDEN, NOT information architecture.**
 
-EVIDENCE TO EXAMINE:
-- Dropdown menus hiding options
-- Search with/without autocomplete
-- Form field format examples
-- Persistent labels vs disappearing placeholders
+## WHAT THIS HEURISTIC IS:
+✅ Are options visible vs requiring users to remember them?
+✅ Do forms show format examples?
+✅ Is navigation always visible vs hidden?
 
-RESEARCH BACKING:
-- Miller's Law: Working memory limited to 7±2 items; visible > recalled
-- NN/g: Recognition tasks are 35% faster than recall
+## WHAT THIS IS NOT:
+❌ SEO meta descriptions
+❌ Alt text for images (that's accessibility)
+❌ Technical documentation
+❌ Code comments
 
-Return ONLY violations where users must remember information across interactions.`,
+## VALID VIOLATIONS (User Experience):
+- Dropdown hides 50 categories → user must remember which category
+- No autocomplete in search → user must recall exact terms
+- Placeholder-only labels that disappear → user forgets what field is for
 
-  "flexibility": `Evaluate ONLY "Flexibility and Efficiency of Use" (#7)
+## RESEARCH EVIDENCE:
+- Miller's Law: Working memory limited to 7±2 items
+- NN/g: Recognition is 35% faster than recall
 
-FOCUS AREAS:
-- Keyboard shortcuts
-- Bulk actions for power users
-- Search and filter options
-- Customization capabilities
-- Quick access to frequent actions
+ONLY report violations forcing users to remember across interactions.`,
 
-EVIDENCE TO EXAMINE:
-- Keyboard navigation support
-- Batch operation availability
-- Search functionality
-- User customization options
+  "flexibility": `# HEURISTIC #7: Flexibility and Efficiency of Use
 
-RESEARCH BACKING:
+**CRITICAL: This is about EXPERT USER acceleration, NOT responsive design.**
+
+## WHAT THIS HEURISTIC IS:
+✅ Can power users work faster? (keyboard shortcuts, bulk actions)
+✅ Are there quick access features for frequent tasks?
+✅ Can users customize or filter to speed up workflows?
+
+## WHAT THIS IS NOT:
+❌ Mobile responsiveness or viewport settings
+❌ Cross-browser compatibility
+❌ Technical performance optimization
+❌ HTML/CSS code quality
+
+## VALID VIOLATIONS (User Experience):
+- No keyboard shortcuts for common actions → power users must use mouse
+- No bulk delete, must click one by one → inefficient for managing many items
+- No search/filter in long lists → users must scroll/scan everything
+
+## RESEARCH EVIDENCE:
 - NN/g: Power users complete tasks 50% faster with shortcuts
 - Fitts's Law: Shortcuts reduce interaction distance/time
 
-Return ONLY violations where expert users are slowed by novice-oriented design.`,
+**CRITICAL: Missing viewport meta tag is NOT a heuristic violation. It's a technical/responsive design issue.**
 
-  "minimalist": `Evaluate ONLY "Aesthetic and Minimalist Design" (#8)
+ONLY report violations where expert users are slowed by novice-only design.`,
 
-FOCUS AREAS:
-- Information density and clutter
-- Visual hierarchy and focus
-- Removal of unnecessary elements
-- Progressive disclosure of complexity
-- White space usage
+  "minimalist": `# HEURISTIC #8: Aesthetic and Minimalist Design
 
-EVIDENCE TO EXAMINE:
-- Content-to-chrome ratio
-- Number of UI elements competing for attention
-- Visual noise vs signal
-- Information architecture
+**CRITICAL: This is about VISUAL CLUTTER, NOT code minimalism.**
 
-RESEARCH BACKING:
+## WHAT THIS HEURISTIC IS:
+✅ Is the design cluttered or clean?
+✅ Does irrelevant info compete with important content?
+✅ Is there good visual hierarchy and white space?
+
+## WHAT THIS IS NOT:
+❌ File size or code optimization
+❌ Number of HTML elements in DOM
+❌ Technical minimalism in code
+❌ SEO optimization
+
+## VALID VIOLATIONS (User Experience):
+- Homepage shows 50 competing CTAs → user can't focus
+- Forms have unnecessary decorative elements → distracts from completion
+- Every feature advertised on landing page → overwhelms new users
+
+## RESEARCH EVIDENCE:
 - Hick's Law: Decision time increases logarithmically with choices
 - NN/g: Every extra element reduces comprehension by 10%
 
-Return ONLY violations where irrelevant content competes with important information.`,
+ONLY report visual clutter reducing user focus and comprehension.`,
 
-  "error_recovery": `Evaluate ONLY "Help Users Recognize, Diagnose, and Recover from Errors" (#9)
+  "error_recovery": `# HEURISTIC #9: Help Users Recognize, Diagnose, and Recover from Errors
 
-FOCUS AREAS:
-- Error message clarity and specificity
-- Visual prominence of errors
-- Constructive guidance for fixes
-- Error location highlighting
-- Solution suggestions
+**CRITICAL: This is about USER-FACING error messages, NOT technical errors.**
 
-EVIDENCE TO EXAMINE:
-- Error message text (generic vs specific)
-- Error styling and visibility
-- Recovery instructions
-- Field-level error indicators
+## WHAT THIS HEURISTIC IS:
+✅ Are error messages clear and helpful?
+✅ Do they explain what went wrong and how to fix it?
+✅ Are errors visually prominent?
 
-RESEARCH BACKING:
+## WHAT THIS IS NOT:
+❌ Console errors or developer errors
+❌ Technical error codes
+❌ Server-side error handling
+❌ Missing HTML validation attributes
+
+## VALID VIOLATIONS (User Experience):
+- Form shows "Error 422" instead of "Please enter a valid email" → unhelpful
+- Generic "Something went wrong" with no guidance → user can't recover
+- Error message not near problematic field → user can't identify issue
+
+## RESEARCH EVIDENCE:
 - NN/g: Specific error messages reduce resolution time by 60%
 - Baymard: Generic errors cause 22% form abandonment
 
-Return ONLY violations where error messages are vague or unhelpful.`,
+ONLY report violations where user-facing errors are vague or unhelpful.`,
 
-  "help_documentation": `Evaluate ONLY "Help and Documentation" (#10)
+  "help_documentation": `# HEURISTIC #10: Help and Documentation
 
-FOCUS AREAS:
-- Contextual help (tooltips, info icons)
-- Help center accessibility
-- Search functionality in docs
-- Examples and tutorials
-- FAQ availability
+**CRITICAL: This is about USER-ACCESSIBLE help, NOT developer docs.**
 
-EVIDENCE TO EXAMINE:
-- Tooltip presence on complex elements
-- Help link visibility
-- Documentation searchability
-- Contextual guidance
+## WHAT THIS HEURISTIC IS:
+✅ Is help available when users need it? (tooltips, FAQs)
+✅ Is complex functionality explained?
+✅ Are there contextual hints for confusing elements?
 
-RESEARCH BACKING:
+## WHAT THIS IS NOT:
+❌ Code comments or developer documentation
+❌ Technical API documentation
+❌ Meta descriptions for SEO
+❌ Alt text (that's accessibility)
+
+## VALID VIOLATIONS (User Experience):
+- Complex settings with no tooltips or help links → users confused
+- No FAQ or help center link visible → users can't find answers
+- Jargon-heavy UI with no explanations → users don't understand
+
+## RESEARCH EVIDENCE:
 - NN/g: Contextual help reduces support tickets by 40%
 - Users prefer inline help over separate documentation
 
-Return ONLY violations where help is missing or hard to find when needed.`
+ONLY report violations where users need but can't find helpful guidance.`
 };
 
 export async function evaluatePerHeuristic(
@@ -273,30 +327,80 @@ ${html.substring(0, 1500)}
             role: 'user',
             parts: [
               { 
-                text: `${prompt}
+                text: `You are a UX evaluation expert trained in Nielsen Norman Group heuristic evaluation methodology.
+
+${prompt}
+
+═══════════════════════════════════════
+CRITICAL FILTERING RULES
+═══════════════════════════════════════
+
+🚫 DO NOT REPORT THESE AS HEURISTIC VIOLATIONS:
+1. Missing HTML meta tags (viewport, charset, description, etc.)
+2. Missing alt attributes on images (this is accessibility, not heuristics)
+3. Code quality or technical implementation issues
+4. SEO-related problems
+5. Browser compatibility issues
+6. Performance or load time issues
+7. Missing HTML semantic tags
+8. CSS or JavaScript issues
+
+✅ ONLY REPORT THESE:
+1. User-perceivable design patterns affecting experience
+2. Interaction issues users actually encounter
+3. Visual design problems causing confusion
+4. Information architecture affecting task completion
+5. Workflow issues preventing user goals
+
+═══════════════════════════════════════
+EVIDENCE PROVIDED
+═══════════════════════════════════════
 
 ${contextData}
 
-**MANDATORY OUTPUT FORMAT:**
+═══════════════════════════════════════
+REQUIRED OUTPUT FORMAT
+═══════════════════════════════════════
+
 {
   "violations": [{
     "severity": "high|medium|low",
-    "title": "Specific 6-10 word title citing exact element",
-    "description": "2-3 sentences explaining WHY this violates the heuristic with evidence",
-    "location": "Precise page location with landmarks",
-    "recommendation": "Actionable fix with implementation details",
-    "pageElement": "CSS selector or HTML description",
+    "title": "User-facing issue in 6-10 words",
+    "description": "WHY this violates THIS SPECIFIC heuristic with visible evidence from screenshot/content. Must reference actual user experience impact, not technical implementation.",
+    "location": "Precise visual location users can see",
+    "recommendation": "Design change (not code fix) to improve UX",
+    "pageElement": "Visible UI element description",
     "boundingBox": {"x": 0-100, "y": 0-100, "width": 0-100, "height": 0-100},
-    "researchBacking": "Cite NN/g or Baymard study supporting this finding",
-    "userImpact": "Quantified impact on users (e.g., '15% task abandonment')"
+    "researchBacking": "Specific NN/g or Baymard study with data",
+    "userImpact": "Quantified user behavior impact (e.g., '15% abandonment', '40% slower')"
   }],
   "strengths": [{
-    "description": "What the site does well for this heuristic",
-    "example": "Specific example from the page"
+    "description": "User-facing design pattern done well",
+    "example": "Specific visible example from page"
   }]
 }
 
-Be ruthlessly specific. No generic observations.` 
+═══════════════════════════════════════
+QUALITY CHECKLIST
+═══════════════════════════════════════
+
+Before reporting each violation, verify:
+- [ ] Is this about USER EXPERIENCE, not code?
+- [ ] Can actual users SEE/FEEL this problem?
+- [ ] Does it specifically violate THIS heuristic (not another)?
+- [ ] Is there VISIBLE EVIDENCE in the screenshot/content?
+- [ ] Is the research backing specific and relevant?
+
+REJECT violations about:
+❌ HTML structure, meta tags, attributes
+❌ Technical performance or optimization
+❌ SEO or metadata
+❌ Accessibility attributes (use separate accessibility scan)
+
+ONLY ACCEPT violations about:
+✅ What users see and interact with
+✅ Design patterns affecting user tasks
+✅ Visual/interaction issues causing confusion` 
               },
               {
                 inlineData: {
@@ -307,7 +411,7 @@ Be ruthlessly specific. No generic observations.`
             ]
           }],
           generationConfig: {
-            temperature: 0.2,
+            temperature: 0.1,  // Lower temperature for more focused, accurate results
             responseMimeType: 'application/json'
           }
         })
