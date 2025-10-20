@@ -130,7 +130,6 @@ serve(async (req) => {
         allowExternalLinks: false,
         maxDepth: config.depth,
         ignoreSitemap: false,
-        deduplicateSimilarPages: true, // CRITICAL: Skip duplicate/similar pages
         excludePaths: [
           // Files
           '.*\\.pdf$', '.*\\.zip$', '.*\\.tar\\.gz$', '.*\\.exe$', '.*\\.dmg$',
@@ -195,6 +194,29 @@ serve(async (req) => {
           }),
           { 
             status: 429, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      // Handle 403 - Website not supported
+      if (firecrawlResponse.status === 403) {
+        await supabase
+          .from('website_crawls')
+          .update({
+            status: 'failed',
+            error_message: 'This website is not supported by Firecrawl. Some sites require enterprise plans.',
+          })
+          .eq('id', crawl.id);
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'This website is blocked by Firecrawl and cannot be crawled. Try a different website or use single-page analysis instead.',
+            errorCode: 'WEBSITE_NOT_SUPPORTED'
+          }),
+          { 
+            status: 403, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
