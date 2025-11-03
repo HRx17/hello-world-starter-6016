@@ -75,6 +75,11 @@ serve(async (req) => {
     let { html, markdown, screenshot, metadata } = firecrawlData.data;
     const websiteName = metadata?.title || new URL(url).hostname;
     
+    console.log('Screenshot type:', typeof screenshot);
+    console.log('Screenshot value (first 100 chars):', screenshot?.substring(0, 100));
+    console.log('Screenshot starts with http?:', screenshot?.startsWith('http'));
+    console.log('Screenshot starts with data?:', screenshot?.startsWith('data:'));
+    
     // Convert screenshot URL to base64 if needed
     if (screenshot && screenshot.startsWith('http')) {
       console.log('Screenshot is a URL, downloading and converting to base64...');
@@ -90,9 +95,11 @@ serve(async (req) => {
         console.error('Failed to download/convert screenshot:', error);
         throw new Error('Failed to process screenshot from Firecrawl');
       }
+    } else if (!screenshot) {
+      throw new Error('No screenshot returned from Firecrawl');
     }
     
-    console.log('✓ Scraping complete');
+    console.log('✓ Scraping complete, screenshot size:', screenshot.length, 'chars');
 
     // STAGE 1: Visual Decomposition
     console.log('\n[STAGE 1] Deep Visual Decomposition...');
