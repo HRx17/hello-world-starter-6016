@@ -584,15 +584,136 @@ serve(async (req) => {
   }
 });
 
+// Generate DOM structure fingerprint for deduplication
+function generateStructureFingerprint(html: string): string {
+  // Extract structural elements (tags, classes, IDs, form fields)
+  const tagPattern = /<(\w+)[^>]*>/g;
+  const classPattern = /class="([^"]*)"/g;
+  const idPattern = /id="([^"]*)"/g;
+  const formPattern = /<(input|select|textarea)[^>]*name="([^"]*)"/g;
+  
+  const tags: string[] = [];
+  const classes: string[] = [];
+  const ids: string[] = [];
+  const formFields: string[] = [];
+  
+  let match;
+  while ((match = tagPattern.exec(html)) !== null) {
+    tags.push(match[1].toLowerCase());
+  }
+  while ((match = classPattern.exec(html)) !== null) {
+    classes.push(...match[1].split(' ').filter(Boolean));
+  }
+  while ((match = idPattern.exec(html)) !== null) {
+    ids.push(match[1]);
+  }
+  while ((match = formPattern.exec(html)) !== null) {
+    formFields.push(`${match[1]}:${match[2]}`);
+  }
+  
+  // Create normalized structure signature
+  const tagSignature = tags.slice(0, 50).join(',');
+  const classSignature = [...new Set(classes)].slice(0, 30).sort().join(',');
+  const idSignature = [...new Set(ids)].slice(0, 20).sort().join(',');
+  const formSignature = formFields.join(',');
+  
+  // Combine into fingerprint
+  return `${tagSignature}|${classSignature}|${idSignature}|${formSignature}`;
+}
+
+// Calculate similarity between two structure fingerprints
+function calculateStructureSimilarity(fp1: string, fp2: string): number {
+  const [tags1, classes1, ids1, forms1] = fp1.split('|');
+  const [tags2, classes2, ids2, forms2] = fp2.split('|');
+  
+  // Calculate Jaccard similarity for each component
+  const tagsSim = jaccardSimilarity(tags1.split(','), tags2.split(','));
+  const classesSim = jaccardSimilarity(classes1.split(','), classes2.split(','));
+  const idsSim = jaccardSimilarity(ids1.split(','), ids2.split(','));
+  const formsSim = jaccardSimilarity(forms1.split(','), forms2.split(','));
+  
+  // Weighted average (tags and classes matter most)
+  return (tagsSim * 0.4 + classesSim * 0.35 + idsSim * 0.15 + formsSim * 0.1);
+}
+
+function jaccardSimilarity(set1: string[], set2: string[]): number {
+  const s1 = new Set(set1.filter(Boolean));
+  const s2 = new Set(set2.filter(Boolean));
+  
+  if (s1.size === 0 && s2.size === 0) return 1.0;
+  if (s1.size === 0 || s2.size === 0) return 0.0;
+  
+  const intersection = new Set([...s1].filter(x => s2.has(x)));
+  const union = new Set([...s1, ...s2]);
+  
+  return intersection.size / union.size;
+}
+
 // Background task to analyze all crawled pages with parallel processing
 async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
   const totalPages = pages.length;
   console.log(`🚀 Starting comprehensive analysis of ${totalPages} pages for crawl ${crawlId}`);
   
+  // === SMART DEDUPLICATION: Group pages by structure similarity ===
+  console.log('🧠 Analyzing page structures for deduplication...');
+  
+  const pageStructures: Array<{
+    page: any;
+    fingerprint: string;
+    url: string;
+  }> = pages.map(page => ({
+    page,
+    fingerprint: generateStructureFingerprint(page.html || ''),
+    url: page.metadata?.sourceURL || page.sourceURL || 'unknown'
+  }));
+  
+  // Group similar pages (>85% structure similarity = same template)
+  const SIMILARITY_THRESHOLD = 0.85;
+  const structureGroups: Array<Array<typeof pageStructures[0]>> = [];
+  const processed = new Set<number>();
+  
+  for (let i = 0; i < pageStructures.length; i++) {
+    if (processed.has(i)) continue;
+    
+    const group = [pageStructures[i]];
+    processed.add(i);
+    
+    // Find similar pages
+    for (let j = i + 1; j < pageStructures.length; j++) {
+      if (processed.has(j)) continue;
+      
+      const similarity = calculateStructureSimilarity(
+        pageStructures[i].fingerprint,
+        pageStructures[j].fingerprint
+      );
+      
+      if (similarity >= SIMILARITY_THRESHOLD) {
+        group.push(pageStructures[j]);
+        processed.add(j);
+      }
+    }
+    
+    structureGroups.push(group);
+  }
+  
+  console.log(`📊 Structure analysis complete:`);
+  console.log(`   Total pages: ${totalPages}`);
+  console.log(`   Unique structures: ${structureGroups.length}`);
+  console.log(`   Deduplication savings: ${totalPages - structureGroups.length} pages (${Math.round((1 - structureGroups.length/totalPages) * 100)}%)`);
+  
+  // Analyze only one representative per structure group
+  const pagesToAnalyze = structureGroups.map(group => ({
+    ...group[0],
+    duplicateCount: group.length - 1,
+    duplicateUrls: group.slice(1).map(p => p.url)
+  }));
+  
+  console.log(`⚡ Analyzing ${pagesToAnalyze.length} unique page structures (skipping ${totalPages - pagesToAnalyze.length} duplicates)`);
+  
   // Estimate based on hybrid analysis speed (2-3s per page with Claude)
-  const estimatedSeconds = Math.ceil((totalPages * 2.5) / 8); // 8 parallel
+  const estimatedSeconds = Math.ceil((pagesToAnalyze.length * 2.5) / 8); // 8 parallel
   const estimatedMinutes = Math.ceil(estimatedSeconds / 60);
-  console.log(`⏱️ Estimated completion: ${estimatedMinutes} minutes (${totalPages} pages, 8 parallel)`);
+  console.log(`⏱️ Estimated completion: ${estimatedMinutes} minutes (${pagesToAnalyze.length} pages, 8 parallel)`);
   
   const LOVABLE_API_KEY = ''; // Not used - using Anthropic directly
 
@@ -605,16 +726,17 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
   // Process pages in parallel batches for 5-10x speed improvement
   const BATCH_SIZE = 8; // Process 8 pages simultaneously
   
-  for (let i = 0; i < pages.length; i += BATCH_SIZE) {
-    const batch = pages.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < pagesToAnalyze.length; i += BATCH_SIZE) {
+    const batch = pagesToAnalyze.slice(i, i + BATCH_SIZE);
     const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(pages.length / BATCH_SIZE);
+    const totalBatches = Math.ceil(pagesToAnalyze.length / BATCH_SIZE);
     
-    console.log(`Processing batch ${batchNumber}/${totalBatches} (pages ${i + 1}-${Math.min(i + BATCH_SIZE, totalPages)})`);
+    console.log(`Processing batch ${batchNumber}/${totalBatches} (pages ${i + 1}-${Math.min(i + BATCH_SIZE, pagesToAnalyze.length)})`);
     
     // Analyze batch in parallel
     const batchResults = await Promise.allSettled(
-      batch.map(async (page) => {
+      batch.map(async (pageStructure) => {
+        const page = pageStructure.page;
         try {
           // Fix data structure - Firecrawl uses nested metadata.sourceURL
           const url = page.metadata?.sourceURL || page.sourceURL || 'unknown';
@@ -656,6 +778,8 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
             screenshot,
             analysis,
             html: html.substring(0, 10000),
+            duplicateCount: pageStructure.duplicateCount,
+            duplicateUrls: pageStructure.duplicateUrls,
           };
         } catch (error) {
           const url = page.metadata?.sourceURL || page.sourceURL || 'unknown';
@@ -671,7 +795,7 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
         const pageData = result.value;
         
         try {
-          // Store page analysis
+          // Store page analysis with deduplication metadata
           await supabase.from('page_analyses').insert({
             crawl_id: crawlId,
             page_url: pageData.url,
@@ -682,6 +806,11 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
             violations: pageData.analysis.violations,
             strengths: pageData.analysis.strengths,
             html_snapshot: pageData.html,
+            metadata: {
+              represents_pages: pageData.duplicateCount + 1,
+              duplicate_urls: pageData.duplicateUrls,
+              is_representative: true
+            }
           });
 
           // Aggregate results
@@ -697,13 +826,13 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
     
     // Update progress after each batch with time estimates
     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-    const pagesRemaining = totalPages - analyzedCount;
+    const pagesRemaining = pagesToAnalyze.length - analyzedCount;
     const avgSecondsPerPage = analyzedCount > 0 ? elapsedSeconds / analyzedCount : 0.44;
     const estimatedSecondsRemaining = Math.ceil(pagesRemaining * avgSecondsPerPage);
     const estimatedMinutesRemaining = Math.ceil(estimatedSecondsRemaining / 60);
     
-    console.log(`Progress: ${analyzedCount}/${totalPages} pages (${Math.round(analyzedCount/totalPages*100)}%)`);
-    console.log(`Speed: ${avgSecondsPerPage.toFixed(1)}s/page | ETA: ${estimatedMinutesRemaining} min remaining`);
+    console.log(`Progress: ${analyzedCount}/${pagesToAnalyze.length} structures (${Math.round(analyzedCount/pagesToAnalyze.length*100)}%) | ${totalPages} total pages`);
+    console.log(`Speed: ${avgSecondsPerPage.toFixed(1)}s/structure | ETA: ${estimatedMinutesRemaining} min remaining`);
     
     await supabase
       .from('website_crawls')
@@ -723,8 +852,10 @@ async function analyzeAllPages(crawlId: string, pages: any[], supabase: any) {
   const totalTime = Math.floor((Date.now() - startTime) / 1000);
   const avgTime = analyzedCount > 0 ? (totalTime / analyzedCount).toFixed(1) : 0;
   
-  console.log(`✅ Analysis completed in ${totalTime}s (avg ${avgTime}s/page)`);
-  console.log(`   Analyzed: ${analyzedCount}/${totalPages} pages`);
+  console.log(`✅ Smart analysis completed in ${totalTime}s (avg ${avgTime}s/structure)`);
+  console.log(`   Unique structures analyzed: ${analyzedCount}`);
+  console.log(`   Total pages covered: ${totalPages}`);
+  console.log(`   Deduplication efficiency: ${Math.round((1 - analyzedCount/totalPages) * 100)}%`);
   console.log(`   Overall score: ${overallScore}`);
   console.log(`   Violations: ${uniqueViolations.length} unique types`);
   console.log(`   Strengths: ${uniqueStrengths.length} unique types`);

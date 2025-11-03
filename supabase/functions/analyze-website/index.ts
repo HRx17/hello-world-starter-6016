@@ -1,4 +1,4 @@
-import { serve, Request } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { performVisualDecomposition } from "./stage1-visual-decomposition.ts";
 import { performStructuralAnalysis } from "./stage2-structural-analysis.ts";
 import { evaluatePerHeuristic } from "./stage3-heuristic-evaluation.ts";
@@ -24,7 +24,7 @@ const NIELSEN_10_HEURISTICS = {
   "10": { key: "help_documentation", name: "#10: Help and Documentation" }
 };
 
-serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
