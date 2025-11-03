@@ -27,12 +27,11 @@ const observationTypes = [
 ];
 
 const clusterColors = [
-  'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-  'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
 ];
 
 export default function ObservationsBoard() {
@@ -65,6 +64,7 @@ export default function ObservationsBoard() {
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [selectedObservations, setSelectedObservations] = useState<string[]>([]);
 
   const { data: observations } = useQuery({
     queryKey: ['study-observations', studyId],
@@ -217,17 +217,18 @@ export default function ObservationsBoard() {
   });
 
   const assignToClusterMutation = useMutation({
-    mutationFn: async ({ observationId, clusterId }: { observationId: string; clusterId: string | null }) => {
+    mutationFn: async ({ observationIds, clusterId }: { observationIds: string[]; clusterId: string | null }) => {
       const { error } = await supabase
         .from('research_observations')
         .update({ cluster_id: clusterId })
-        .eq('id', observationId);
+        .in('id', observationIds);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['study-observations', studyId] });
-      toast.success("Observation moved!");
+      setSelectedObservations([]);
+      toast.success("Observations assigned!");
     },
   });
 
@@ -300,6 +301,26 @@ ${i + 1}. [${obs.observation_type}] ${obs.content}
   }) || [];
 
   const unclustered = filteredObservations.filter(obs => !obs.cluster_id);
+  
+  const toggleSelection = (id: string) => {
+    setSelectedObservations(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const assignSelectedToCluster = (clusterId: string) => {
+    if (selectedObservations.length === 0) return;
+    assignToClusterMutation.mutate({ observationIds: selectedObservations, clusterId });
+  };
+
+  const getClusterStats = (clusterId: string) => {
+    const clusterObs = observations?.filter(obs => obs.cluster_id === clusterId) || [];
+    const types = clusterObs.reduce((acc, obs) => {
+      acc[obs.observation_type] = (acc[obs.observation_type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return { total: clusterObs.length, types };
+  };
 
   return (
     <DashboardLayout>
@@ -414,15 +435,32 @@ ${i + 1}. [${obs.observation_type}] ${obs.content}
                 <div className="flex justify-between items-center">
                   <div>
                     <CardTitle>Unclustered Observations ({unclustered.length})</CardTitle>
-                    <CardDescription>Assign observations to clusters below</CardDescription>
+                    <CardDescription>
+                      {selectedObservations.length > 0 
+                        ? `${selectedObservations.length} selected - Choose a cluster below to assign`
+                        : "Select observations and assign them to clusters"}
+                    </CardDescription>
                   </div>
+                  {selectedObservations.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={() => setSelectedObservations([])}>
+                      Clear Selection
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 {unclustered.length > 0 ? (
                   <div className="grid gap-3">
                     {unclustered.map((obs) => (
-                      <div key={obs.id} className="p-3 bg-muted rounded-lg space-y-2">
+                      <div 
+                        key={obs.id} 
+                        className={`p-3 rounded-lg space-y-2 cursor-pointer transition-all ${
+                          selectedObservations.includes(obs.id)
+                            ? 'bg-primary/10 border-2 border-primary'
+                            : 'bg-muted border-2 border-transparent hover:border-primary/50'
+                        }`}
+                        onClick={() => toggleSelection(obs.id)}
+                      >
                         <div className="flex justify-between items-start gap-2">
                           <div className="flex-1">
                             <Badge className="mb-1">{obs.observation_type}</Badge>
@@ -438,7 +476,7 @@ ${i + 1}. [${obs.observation_type}] ${obs.content}
                               </div>
                             )}
                           </div>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -469,29 +507,6 @@ ${i + 1}. [${obs.observation_type}] ${obs.content}
                             </AlertDialog>
                           </div>
                         </div>
-                        {clusters && clusters.length > 0 && (
-                          <Select 
-                            value={obs.cluster_id || "none"} 
-                            onValueChange={(value) => 
-                              assignToClusterMutation.mutate({ 
-                                observationId: obs.id, 
-                                clusterId: value === "none" ? null : value 
-                              })
-                            }
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Assign to cluster" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No cluster</SelectItem>
-                              {clusters.map(cluster => (
-                                <SelectItem key={cluster.id} value={cluster.id}>
-                                  {cluster.title}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -546,18 +561,38 @@ ${i + 1}. [${obs.observation_type}] ${obs.content}
               <div className="grid gap-4">
                 {clusters.map((cluster) => {
                   const clusterObs = observations?.filter(obs => obs.cluster_id === cluster.id) || [];
+                  const stats = getClusterStats(cluster.id);
                   return (
-                    <Card key={cluster.id} className={cluster.color}>
+                    <Card key={cluster.id} className="border-l-4" style={{ borderLeftColor: cluster.color }}>
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <CardTitle>{cluster.title}</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                              {cluster.title}
+                              <Badge variant="secondary">{stats.total}</Badge>
+                            </CardTitle>
                             {cluster.description && (
                               <CardDescription className="mt-1">{cluster.description}</CardDescription>
                             )}
-                            <p className="text-sm text-muted-foreground mt-1">{clusterObs.length} observations</p>
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                              {Object.entries(stats.types).map(([type, count]) => (
+                                <Badge key={type} variant="outline" className="text-xs">
+                                  {type.replace('_', ' ')}: {count}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
                           <div className="flex gap-1">
+                            {selectedObservations.length > 0 && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => assignSelectedToCluster(cluster.id)}
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Assign ({selectedObservations.length})
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" onClick={() => openEditCluster(cluster)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -590,19 +625,53 @@ ${i + 1}. [${obs.observation_type}] ${obs.content}
                       </CardHeader>
                       <CardContent>
                         {cluster.summary && (
-                          <div className="mb-4 p-3 bg-background/50 rounded border">
-                            <p className="text-sm font-semibold mb-1">Summary:</p>
+                          <div className="mb-4 p-3 bg-primary/5 rounded border border-primary/20">
+                            <p className="text-sm font-semibold mb-1 flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-primary"></span>
+                              Key Insight:
+                            </p>
                             <p className="text-sm">{cluster.summary}</p>
                           </div>
                         )}
-                        <div className="space-y-2">
-                          {clusterObs.map((obs) => (
-                            <div key={obs.id} className="p-2 bg-background rounded text-sm">
-                              <Badge className="mb-1 text-xs">{obs.observation_type}</Badge>
-                              <p>{obs.content}</p>
-                            </div>
-                          ))}
-                        </div>
+                        {clusterObs.length > 0 ? (
+                          <div className="space-y-2">
+                            {clusterObs.map((obs) => (
+                              <div key={obs.id} className="p-3 bg-muted/50 rounded border hover:bg-muted transition-colors">
+                                <div className="flex justify-between items-start gap-2">
+                                  <div className="flex-1">
+                                    <Badge className="mb-1 text-xs">{obs.observation_type}</Badge>
+                                    <p className="text-sm">{obs.content}</p>
+                                    {obs.tags && obs.tags.length > 0 && (
+                                      <div className="flex gap-1 mt-2 flex-wrap">
+                                        {obs.tags.map((tag: string, i: number) => (
+                                          <Badge key={i} variant="outline" className="text-xs">
+                                            <Tag className="mr-1 h-3 w-3" />
+                                            {tag}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => assignToClusterMutation.mutate({ 
+                                      observationIds: [obs.id], 
+                                      clusterId: null 
+                                    })}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground text-sm">
+                            <p>No observations in this cluster yet</p>
+                            <p className="text-xs mt-1">Select observations above to assign them here</p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   );
