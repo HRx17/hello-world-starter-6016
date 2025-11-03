@@ -7,7 +7,7 @@ export const LoadingAnalysis = () => {
       <div className="space-y-2 text-center max-w-md">
         <h3 className="text-xl font-semibold">Analyzing Website...</h3>
         <p className="text-sm text-muted-foreground">
-          We're crawling the page and running it through our AI-powered heuristic evaluation. This usually takes 20-30 seconds.
+          We're scanning the pages and running it through our AI-powered heuristic evaluation. This usually takes 20-30 seconds.
         </p>
       </div>
       <div className="flex flex-col gap-2 text-sm text-muted-foreground">

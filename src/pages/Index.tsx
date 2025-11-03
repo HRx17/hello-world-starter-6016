@@ -627,7 +627,7 @@ const Index = () => {
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-primary">
-                {user ? "Signed In" : "Try Free"} - AI-Powered UX Analysis
+                {user ? "" : "Try Free"} - AI-Powered UX Analysis
               </span>
             </div>
             
