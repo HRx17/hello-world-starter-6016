@@ -8,11 +8,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Calendar, Users, Lightbulb, UserCircle, Edit, Sparkles, CheckCircle2, Circle, ListTodo, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Users, Lightbulb, UserCircle, Edit, Sparkles, CheckCircle2, Circle, ListTodo, ChevronDown, ChevronUp, Pencil, Trash2, Archive } from "lucide-react";
 import { format } from "date-fns";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 
 export default function StudyPlanDetail() {
@@ -23,6 +26,13 @@ export default function StudyPlanDetail() {
   const [participantName, setParticipantName] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
   const [aiPlanExpanded, setAiPlanExpanded] = useState(false);
+  
+  // Edit study state
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editProblem, setEditProblem] = useState("");
+  const [editSolution, setEditSolution] = useState("");
+  const [editStatus, setEditStatus] = useState("");
 
   const { data: study, isLoading } = useQuery({
     queryKey: ['study-plan', id],
@@ -204,6 +214,119 @@ export default function StudyPlanDetail() {
     },
   });
 
+  // Edit study plan mutation
+  const editStudyMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('study_plans')
+        .update({
+          title: editTitle,
+          problem_statement: editProblem,
+          solution_goal: editSolution,
+          status: editStatus,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-plan', id] });
+      toast.success("Study plan updated");
+      setShowEditDialog(false);
+    },
+  });
+
+  // Delete study plan mutation
+  const deleteStudyMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('study_plans')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Study plan deleted");
+      navigate("/research");
+    },
+  });
+
+  // Archive study plan mutation
+  const archiveStudyMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('study_plans')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-plan', id] });
+      toast.success("Study plan archived");
+    },
+  });
+
+  // Delete interview mutation
+  const deleteInterviewMutation = useMutation({
+    mutationFn: async (interviewId: string) => {
+      const { error } = await supabase
+        .from('interview_sessions')
+        .delete()
+        .eq('id', interviewId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-interviews', id] });
+      toast.success("Interview deleted");
+    },
+  });
+
+  // Delete observation mutation
+  const deleteObservationMutation = useMutation({
+    mutationFn: async (observationId: string) => {
+      const { error } = await supabase
+        .from('research_observations')
+        .delete()
+        .eq('id', observationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-observations', id] });
+      toast.success("Observation deleted");
+    },
+  });
+
+  // Delete persona mutation
+  const deletePersonaMutation = useMutation({
+    mutationFn: async (personaId: string) => {
+      const { error } = await supabase
+        .from('personas')
+        .delete()
+        .eq('id', personaId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['study-personas', id] });
+      toast.success("Persona deleted");
+    },
+  });
+
+  // Open edit dialog with current values
+  const handleOpenEdit = () => {
+    if (study) {
+      setEditTitle(study.title);
+      setEditProblem(study.problem_statement);
+      setEditSolution(study.solution_goal);
+      setEditStatus(study.status || "planning");
+      setShowEditDialog(true);
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -234,11 +357,106 @@ export default function StudyPlanDetail() {
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-4xl font-bold">{study.title}</h1>
-              <Badge>{study.status}</Badge>
+              <Badge variant={study.status === 'completed' ? 'default' : study.status === 'in_progress' ? 'secondary' : 'outline'}>
+                {study.status}
+              </Badge>
+              {study.archived_at && <Badge variant="secondary">Archived</Badge>}
             </div>
             <p className="text-muted-foreground mt-1">Created {format(new Date(study.created_at), 'PPP')}</p>
           </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleOpenEdit}>
+              <Pencil className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+            {!study.archived_at && (
+              <Button variant="outline" size="sm" onClick={() => archiveStudyMutation.mutate()}>
+                <Archive className="w-4 h-4 mr-2" />
+                Archive
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Study Plan</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete this study plan and all associated interviews, observations, and personas. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteStudyMutation.mutate()}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
+
+        {/* Edit Study Plan Dialog */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Study Plan</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-title">Title</Label>
+                <Input
+                  id="edit-title"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-problem">Problem Statement</Label>
+                <Textarea
+                  id="edit-problem"
+                  value={editProblem}
+                  onChange={(e) => setEditProblem(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-solution">Solution Goal</Label>
+                <Textarea
+                  id="edit-solution"
+                  value={editSolution}
+                  onChange={(e) => setEditSolution(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-status">Status</Label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planning">Planning</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => editStudyMutation.mutate()}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Tabs defaultValue="overview" className="w-full">
           <TabsList>
@@ -443,16 +661,14 @@ export default function StudyPlanDetail() {
                                 className="mt-1 flex-shrink-0"
                               >
                                 {step.completed ? (
-                                  <CheckCircle2 className="h-6 w-6 text-primary" />
+                                  <CheckCircle2 className="h-5 w-5 text-primary" />
                                 ) : (
-                                  <Circle className="h-6 w-6 text-muted-foreground" />
+                                  <Circle className="h-5 w-5 text-muted-foreground" />
                                 )}
                               </button>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    Step {step.order}
-                                  </Badge>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap mb-2">
+                                  <Badge variant="outline">Step {step.order}</Badge>
                                   {isInterviewStep && (
                                     <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">
                                       <Users className="h-3 w-3 mr-1" />
@@ -467,7 +683,6 @@ export default function StudyPlanDetail() {
                                   )}
                                   {isPersonaStep && (
                                     <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
-                                      <UserCircle className="h-3 w-3 mr-1" />
                                       Persona
                                     </Badge>
                                   )}
@@ -477,22 +692,13 @@ export default function StudyPlanDetail() {
                                     </Badge>
                                   )}
                                 </div>
-                                <h4 className={`font-semibold text-lg ${step.completed ? 'line-through text-muted-foreground' : ''}`}>
-                                  {step.title}
-                                </h4>
+                                <CardTitle className="text-lg">{step.title}</CardTitle>
                                 {step.description && (
-                                  <p className="text-sm text-muted-foreground mt-2">
-                                    {step.description}
-                                  </p>
+                                  <CardDescription className="mt-2">{step.description}</CardDescription>
                                 )}
                               </div>
                             </div>
                           </CardHeader>
-                          <CardContent className="pt-0">
-                            <p className="text-sm text-muted-foreground">
-                              Click to open workspace with AI guidance and tools →
-                            </p>
-                          </CardContent>
                         </Card>
                       );
                     })}
@@ -501,20 +707,14 @@ export default function StudyPlanDetail() {
             )}
           </TabsContent>
 
-
           <TabsContent value="interviews" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Interview Sessions</h2>
-                <p className="text-muted-foreground mt-1">
-                  Plan, schedule, and conduct user interviews
-                </p>
-              </div>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Interview Sessions ({interviews?.length || 0})</h3>
               <Dialog open={newInterviewOpen} onOpenChange={setNewInterviewOpen}>
                 <DialogTrigger asChild>
                   <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Schedule Interview
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Interview
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -553,153 +753,198 @@ export default function StudyPlanDetail() {
               </Dialog>
             </div>
 
-
             {interviews && interviews.length > 0 ? (
               <div className="grid gap-4">
-                {interviews.map((interview) => (
-                  <Card 
-                    key={interview.id} 
-                    className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50"
-                    onClick={() => navigate(`/research/interview/${interview.id}`)}
-                  >
-                    <CardHeader>
+                {interviews.map((interview: any) => (
+                  <Card key={interview.id} className="group relative cursor-pointer hover:shadow-md transition-shadow">
+                    <CardHeader onClick={() => navigate(`/research/interview/${interview.id}`)}>
                       <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle className="flex items-center gap-2">
-                            <Users className="h-5 w-5" />
-                            {interview.participant_name}
-                          </CardTitle>
-                          <CardDescription className="mt-2">
-                            {interview.scheduled_at 
-                              ? `Scheduled: ${format(new Date(interview.scheduled_at), 'PPP p')}`
-                              : 'Not scheduled yet'
-                            }
+                        <div>
+                          <CardTitle>{interview.participant_name}</CardTitle>
+                          <CardDescription>
+                            {interview.scheduled_at
+                              ? `Scheduled: ${format(new Date(interview.scheduled_at), "PPP 'at' p")}`
+                              : "Not scheduled"}
                           </CardDescription>
                         </div>
-                        <Badge variant={interview.status === 'completed' ? 'default' : 'secondary'}>
-                          {interview.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge>{interview.status || "scheduled"}</Badge>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Interview</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will delete this interview session and all associated observations.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteInterviewMutation.mutate(interview.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
                     </CardHeader>
                   </Card>
                 ))}
               </div>
             ) : (
-              <Card className="border-dashed">
-                <CardHeader className="text-center py-12">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Users className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <CardTitle>No interviews scheduled</CardTitle>
-                  <CardDescription className="mt-2">
-                    Schedule your first interview to begin gathering user insights
-                  </CardDescription>
-                  <Button 
-                    className="mt-4 mx-auto"
-                    onClick={() => setNewInterviewOpen(true)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Users className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center mb-4">
+                    No interviews scheduled yet.
+                  </p>
+                  <Button onClick={() => setNewInterviewOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
                     Schedule First Interview
                   </Button>
-                </CardHeader>
+                </CardContent>
               </Card>
             )}
           </TabsContent>
 
           <TabsContent value="observations" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Research Observations</h2>
-                <p className="text-muted-foreground mt-1">
-                  Capture insights, pain points, and behaviors from your research
-                </p>
-              </div>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Research Observations ({observations?.length || 0})</h3>
               <Button onClick={() => navigate(`/research/study/${id}/observations`)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Observation
+                <Plus className="w-4 h-4 mr-2" />
+                View Observations Board
               </Button>
             </div>
 
             {observations && observations.length > 0 ? (
               <div className="grid gap-4">
-                {observations.map((obs) => (
-                  <Card key={obs.id}>
+                {observations.map((obs: any) => (
+                  <Card key={obs.id} className="group relative">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <Badge className="mb-2">{obs.observation_type}</Badge>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline">{obs.observation_type}</Badge>
+                          </div>
                           <p className="text-sm">{obs.content}</p>
                           {obs.tags && obs.tags.length > 0 && (
                             <div className="flex gap-2 mt-2">
-                              {obs.tags.map((tag, i) => (
-                                <Badge key={i} variant="outline">{tag}</Badge>
+                              {obs.tags.map((tag: string, idx: number) => (
+                                <Badge key={idx} variant="secondary">{tag}</Badge>
                               ))}
                             </div>
                           )}
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(obs.created_at), 'PPp')}
-                        </span>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Observation</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this observation.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteObservationMutation.mutate(obs.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </CardHeader>
                   </Card>
                 ))}
               </div>
             ) : (
-              <Card className="border-dashed">
-                <CardHeader className="text-center py-12">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Lightbulb className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <CardTitle>No observations yet</CardTitle>
-                  <CardDescription className="mt-2">
-                    Record observations from your research sessions, interviews, and field studies
-                  </CardDescription>
-                  <Button 
-                    className="mt-4 mx-auto"
-                    onClick={() => navigate(`/research/study/${id}/observations`)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add First Observation
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Lightbulb className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center mb-4">
+                    No observations recorded yet.
+                  </p>
+                  <Button onClick={() => navigate(`/research/study/${id}/observations`)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Go to Observations Board
                   </Button>
-                </CardHeader>
+                </CardContent>
               </Card>
             )}
           </TabsContent>
 
           <TabsContent value="personas" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">User Personas</h2>
-                <p className="text-muted-foreground mt-1">
-                  Build personas based on your research findings
-                </p>
-              </div>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">User Personas ({personas?.length || 0})</h3>
               <Button onClick={() => navigate(`/research/study/${id}/persona/new`)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Persona
+                <Plus className="w-4 h-4 mr-2" />
+                New Persona
               </Button>
             </div>
 
             {personas && personas.length > 0 ? (
-              <div className="grid md:grid-cols-2 gap-4">
-                {personas.map((persona) => (
-                  <Card 
-                    key={persona.id}
-                    className="cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => navigate(`/research/persona/${persona.id}`)}
-                  >
-                    <CardHeader>
-                      <CardTitle>{persona.name}</CardTitle>
-                      <CardDescription>{persona.description}</CardDescription>
+              <div className="grid gap-4 md:grid-cols-2">
+                {personas.map((persona: any) => (
+                  <Card key={persona.id} className="group relative cursor-pointer hover:shadow-md transition-shadow">
+                    <CardHeader onClick={() => navigate(`/research/persona/${persona.id}`)}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <CardTitle>{persona.name}</CardTitle>
+                          <CardDescription>{persona.description}</CardDescription>
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Persona</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this persona.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deletePersonaMutation.mutate(persona.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent onClick={() => navigate(`/research/persona/${persona.id}`)}>
                       {persona.goals && persona.goals.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">Goals:</p>
-                          <ul className="list-disc list-inside text-sm text-muted-foreground">
-                            {persona.goals.slice(0, 3).map((goal, i) => (
-                              <li key={i}>{goal}</li>
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold">Goals:</p>
+                          <ul className="text-sm text-muted-foreground list-disc list-inside">
+                            {persona.goals.slice(0, 3).map((goal: string, idx: number) => (
+                              <li key={idx}>{goal}</li>
                             ))}
                           </ul>
                         </div>
@@ -709,23 +954,17 @@ export default function StudyPlanDetail() {
                 ))}
               </div>
             ) : (
-              <Card className="border-dashed">
-                <CardHeader className="text-center py-12">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <UserCircle className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <CardTitle>No personas created</CardTitle>
-                  <CardDescription className="mt-2">
-                    Create user personas based on insights from your research
-                  </CardDescription>
-                  <Button 
-                    className="mt-4 mx-auto"
-                    onClick={() => navigate(`/research/study/${id}/persona/new`)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <UserCircle className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center mb-4">
+                    No personas created yet.
+                  </p>
+                  <Button onClick={() => navigate(`/research/study/${id}/persona/new`)}>
+                    <Plus className="w-4 h-4 mr-2" />
                     Create First Persona
                   </Button>
-                </CardHeader>
+                </CardContent>
               </Card>
             )}
           </TabsContent>

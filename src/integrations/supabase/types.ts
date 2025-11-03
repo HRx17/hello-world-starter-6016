@@ -98,6 +98,7 @@ export type Database = {
           description: string | null
           id: string
           study_plan_id: string | null
+          summary: string | null
           title: string
           updated_at: string | null
           user_id: string
@@ -108,6 +109,7 @@ export type Database = {
           description?: string | null
           id?: string
           study_plan_id?: string | null
+          summary?: string | null
           title: string
           updated_at?: string | null
           user_id: string
@@ -118,6 +120,7 @@ export type Database = {
           description?: string | null
           id?: string
           study_plan_id?: string | null
+          summary?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
@@ -252,6 +255,8 @@ export type Database = {
           id: string
           name: string
           pain_points: string[] | null
+          source_interview_ids: string[] | null
+          source_observation_ids: string[] | null
           study_plan_id: string | null
           updated_at: string | null
           user_id: string
@@ -266,6 +271,8 @@ export type Database = {
           id?: string
           name: string
           pain_points?: string[] | null
+          source_interview_ids?: string[] | null
+          source_observation_ids?: string[] | null
           study_plan_id?: string | null
           updated_at?: string | null
           user_id: string
@@ -280,6 +287,8 @@ export type Database = {
           id?: string
           name?: string
           pain_points?: string[] | null
+          source_interview_ids?: string[] | null
+          source_observation_ids?: string[] | null
           study_plan_id?: string | null
           updated_at?: string | null
           user_id?: string
@@ -442,9 +451,43 @@ export type Database = {
           },
         ]
       }
+      step_notes: {
+        Row: {
+          attachments: Json | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          step_id: string
+          study_plan_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          step_id: string
+          study_plan_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          step_id?: string
+          study_plan_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       study_plans: {
         Row: {
           ai_suggestions: Json | null
+          archived_at: string | null
           created_at: string | null
           id: string
           participant_criteria: string | null
@@ -454,6 +497,7 @@ export type Database = {
           research_methods: string[] | null
           solution_goal: string
           status: string | null
+          tags: string[] | null
           timeline: string | null
           title: string
           updated_at: string | null
@@ -461,6 +505,7 @@ export type Database = {
         }
         Insert: {
           ai_suggestions?: Json | null
+          archived_at?: string | null
           created_at?: string | null
           id?: string
           participant_criteria?: string | null
@@ -470,6 +515,7 @@ export type Database = {
           research_methods?: string[] | null
           solution_goal: string
           status?: string | null
+          tags?: string[] | null
           timeline?: string | null
           title: string
           updated_at?: string | null
@@ -477,6 +523,7 @@ export type Database = {
         }
         Update: {
           ai_suggestions?: Json | null
+          archived_at?: string | null
           created_at?: string | null
           id?: string
           participant_criteria?: string | null
@@ -486,6 +533,7 @@ export type Database = {
           research_methods?: string[] | null
           solution_goal?: string
           status?: string | null
+          tags?: string[] | null
           timeline?: string | null
           title?: string
           updated_at?: string | null
