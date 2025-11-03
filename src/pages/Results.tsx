@@ -418,7 +418,10 @@ const Results = () => {
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 gap-8">
-              <ScoreDisplay score={analysis.overallScore} />
+              <ScoreDisplay 
+                score={analysis.overallScore} 
+                metadata={(analysis as any).metadata}
+              />
               
               <div className="flex flex-col justify-center space-y-4">
                 <div className="grid grid-cols-3 gap-4 text-center">

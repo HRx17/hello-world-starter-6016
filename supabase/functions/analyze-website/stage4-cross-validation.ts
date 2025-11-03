@@ -85,17 +85,16 @@ function removeGenericFindings(violations: HeuristicViolation[]): HeuristicViola
     /role=/i,
     /tabindex/i,
     /screen\s+reader/i,
-    /WCAG/i,
+    /WCAG\s+compliance/i,
     /accessibility\s+attribute/i,
     /for\s+attribute/i,
     /label.*attribute/i,
     
     // Form code issues
-    /input.*lack.*label/i,
+    /input.*lack.*label.*element/i,
     /missing.*label.*element/i,
     /associate.*label/i,
     /label.*element.*for/i,
-    /form.*label/i,
     
     // Semantic HTML
     /semantic\s+html/i,
@@ -106,46 +105,18 @@ function removeGenericFindings(violations: HeuristicViolation[]): HeuristicViola
     /<nav>/i,
     /<header>/i,
     /<footer>/i,
-    /<article>/i,
-    /<section>/i,
     
     // SEO and performance
-    /SEO/i,
     /meta\s+description/i,
     /og:image/i,
-    /open\s+graph/i,
-    /favicon/i,
-    /sitemap/i,
-    /robots\.txt/i,
-    /schema\.org/i,
-    /JSON-LD/i,
-    /structured\s+data/i,
-    /page\s+speed/i,
-    /load\s+time/i,
-    /performance/i,
-    /optimization/i,
-    /minif/i,
-    /compression/i,
-    /caching/i,
-    
-    // Code validation
-    /HTML\s+validation/i,
-    /W3C/i,
-    /valid\s+HTML/i,
-    /CSS\s+validation/i
+    /open\s+graph/i
   ];
 
   const genericPhrases = [
     'could be improved',
     'might be better',
     'consider adding',
-    'may want to',
-    'should possibly',
-    'generally',
-    'overall',
-    'in general',
-    'would benefit from',
-    'it is recommended'
+    'may want to'
   ];
 
   return violations.filter(v => {
@@ -153,45 +124,34 @@ function removeGenericFindings(violations: HeuristicViolation[]): HeuristicViola
     
     // CRITICAL: Reject any technical/implementation issues
     if (technicalPatterns.some(pattern => pattern.test(fullText))) {
-      console.log(`  ❌ Rejected technical issue (NOT a heuristic violation): ${v.title}`);
+      console.log(`  ❌ Rejected technical issue: ${v.title}`);
       return false;
     }
 
     // Reject if contains generic/vague phrases
     if (genericPhrases.some(phrase => fullText.includes(phrase))) {
-      console.log(`  ❌ Rejected generic finding: ${v.title}`);
-      return false;
+      console.log(`  ⚠️  Generic phrasing: ${v.title}`);
+      // Don't auto-reject, just warn
     }
 
-    // Reject if title is too short (< 5 words = too vague)
+    // Warn but don't reject if title is short (might still be valid)
     if (v.title.split(' ').length < 5) {
-      console.log(`  ❌ Rejected vague title: ${v.title}`);
-      return false;
+      console.log(`  ⚠️  Short title (keeping anyway): ${v.title}`);
     }
 
-    // Reject if no specific element identified
+    // Warn but don't reject if element is vague
     if (!v.pageElement || v.pageElement === 'unknown' || v.pageElement === 'general') {
-      console.log(`  ❌ Rejected non-specific element: ${v.title}`);
-      return false;
+      console.log(`  ⚠️  Vague element (keeping anyway): ${v.title}`);
     }
 
-    // Reject if missing research backing (should always have specific citation)
+    // Warn but don't reject if missing research (AI sometimes doesn't provide it)
     if (!v.researchBacking || v.researchBacking.length < 20) {
-      console.log(`  ❌ Rejected violation without research backing: ${v.title}`);
-      return false;
+      console.log(`  ⚠️  Weak research backing (keeping anyway): ${v.title}`);
     }
 
-    // Reject if missing quantified user impact
+    // Warn but don't reject if missing impact
     if (!v.userImpact || v.userImpact.length < 10) {
-      console.log(`  ❌ Rejected violation without user impact: ${v.title}`);
-      return false;
-    }
-
-    // Verify severity matches description
-    const hasQuantifiedImpact = /\d+%|\d+x|significantly|substantially/i.test(v.userImpact);
-    if (v.severity === 'high' && !hasQuantifiedImpact) {
-      console.log(`  ❌ Rejected high severity without quantified impact: ${v.title}`);
-      return false;
+      console.log(`  ⚠️  Weak user impact (keeping anyway): ${v.title}`);
     }
 
     console.log(`  ✅ Validated: ${v.title}`);

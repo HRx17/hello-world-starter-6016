@@ -48,11 +48,24 @@ const HEURISTIC_WEIGHTS: Record<string, number> = {
 
 export function calculateResearchBackedScore(
   violations: HeuristicViolation[],
-  strengths: any[]
+  strengths: any[],
+  analysisMetadata?: { stage1Failed?: boolean; visualElementsFound?: number }
 ): ScoringResult {
   console.log('Stage 5: Calculating research-backed score...');
 
-  let baseScore = 100;
+  // Detect analysis failures
+  const stage1Failed = analysisMetadata?.stage1Failed || false;
+  const hasVisualData = (analysisMetadata?.visualElementsFound || 0) > 0;
+  
+  if (violations.length === 0 && strengths.length === 0) {
+    console.warn('⚠️  WARNING: 0 violations and 0 strengths - analysis likely failed');
+    console.warn('⚠️  Returning conservative score of 75 (cannot verify quality)');
+  }
+
+  // Start from more realistic baseline
+  // Typical website should be 60-80 range
+  let baseScore = 75; // Average website baseline
+
   let highPenalty = 0;
   let mediumPenalty = 0;
   let lowPenalty = 0;
@@ -70,11 +83,23 @@ export function calculateResearchBackedScore(
 
   // Apply penalties
   const totalPenalty = highPenalty + mediumPenalty + lowPenalty;
-  let finalScore = Math.max(35, baseScore - totalPenalty);
+  let finalScore = Math.max(25, baseScore - totalPenalty);
 
-  // Apply strengths bonus (max +10 points)
-  const strengthsBonus = Math.min(10, strengths.length * 2);
-  finalScore = Math.min(100, finalScore + strengthsBonus);
+  // Apply strengths bonus (max +15 points, requires strong analysis)
+  const strengthsBonus = Math.min(15, strengths.length * 2.5);
+  finalScore = Math.min(95, finalScore + strengthsBonus);
+
+  // Reduce confidence if analysis failed
+  if (stage1Failed) {
+    console.warn('⚠️  Stage 1 failed - reducing score confidence');
+    finalScore = Math.min(finalScore, 75); // Cap at 75 if visual analysis failed
+  }
+
+  // If zero violations but also zero strengths and no visual data, something went wrong
+  if (violations.length === 0 && strengths.length === 0 && !hasVisualData) {
+    console.warn('⚠️  Analysis appears incomplete - capping score at 75');
+    finalScore = Math.min(finalScore, 75);
+  }
 
   // Round to nearest integer
   finalScore = Math.round(finalScore);

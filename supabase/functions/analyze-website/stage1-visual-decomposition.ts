@@ -49,45 +49,39 @@ export async function performVisualDecomposition(
 ): Promise<VisualDecomposition> {
   console.log('Stage 1: Starting deep visual decomposition...');
 
-  const prompt = `You are a computer vision expert analyzing a website screenshot for UX evaluation.
+  const prompt = `You are a UX expert analyzing a website screenshot for VISUAL usability issues.
 
-**TASK: Extract EVERY visible UI element with precise details**
+**TASK: Identify VISUAL UX problems and design issues**
 
-For each element, identify:
-1. Element type (button, link, input, heading, image, icon, etc.)
-2. Exact text content (if any)
-3. Bounding box coordinates (x, y, width, height as % of screenshot)
-4. Visual properties (colors, font size, styling)
-5. Interaction indicators (hover effects visible, focus rings, clickable appearance)
+Focus on what USERS SEE and EXPERIENCE:
+1. **Outdated Design Patterns**: Web 1.0 aesthetics (heavy gradients, bevels, outdated colors)
+2. **Visual Hierarchy Issues**: Everything same size/weight, no clear focus points
+3. **Color & Contrast**: Low contrast text, poor readability, clashing colors
+4. **Layout & Spacing**: Cluttered design, insufficient whitespace, elements too close
+5. **Consistency**: Different button styles, inconsistent navigation patterns
+6. **Visual Feedback**: Missing hover states, unclear clickable areas, no visual indicators
+7. **Information Architecture**: Too much competing information, unclear grouping
+8. **Typography**: Poor font choices, readability issues, inconsistent sizing
 
-**SPECIAL ATTENTION TO:**
-- Navigation menus (including dropdowns, mega menus)
-- Form elements (inputs, labels, validation messages, placeholders)
-- Buttons (primary, secondary, disabled states)
-- Error messages and alerts
-- Loading indicators
-- Breadcrumbs and pagination
-- Modals and overlays
-- Icons and their meanings
+Also extract key UI elements for reference:
+- Navigation menus and their visual treatment
+- Buttons and their states (primary, secondary, disabled appearances)
+- Forms and input fields
+- Call-to-action elements
+- Visual hierarchy patterns
 
 **COLOR CONTRAST ANALYSIS:**
-For text elements, calculate approximate contrast ratios:
-- Text vs background
-- Flag potential WCAG violations (< 4.5:1 for normal text, < 3:1 for large text)
+- Identify text with poor contrast (<4.5:1)
+- Flag dated color schemes (saturated web-safe colors, heavy gradients)
 
-**VISUAL HIERARCHY:**
-Categorize elements into sections:
-- Header/top navigation
-- Main content area
-- Sidebars
-- Footer
-- Floating/modal elements
+Return comprehensive JSON focusing on VISUAL UX ISSUES, not technical code problems.`;
 
-Return comprehensive JSON mapping of ALL visible UI elements.`;
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp:generateContent?key=${apiKey}`,
+  // Retry logic for transient failures
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -112,36 +106,62 @@ Return comprehensive JSON mapping of ALL visible UI elements.`;
       }
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Visual decomposition failed:', errorText);
-      throw new Error(`Visual decomposition failed: ${response.status}`);
-    }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Visual decomposition attempt ${attempt} failed:`, errorText);
+        lastError = new Error(`Visual decomposition failed: ${response.status} - ${errorText}`);
+        if (attempt < 2) {
+          console.log(`Retrying visual decomposition (attempt ${attempt + 1}/2)...`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          continue;
+        }
+        throw lastError;
+      }
 
-    const data = await response.json();
-    const result = JSON.parse(data.candidates[0].content.parts[0].text);
-    
-    console.log('Stage 1 complete: Extracted', result.elements?.length || 0, 'UI elements');
-    return result;
-  } catch (error) {
-    console.error('Error in visual decomposition:', error);
-    // Return minimal structure on error
-    return {
-      elements: [],
-      visualHierarchy: {
-        header: [],
-        navigation: [],
-        mainContent: [],
-        footer: [],
-        modals: []
-      },
-      colorPalette: {
-        primary: [],
-        secondary: [],
-        text: [],
-        background: []
-      },
-      contrastIssues: []
-    };
+      const data = await response.json();
+      
+      // Validate response structure
+      if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        console.error('Invalid response structure from Gemini:', JSON.stringify(data));
+        lastError = new Error('Invalid response structure from Gemini');
+        if (attempt < 2) continue;
+        throw lastError;
+      }
+
+      const result = JSON.parse(data.candidates[0].content.parts[0].text);
+      
+      console.log('Stage 1 complete: Extracted', result.elements?.length || 0, 'UI elements');
+      console.log('Visual issues detected:', result.contrastIssues?.length || 0, 'contrast issues');
+      return result;
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < 2) {
+        console.log(`Retrying after error (attempt ${attempt + 1}/2)...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+    }
   }
+
+  console.error('Error in visual decomposition after all retries:', lastError);
+  // Return minimal structure on error but log it prominently
+  console.warn('⚠️ STAGE 1 FAILED - Visual analysis will be incomplete');
+  return {
+    elements: [],
+    visualHierarchy: {
+      header: [],
+      navigation: [],
+      mainContent: [],
+      footer: [],
+      modals: []
+    },
+    colorPalette: {
+      primary: [],
+      secondary: [],
+      text: [],
+      background: []
+    },
+    contrastIssues: [],
+    _failed: true // Flag for downstream stages
+  } as any;
 }

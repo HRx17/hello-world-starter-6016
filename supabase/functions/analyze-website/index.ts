@@ -79,7 +79,14 @@ serve(async (req) => {
     // STAGE 1: Visual Decomposition
     console.log('\n[STAGE 1] Deep Visual Decomposition...');
     const visualData = await performVisualDecomposition(screenshot, html, GOOGLE_AI_API_KEY);
-    console.log('✓ Stage 1 complete');
+    const stage1Failed = (visualData as any)._failed === true;
+    const visualElementsFound = visualData.elements?.length || 0;
+    
+    if (stage1Failed) {
+      console.error('❌ STAGE 1 FAILED - Continuing with limited analysis');
+    } else {
+      console.log(`✓ Stage 1 complete - Found ${visualElementsFound} visual elements`);
+    }
 
     // STAGE 2: Structural Analysis
     console.log('\n[STAGE 2] Structural Analysis...');
@@ -144,8 +151,24 @@ serve(async (req) => {
 
     // STAGE 5: Research-Backed Scoring
     console.log('\n[STAGE 5] Research-Backed Scoring...');
-    const scoringResult = calculateResearchBackedScore(validatedViolations, allStrengths);
+    const scoringResult = calculateResearchBackedScore(
+      validatedViolations, 
+      allStrengths,
+      { stage1Failed, visualElementsFound }
+    );
     console.log(`✓ Stage 5 complete: Final score ${scoringResult.overallScore}/100`);
+
+    // Analysis quality warnings
+    const warnings: string[] = [];
+    if (stage1Failed) {
+      warnings.push('Visual decomposition failed - analysis based on limited data');
+    }
+    if (validatedViolations.length === 0 && allStrengths.length === 0) {
+      warnings.push('No issues or strengths found - analysis may be incomplete');
+    }
+    if (validatedViolations.length === 0 && scoringResult.overallScore > 90) {
+      warnings.push('Perfect score with zero issues detected - verify analysis quality');
+    }
 
     console.log('\n' + '='.repeat(60));
     console.log('ANALYSIS COMPLETE');
@@ -154,6 +177,10 @@ serve(async (req) => {
     console.log(`Total strengths: ${allStrengths.length}`);
     console.log(`Final score: ${scoringResult.overallScore}/100`);
     console.log(`Industry percentile: ${scoringResult.industryComparison.category}`);
+    if (warnings.length > 0) {
+      console.warn('⚠️  WARNINGS:');
+      warnings.forEach(w => console.warn(`  - ${w}`));
+    }
     console.log('='.repeat(60));
 
     return new Response(
@@ -169,13 +196,17 @@ serve(async (req) => {
         categoryScores: scoringResult.categoryScores,
         industryComparison: scoringResult.industryComparison,
         metadata: {
-          visualElementsAnalyzed: visualData.elements?.length || 0,
+          stage1Success: !stage1Failed,
+          visualElementsFound,
           structuralIssuesFound: 
             structuralData.accessibility.missingAltText.length +
             structuralData.accessibility.missingFormLabels.length,
           heuristicsEvaluated: heuristicsToEvaluate.length,
+          violationsBeforeValidation: allViolations.length,
+          violationsAfterValidation: validatedViolations.length,
           duplicatesRemoved,
-          falsePositivesRemoved
+          falsePositivesRemoved,
+          warnings
         }
       }),
       {

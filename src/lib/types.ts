@@ -29,4 +29,12 @@ export interface AnalysisResult {
   strengths: Strength[];
   screenshot?: string;
   framework?: string;
+  metadata?: {
+    warnings?: string[];
+    stage1Success?: boolean;
+    visualElementsFound?: number;
+    heuristicsEvaluated?: number;
+    violationsBeforeValidation?: number;
+    violationsAfterValidation?: number;
+  };
 }
