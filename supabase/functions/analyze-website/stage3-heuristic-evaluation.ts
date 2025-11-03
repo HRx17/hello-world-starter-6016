@@ -24,25 +24,65 @@ interface HeuristicStrength {
 }
 
 const HEURISTIC_SPECIFIC_PROMPTS: Record<string, string> = {
-  "visibility": `Analyze for Visibility of System Status: Do users know what's happening? Check for loading states, hover effects, progress indicators, and current page highlights. Focus on user-perceivable feedback, NOT technical meta tags.`,
+  "visibility": `Analyze ONLY visual UI elements for Visibility of System Status:
+- Look at the SCREENSHOT: Are loading states, progress bars, status indicators visible?
+- Check hover states, active states, selected states
+- Verify current page/section is highlighted in navigation
+IGNORE: Meta tags, HTML structure, code-level checks. Only report what USERS SEE.`,
   
-  "match_real_world": `Analyze for Real-World Match: Does language match user expectations? Check for jargon vs plain language, icon meanings, familiar patterns. Focus on communication, NOT code quality.`,
+  "match_real_world": `Analyze ONLY visual language and iconography:
+- Look at button labels, headings, menu items in the SCREENSHOT
+- Check if icons are intuitive and commonly understood
+- Verify terminology matches user mental models
+IGNORE: Code quality, technical jargon in HTML. Only report visible text issues.`,
   
-  "user_control": `Analyze for User Control: Can users undo, cancel, or exit? Check for close buttons, back options, undo features. Focus on escape routes, NOT missing functionality.`,
+  "user_control": `Analyze ONLY visible control mechanisms:
+- Look for close (X) buttons, cancel buttons, back buttons in the SCREENSHOT
+- Check for undo/redo options in toolbars
+- Verify users have clear exit paths from modals/processes
+IGNORE: Missing features, code implementation. Only report missing visible controls.`,
   
-  "consistency": `Analyze for Consistency: Do similar elements look/behave the same? Check button styles, navigation placement, terminology. Focus on visual patterns, NOT code structure.`,
+  "consistency": `Analyze ONLY visual consistency patterns:
+- Compare button styles, colors, sizes across the SCREENSHOT
+- Check navigation placement and design consistency
+- Verify similar actions use similar visual patterns
+IGNORE: Code consistency, CSS structure. Only report visual inconsistencies users see.`,
   
-  "error_prevention": `Analyze for Error Prevention: Does design prevent mistakes? Check for confirmations on destructive actions, input validation, format hints. Focus on preventing user errors, NOT technical errors.`,
+  "error_prevention": `Analyze ONLY visible prevention mechanisms:
+- Look for confirmation dialogs before destructive actions
+- Check for input hints, placeholders, format examples shown to users
+- Verify required fields are marked visually
+IGNORE: Missing HTML attributes, validation code. Only report missing visible safeguards.`,
   
-  "recognition": `Analyze for Recognition vs Recall: Is information visible vs memorized? Check for persistent labels, autocomplete, format examples. Focus on reducing memory load, NOT SEO metadata.`,
+  "recognition": `Analyze ONLY visibility of information:
+- Check if labels persist next to inputs (not just placeholders)
+- Look for visible format examples, autocomplete suggestions
+- Verify icons have visible text labels
+IGNORE: Accessibility attributes, ARIA labels. Only report what users visually see.`,
   
-  "flexibility": `Analyze for Flexibility: Can expert users work faster? Check for keyboard shortcuts, bulk actions, customization, filters. Focus on acceleration features, NOT responsive design.`,
+  "flexibility": `Analyze ONLY visible efficiency features:
+- Look for keyboard shortcut indicators shown in UI
+- Check for bulk action buttons, advanced filters visible to users
+- Verify search bars, quick actions are prominent
+IGNORE: Responsive design code, mobile viewport tags. Only report missing visible shortcuts.`,
   
-  "minimalist": `Analyze for Minimalist Design: Is there visual clutter? Check number of CTAs, information density, distractions. Focus on cognitive load, NOT file size.`,
+  "minimalist": `Analyze ONLY visual clutter and information density:
+- Count competing calls-to-action in the SCREENSHOT
+- Check for excessive text, overlapping elements, visual noise
+- Verify white space usage and content breathing room
+IGNORE: Code bloat, file sizes. Only report visual clutter users experience.`,
   
-  "error_recovery": `Analyze for Error Recovery: Are error messages helpful? Check for specific guidance, recovery options, visibility. Focus on user-facing errors, NOT console errors.`,
+  "error_recovery": `Analyze ONLY visible error handling:
+- Look for error messages that appear on screen
+- Check if errors explain what went wrong and how to fix it
+- Verify error messages are prominent and noticeable
+IGNORE: Console errors, HTTP status codes. Only report user-facing error UX issues.`,
   
-  "help_documentation": `Analyze for Help: Is help easy to find and contextual? Check for tooltips, examples, onboarding. Focus on user-accessible help, NOT developer docs.`
+  "help_documentation": `Analyze ONLY visible help elements:
+- Look for help icons, tooltips, info buttons in the SCREENSHOT
+- Check for visible onboarding, tutorial elements
+- Verify contextual help is accessible and noticeable
+IGNORE: README files, developer documentation. Only report missing visible help for users.`
 };
 
 export async function evaluatePerHeuristic(
@@ -60,17 +100,11 @@ export async function evaluatePerHeuristic(
   const prompt = HEURISTIC_SPECIFIC_PROMPTS[heuristicKey] || HEURISTIC_SPECIFIC_PROMPTS["visibility"];
 
   const contextData = `
-**VISUAL EVIDENCE:**
+**VISUAL ELEMENTS DETECTED:**
 ${JSON.stringify(visualData, null, 2).substring(0, 3000)}
 
-**STRUCTURAL FINDINGS:**
-${JSON.stringify(structuralData, null, 2).substring(0, 2000)}
-
-**PAGE CONTENT:**
-${markdown.substring(0, 2000)}
-
-**HTML SAMPLE:**
-${html.substring(0, 1500)}
+**PAGE CONTENT (for context only):**
+${markdown.substring(0, 1000)}
 `;
 
   try {
@@ -84,16 +118,21 @@ ${html.substring(0, 1500)}
             role: 'user',
             parts: [
               { 
-                text: `You are a UX expert analyzing websites for Nielsen Norman Group heuristics.
+                text: `You are a UX expert analyzing websites through VISUAL INSPECTION for Nielsen Norman Group heuristics.
 
 ${prompt}
 
-CRITICAL: Report ONLY user-perceivable UX issues, NOT technical/code problems.
+CRITICAL RULES:
+1. ONLY analyze what users SEE in the screenshot - ignore code-level issues
+2. DO NOT report: missing meta tags, viewport configs, HTML attributes, ARIA labels, alt text
+3. DO report: visible UI problems, layout issues, unclear labels, missing visible buttons
+4. Base your analysis 90% on the SCREENSHOT, 10% on text content
+5. If something works visually but has code issues - DO NOT REPORT IT
 
-Evidence:
+Evidence for context:
 ${contextData}
 
-Return JSON: {"violations": [{"severity": "high|medium|low", "title": "...", "description": "...", "location": "...", "recommendation": "...", "pageElement": "...", "researchBacking": "...", "userImpact": "..."}], "strengths": [{"description": "...", "example": "..."}]}`
+Return JSON with ONLY visual UX issues: {"violations": [{"severity": "high|medium|low", "title": "...", "description": "...", "location": "...", "recommendation": "...", "pageElement": "...", "researchBacking": "...", "userImpact": "..."}], "strengths": [{"description": "...", "example": "..."}]}`
               },
               {
                 inlineData: {

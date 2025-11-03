@@ -62,27 +62,43 @@ function removeDuplicates(violations: HeuristicViolation[]): HeuristicViolation[
 function removeGenericFindings(violations: HeuristicViolation[]): HeuristicViolation[] {
   // Technical issues that should NEVER appear as heuristic violations
   const technicalPatterns = [
+    // Meta tags and HTML structure
     /viewport\s+meta\s+tag/i,
     /missing\s+viewport/i,
     /meta\s+tag/i,
+    /meta\s+name/i,
     /charset/i,
     /html\s+lang/i,
+    /DOCTYPE/i,
+    /<head>/i,
+    /mobile.*viewport/i,
+    /device-width/i,
+    /initial-scale/i,
+    
+    // Accessibility attributes (code-level)
     /alt\s+attribute/i,
     /alt\s+text/i,
     /aria-label/i,
+    /aria-labelledby/i,
+    /aria-describedby/i,
+    /aria-/i,
+    /role=/i,
+    /tabindex/i,
+    /screen\s+reader/i,
+    /WCAG/i,
+    /accessibility\s+attribute/i,
+    /for\s+attribute/i,
+    /label.*attribute/i,
+    
+    // Form code issues
+    /input.*lack.*label/i,
+    /missing.*label.*element/i,
+    /associate.*label/i,
+    /label.*element.*for/i,
+    /form.*label/i,
+    
+    // Semantic HTML
     /semantic\s+html/i,
-    /<head>/i,
-    /DOCTYPE/i,
-    /SEO/i,
-    /meta\s+description/i,
-    /og:image/i,
-    /favicon/i,
-    /sitemap/i,
-    /robots\.txt/i,
-    /schema\.org/i,
-    /JSON-LD/i,
-    /HTML\s+validation/i,
-    /W3C/i,
     /heading\s+hierarchy/i,
     /h1.*h2.*h3/i,
     /landmark\s+roles/i,
@@ -90,19 +106,33 @@ function removeGenericFindings(violations: HeuristicViolation[]): HeuristicViola
     /<nav>/i,
     /<header>/i,
     /<footer>/i,
-    /WCAG/i,
-    /accessibility\s+attribute/i,
-    /aria-/i,
-    /role=/i,
-    /tabindex/i,
-    /screen\s+reader/i,
+    /<article>/i,
+    /<section>/i,
+    
+    // SEO and performance
+    /SEO/i,
+    /meta\s+description/i,
+    /og:image/i,
+    /open\s+graph/i,
+    /favicon/i,
+    /sitemap/i,
+    /robots\.txt/i,
+    /schema\.org/i,
+    /JSON-LD/i,
+    /structured\s+data/i,
     /page\s+speed/i,
     /load\s+time/i,
     /performance/i,
     /optimization/i,
     /minif/i,
     /compression/i,
-    /caching/i
+    /caching/i,
+    
+    // Code validation
+    /HTML\s+validation/i,
+    /W3C/i,
+    /valid\s+HTML/i,
+    /CSS\s+validation/i
   ];
 
   const genericPhrases = [
