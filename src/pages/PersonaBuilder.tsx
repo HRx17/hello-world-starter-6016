@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
 export default function PersonaBuilder() {
@@ -19,6 +20,7 @@ export default function PersonaBuilder() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [goalInput, setGoalInput] = useState("");
   const [goals, setGoals] = useState<string[]>([]);
   const [painPointInput, setPainPointInput] = useState("");
@@ -35,21 +37,24 @@ export default function PersonaBuilder() {
         .from('personas')
         .select('*')
         .eq('id', personaId)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       
-      // Load data into state
-      setName(data.name);
-      setDescription(data.description || "");
-      setGoals(data.goals || []);
-      setPainPoints(data.pain_points || []);
-      
-      if (data.demographics) {
-        const demo = data.demographics as any;
-        setAge(demo.age || "");
-        setOccupation(demo.occupation || "");
-        setTechSavviness(demo.tech_savviness || "");
+      if (data) {
+        // Load data into state
+        setName(data.name);
+        setDescription(data.description || "");
+        setAvatarUrl(data.avatar_url || "");
+        setGoals(data.goals || []);
+        setPainPoints(data.pain_points || []);
+        
+        if (data.demographics) {
+          const demo = data.demographics as any;
+          setAge(demo.age || "");
+          setOccupation(demo.occupation || "");
+          setTechSavviness(demo.tech_savviness || "");
+        }
       }
       
       return data;
@@ -66,6 +71,7 @@ export default function PersonaBuilder() {
         study_plan_id: studyId,
         name,
         description,
+        avatar_url: avatarUrl || null,
         goals,
         pain_points: painPoints,
         demographics: {
@@ -130,6 +136,19 @@ export default function PersonaBuilder() {
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6 max-w-4xl space-y-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/research')}>
+            Research
+          </Button>
+          <span>/</span>
+          <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/research/study/${studyId}`)}>
+            Study
+          </Button>
+          <span>/</span>
+          <span>{isNew ? 'New Persona' : 'Edit Persona'}</span>
+        </div>
+
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(`/research/study/${studyId}`)}>
             <ArrowLeft className="h-4 w-4" />
@@ -143,6 +162,32 @@ export default function PersonaBuilder() {
             <CardDescription>Define the persona's core characteristics</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center gap-6">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={avatarUrl || undefined} />
+                <AvatarFallback className="text-2xl">
+                  {name ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="avatar">Avatar URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="avatar"
+                    placeholder="https://example.com/avatar.jpg"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                  />
+                  <Button variant="outline" size="icon" title="Upload image (placeholder)">
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Enter an image URL or use a service like UI Avatars (https://ui-avatars.com/)
+                </p>
+              </div>
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
               <Input

@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, Lightbulb, FileText, Users, MessageSquare, Sparkles, Plus, Calendar } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, CheckCircle2, Lightbulb, FileText, Users, MessageSquare, Sparkles, Plus, Calendar, Save, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,6 @@ export default function StepWorkspace() {
   const { studyId, stepId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
   const [notes, setNotes] = useState("");
   const [newInterviewOpen, setNewInterviewOpen] = useState(false);
   const [participantName, setParticipantName] = useState("");
@@ -41,6 +40,27 @@ export default function StepWorkspace() {
   });
 
   const step = ((study?.plan_steps as any[]) || []).find((s: any) => s.id === stepId);
+  const allSteps = ((study?.plan_steps as any[]) || []).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const currentIndex = allSteps.findIndex((s: any) => s.id === stepId);
+  const prevStep = currentIndex > 0 ? allSteps[currentIndex - 1] : null;
+  const nextStep = currentIndex < allSteps.length - 1 ? allSteps[currentIndex + 1] : null;
+
+  // Load step notes from database
+  const { data: stepNotes } = useQuery({
+    queryKey: ['step-notes', studyId, stepId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('step_notes')
+        .select('*')
+        .eq('study_plan_id', studyId)
+        .eq('step_id', stepId)
+        .maybeSingle();
+      
+      if (error) throw error;
+      if (data) setNotes(data.notes || "");
+      return data;
+    },
+  });
 
   const { data: guidanceData, isLoading: loadingGuidance } = useQuery({
     queryKey: ['step-guidance', stepId],
@@ -61,11 +81,34 @@ export default function StepWorkspace() {
     enabled: !!step && !!study && enableGuidance,
   });
 
+  // Save notes mutation
+  const saveNotesMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from('step_notes')
+        .upsert({
+          study_plan_id: studyId,
+          step_id: stepId,
+          notes,
+          user_id: user.id,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['step-notes', studyId, stepId] });
+      toast.success("Notes saved!");
+    },
+  });
+
   const completeStepMutation = useMutation({
     mutationFn: async () => {
       const currentSteps = (study?.plan_steps as any[]) || [];
       const updatedSteps = currentSteps.map(s => 
-        s.id === stepId ? { ...s, completed: true, notes, completed_at: new Date().toISOString() } : s
+        s.id === stepId ? { ...s, completed: true, completed_at: new Date().toISOString() } : s
       );
 
       const { error } = await supabase
@@ -74,14 +117,16 @@ export default function StepWorkspace() {
         .eq('id', studyId);
 
       if (error) throw error;
+      
+      // Also save notes if any
+      if (notes.trim()) {
+        await saveNotesMutation.mutateAsync();
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['study-plan', studyId] });
       toast.success("Step marked as complete!");
       navigate(`/research/study/${studyId}?tab=plan`);
-    },
-    onError: () => {
-      toast.error("Failed to complete step");
     },
   });
 
@@ -107,14 +152,11 @@ export default function StepWorkspace() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['study-interviews', studyId] });
-      toast.success("Interview session created!");
+      toast.success("Interview created!");
       setNewInterviewOpen(false);
       setParticipantName("");
       setScheduledDate("");
       navigate(`/research/interview/${data.id}`);
-    },
-    onError: () => {
-      toast.error("Failed to create interview session");
     },
   });
 
@@ -129,16 +171,25 @@ export default function StepWorkspace() {
   }
 
   const isInterviewStep = step.title.toLowerCase().includes('interview');
-  const isObservationStep = step.title.toLowerCase().includes('observation') || 
-                          step.title.toLowerCase().includes('field') ||
-                          step.title.toLowerCase().includes('diary');
+  const isObservationStep = step.title.toLowerCase().includes('observation');
   const isPersonaStep = step.title.toLowerCase().includes('persona');
-  const isAnalysisStep = step.title.toLowerCase().includes('analysis') || 
-                       step.title.toLowerCase().includes('synthesis');
+  const isAnalysisStep = step.title.toLowerCase().includes('analysis');
 
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6 space-y-6">
+        {/* Breadcrumb with progress */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/research')}>Research</Button>
+            <span>/</span>
+            <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/research/study/${studyId}`)}>Study</Button>
+            <span>/</span>
+            <span>Step {step.order}</span>
+          </div>
+          <Badge variant="outline">Step {currentIndex + 1} of {allSteps.length}</Badge>
+        </div>
+
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(`/research/study/${studyId}?tab=plan`)}>
             <ArrowLeft className="h-4 w-4" />
@@ -146,243 +197,98 @@ export default function StepWorkspace() {
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <Badge variant="outline">Step {step.order}</Badge>
-              {isInterviewStep && (
-                <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">
-                  <Users className="h-3 w-3 mr-1" />
-                  Interview
-                </Badge>
-              )}
-              {isObservationStep && (
-                <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20">
-                  <Lightbulb className="h-3 w-3 mr-1" />
-                  Observation
-                </Badge>
-              )}
-              {isPersonaStep && (
-                <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
-                  Persona
-                </Badge>
-              )}
-              {isAnalysisStep && (
-                <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20">
-                  Analysis
-                </Badge>
-              )}
               {step.completed && <Badge variant="secondary">Completed</Badge>}
             </div>
             <h1 className="text-4xl font-bold">{step.title}</h1>
-            {step.description && (
-              <p className="text-muted-foreground mt-2">{step.description}</p>
-            )}
+            {step.description && <p className="text-muted-foreground mt-2">{step.description}</p>}
           </div>
         </div>
 
         <Tabs defaultValue="guidance" className="w-full">
           <TabsList>
-            <TabsTrigger value="guidance">
-              <Sparkles className="mr-2 h-4 w-4" />
-              AI Guidance
-            </TabsTrigger>
-            <TabsTrigger value="tools">
-              <FileText className="mr-2 h-4 w-4" />
-              Tools & Templates
-            </TabsTrigger>
-            <TabsTrigger value="notes">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Notes
-            </TabsTrigger>
+            <TabsTrigger value="guidance"><Sparkles className="mr-2 h-4 w-4" />AI Guidance</TabsTrigger>
+            <TabsTrigger value="tools"><FileText className="mr-2 h-4 w-4" />Tools</TabsTrigger>
+            <TabsTrigger value="notes"><MessageSquare className="mr-2 h-4 w-4" />Notes</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="guidance" className="space-y-4">
+          <TabsContent value="guidance">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5" />
-                  AI-Powered Step Guidance
-                </CardTitle>
-                <CardDescription>
-                  Get personalized recommendations and best practices for completing this step
-                </CardDescription>
+                <CardTitle>AI-Powered Guidance</CardTitle>
+                <CardDescription>Get personalized recommendations for this step</CardDescription>
               </CardHeader>
               <CardContent>
                 {!enableGuidance && !guidanceData?.guidance ? (
                   <div className="text-center py-8">
-                    <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                      <Sparkles className="h-8 w-8 text-primary" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">Need help with this step?</h3>
-                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                      Get AI-powered guidance tailored to this specific research step, including actionable tips, best practices, and common pitfalls to avoid.
-                    </p>
-                    <Button 
-                      onClick={() => setEnableGuidance(true)}
-                      size="lg"
-                    >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate AI Guidance
+                    <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary" />
+                    <Button onClick={() => setEnableGuidance(true)} size="lg">
+                      <Sparkles className="mr-2 h-4 w-4" />Generate AI Guidance
                     </Button>
                   </div>
                 ) : loadingGuidance ? (
-                  <div className="text-center py-8">
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                      <Sparkles className="h-5 w-5 animate-pulse" />
-                      <span className="text-lg">Generating personalized guidance...</span>
-                    </div>
-                  </div>
+                  <div className="text-center py-8"><Sparkles className="h-5 w-5 animate-pulse mx-auto" />Generating...</div>
                 ) : guidanceData?.guidance ? (
                   <div className="prose prose-sm max-w-none dark:prose-invert">
                     <ReactMarkdown>{guidanceData.guidance}</ReactMarkdown>
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">No guidance available</p>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="tools" className="space-y-4">
+          <TabsContent value="tools">
             <Card>
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>
-                  Tools and features to help you complete this step
-                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-3">
-                  {isInterviewStep && (
-                    <>
-                      <Dialog open={newInterviewOpen} onOpenChange={setNewInterviewOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" className="justify-start">
-                            <Users className="mr-2 h-4 w-4" />
-                            Schedule Interview Session
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Schedule New Interview</DialogTitle>
-                            <DialogDescription>Add a participant and schedule an interview session</DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="participant">Participant Name *</Label>
-                              <Input
-                                id="participant"
-                                placeholder="John Doe"
-                                value={participantName}
-                                onChange={(e) => setParticipantName(e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="date">Scheduled Date</Label>
-                              <Input
-                                id="date"
-                                type="datetime-local"
-                                value={scheduledDate}
-                                onChange={(e) => setScheduledDate(e.target.value)}
-                              />
-                            </div>
-                            <Button 
-                              onClick={() => createInterviewMutation.mutate()} 
-                              disabled={!participantName || createInterviewMutation.isPending}
-                              className="w-full"
-                            >
-                              {createInterviewMutation.isPending ? "Creating..." : "Create Interview"}
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      <Button 
-                        variant="outline" 
-                        className="justify-start"
-                        onClick={() => navigate(`/research/study/${studyId}?tab=interviews`)}
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        View All Interviews
-                      </Button>
-                    </>
-                  )}
-                  
-                  {isObservationStep && (
-                    <Button 
-                      variant="outline" 
-                      className="justify-start"
-                      onClick={() => navigate(`/research/study/${studyId}/observations`)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Record Observation
-                    </Button>
-                  )}
-
-                  {isPersonaStep && (
-                    <Button 
-                      variant="outline" 
-                      className="justify-start"
-                      onClick={() => navigate(`/research/study/${studyId}/persona/new`)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create New Persona
-                    </Button>
-                  )}
-
-                  {isAnalysisStep && (
-                    <Button 
-                      variant="outline" 
-                      className="justify-start"
-                      onClick={() => navigate(`/research/study/${studyId}/observations`)}
-                    >
-                      <Lightbulb className="mr-2 h-4 w-4" />
-                      View Research Data
-                    </Button>
-                  )}
-                </div>
+              <CardContent className="grid gap-3">
+                {isInterviewStep && (
+                  <Dialog open={newInterviewOpen} onOpenChange={setNewInterviewOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="justify-start"><Users className="mr-2 h-4 w-4" />Schedule Interview</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader><DialogTitle>Schedule Interview</DialogTitle></DialogHeader>
+                      <div className="space-y-4">
+                        <div><Label>Participant Name</Label><Input value={participantName} onChange={(e) => setParticipantName(e.target.value)} /></div>
+                        <div><Label>Date & Time</Label><Input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} /></div>
+                        <Button onClick={() => createInterviewMutation.mutate()} disabled={!participantName} className="w-full">Create</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+                {isObservationStep && <Button variant="outline" className="justify-start" onClick={() => navigate(`/research/study/${studyId}/observations`)}><Plus className="mr-2 h-4 w-4" />Record Observation</Button>}
+                {isPersonaStep && <Button variant="outline" className="justify-start" onClick={() => navigate(`/research/study/${studyId}/persona/new`)}><Plus className="mr-2 h-4 w-4" />Create Persona</Button>}
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="notes" className="space-y-4">
+          <TabsContent value="notes">
             <Card>
               <CardHeader>
                 <CardTitle>Step Notes</CardTitle>
-                <CardDescription>
-                  Document your progress, insights, and decisions
-                </CardDescription>
+                <CardDescription>Document your progress and insights</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Textarea
-                  placeholder="Add notes about this step..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={10}
-                  className="resize-none"
-                />
+                <Textarea placeholder="Add notes..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={12} />
+                <Button onClick={() => saveNotesMutation.mutate()} className="w-full"><Save className="mr-2 h-4 w-4" />Save Notes</Button>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-primary" />
-                <div>
-                  <h3 className="font-semibold">Mark Step as Complete</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Once you've finished this step, mark it complete to track your progress
-                  </p>
-                </div>
-              </div>
-              <Button 
-                onClick={() => completeStepMutation.mutate()}
-                disabled={step.completed || completeStepMutation.isPending}
-              >
-                {step.completed ? "Completed" : "Complete Step"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Navigation and Complete */}
+        <div className="flex justify-between items-center gap-4">
+          <Button variant="outline" disabled={!prevStep} onClick={() => prevStep && navigate(`/research/study/${studyId}/step/${prevStep.id}`)}>
+            <ChevronLeft className="mr-2 h-4 w-4" />Previous Step
+          </Button>
+          <Button onClick={() => completeStepMutation.mutate()} disabled={step.completed}>
+            <CheckCircle2 className="mr-2 h-4 w-4" />{step.completed ? "Completed" : "Complete Step"}
+          </Button>
+          <Button variant="outline" disabled={!nextStep} onClick={() => nextStep && navigate(`/research/study/${studyId}/step/${nextStep.id}`)}>
+            Next Step<ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </DashboardLayout>
   );
