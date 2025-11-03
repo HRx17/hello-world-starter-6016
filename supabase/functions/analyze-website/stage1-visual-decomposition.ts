@@ -48,6 +48,29 @@ export async function performVisualDecomposition(
   apiKey: string
 ): Promise<VisualDecomposition> {
   console.log('Stage 1: Starting deep visual decomposition...');
+  
+  // Validate and prepare screenshot data
+  let screenshotData: string;
+  if (screenshot.startsWith('data:image')) {
+    // Already has data URI prefix, extract base64 part
+    const parts = screenshot.split(',');
+    if (parts.length > 1) {
+      screenshotData = parts[1];
+    } else {
+      console.error('Invalid data URI format - no comma separator');
+      throw new Error('Invalid screenshot data format');
+    }
+  } else {
+    // Already base64 encoded
+    screenshotData = screenshot;
+  }
+  
+  if (!screenshotData || screenshotData.length < 100) {
+    console.error('Screenshot data is empty or too small:', screenshotData?.length || 0, 'bytes');
+    throw new Error('Invalid screenshot data - too small or empty');
+  }
+  
+  console.log('Screenshot data validated:', screenshotData.substring(0, 50) + '...', `(${screenshotData.length} bytes)`);
 
   const prompt = `You are a UX expert analyzing a website screenshot for VISUAL usability issues.
 
@@ -93,7 +116,7 @@ Return comprehensive JSON focusing on VISUAL UX ISSUES, not technical code probl
               {
                 inlineData: {
                   mimeType: 'image/jpeg',
-                  data: screenshot.split(',')[1]
+                  data: screenshotData
                 }
               }
             ]

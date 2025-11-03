@@ -215,6 +215,20 @@ export async function evaluatePerHeuristic(
   apiKey: string
 ): Promise<{ violations: HeuristicViolation[]; strengths: HeuristicStrength[] }> {
   console.log(`Stage 3: Evaluating heuristic: ${heuristicName}`);
+  
+  // Validate and prepare screenshot data
+  let screenshotData: string;
+  if (screenshot.startsWith('data:image')) {
+    const parts = screenshot.split(',');
+    screenshotData = parts.length > 1 ? parts[1] : screenshot;
+  } else {
+    screenshotData = screenshot;
+  }
+  
+  if (!screenshotData || screenshotData.length < 100) {
+    console.error(`Heuristic ${heuristicKey}: Screenshot data invalid (${screenshotData?.length || 0} bytes)`);
+    return { violations: [], strengths: [] };
+  }
 
   const prompt = HEURISTIC_SPECIFIC_PROMPTS[heuristicKey] || HEURISTIC_SPECIFIC_PROMPTS["visibility"];
 
@@ -281,7 +295,7 @@ Now analyze the SCREENSHOT and return JSON with visual UX issues only.`
               {
                 inlineData: {
                   mimeType: 'image/jpeg',
-                  data: screenshot.split(',')[1]
+                  data: screenshotData
                 }
               }
             ]
@@ -295,7 +309,8 @@ Now analyze the SCREENSHOT and return JSON with visual UX issues only.`
     );
 
     if (!response.ok) {
-      console.error(`Heuristic ${heuristicKey} evaluation failed:`, response.status);
+      const errorText = await response.text();
+      console.error(`Heuristic ${heuristicKey} API error ${response.status}:`, errorText);
       return { violations: [], strengths: [] };
     }
 
