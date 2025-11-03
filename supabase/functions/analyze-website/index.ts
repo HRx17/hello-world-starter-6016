@@ -88,7 +88,17 @@ serve(async (req) => {
         if (!imgResponse.ok) throw new Error(`Failed to download screenshot: ${imgResponse.status}`);
         
         const imgBuffer = await imgResponse.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+        
+        // Convert to base64 in chunks to avoid stack overflow on large images
+        const bytes = new Uint8Array(imgBuffer);
+        const chunkSize = 8192;
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.slice(i, i + chunkSize);
+          binary += String.fromCharCode(...chunk);
+        }
+        const base64 = btoa(binary);
+        
         screenshot = `data:image/png;base64,${base64}`;
         console.log(`✓ Screenshot converted to base64 (${base64.length} chars)`);
       } catch (error) {
