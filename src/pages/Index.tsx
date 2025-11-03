@@ -88,6 +88,8 @@ const Index = () => {
   // Poll crawl status with timeout detection and auto-restart
   useEffect(() => {
     if (!crawlId || !isLoading) return;
+    
+    console.log('🔄 [FRONTEND] Starting crawl status polling for ID:', crawlId);
 
     let pollCount = 0;
     let lastProgress = 0;
@@ -98,9 +100,11 @@ const Index = () => {
     const pollInterval = setInterval(async () => {
       try {
         pollCount++;
+        console.log(`🔍 [FRONTEND] Poll #${pollCount} - Checking crawl status...`);
 
         // Timeout check - 20 minutes max
         if (pollCount > MAX_POLL_COUNT) {
+          console.error('❌ [FRONTEND] Polling timeout after', MAX_POLL_COUNT * 3, 'seconds');
           clearInterval(pollInterval);
           setIsLoading(false);
           toast({
@@ -111,16 +115,18 @@ const Index = () => {
           return;
         }
 
+        console.log('📡 [FRONTEND] Invoking check-crawl-status...');
         const { data, error } = await supabase.functions.invoke('check-crawl-status', {
           body: { crawlId }
         });
 
         if (error) {
-          console.error('Status check error:', error);
+          console.error('❌ [FRONTEND] Status check error:', error);
           stuckCounter++;
           
           // Only stop after many consecutive failures (not auto-restart)
           if (stuckCounter > 10) {
+            console.error('❌ [FRONTEND] Too many consecutive failures:', stuckCounter);
             clearInterval(pollInterval);
             setIsLoading(false);
             toast({
@@ -132,11 +138,16 @@ const Index = () => {
           return;
         }
         
-        console.log('📊 Crawl status:', data);
+        console.log('📊 [FRONTEND] Crawl status received:', {
+          status: data?.status,
+          crawled: data?.crawled_pages,
+          analyzed: data?.analyzed_pages,
+          total: data?.total_pages
+        });
         
         // Check if backend signals a restart is needed (only on actual errors)
         if (data?.should_restart) {
-          console.log('🔄 Backend signaled restart needed due to error');
+          console.log('🔄 [FRONTEND] Backend signaled restart needed due to error');
           await handleAutoRestart();
           return;
         }
@@ -149,10 +160,12 @@ const Index = () => {
         // Update progress tracking (but don't auto-restart on lack of progress)
         const currentProgress = (data.crawled_pages || 0) + (data.analyzed_pages || 0);
         if (currentProgress !== lastProgress) {
+          console.log('📈 [FRONTEND] Progress updated:', lastProgress, '->', currentProgress);
           lastProgress = currentProgress;
         }
 
         if (data.status === 'completed') {
+          console.log('✅ [FRONTEND] Crawl completed successfully!');
           clearInterval(pollInterval);
           setIsLoading(false);
           
@@ -170,6 +183,7 @@ const Index = () => {
             },
           });
         } else if (data.status === 'error') {
+          console.error('❌ [FRONTEND] Crawl failed with error:', data.error_message);
           clearInterval(pollInterval);
           setIsLoading(false);
           toast({
@@ -179,11 +193,12 @@ const Index = () => {
           });
         }
       } catch (error) {
-        console.error('Status check error:', error);
+        console.error('❌ [FRONTEND] Status check exception:', error);
         stuckCounter++;
         
         // Only show error after multiple consecutive failures
         if (stuckCounter > 5) {
+          console.error('❌ [FRONTEND] Too many consecutive check failures');
           clearInterval(pollInterval);
           setIsLoading(false);
           toast({
@@ -194,9 +209,12 @@ const Index = () => {
         }
       }
     }, 3000); // Poll every 3 seconds
+    
+    console.log('⏱️ [FRONTEND] Poll interval started (every 3 seconds)');
 
     // Auto-restart function
     async function handleAutoRestart() {
+      console.log('🔄 [FRONTEND] Executing auto-restart...');
       clearInterval(pollInterval);
       
       toast({
@@ -205,24 +223,28 @@ const Index = () => {
       });
 
       try {
+        console.log('🔄 [FRONTEND] Marking old crawl as error...');
         // Mark old crawl as error
         await supabase
           .from('website_crawls')
           .update({ status: 'error', metadata: { error: 'Auto-restarted due to timeout' } })
           .eq('id', crawlId);
 
+        console.log('⏱️ [FRONTEND] Waiting 2 seconds before restart...');
         // Wait a moment
         await new Promise(resolve => setTimeout(resolve, 2000));
 
+        console.log('🚀 [FRONTEND] Restarting crawl...');
         // Restart the crawl
         await handleFullWebsiteAnalyze();
         
+        console.log('✅ [FRONTEND] Auto-restart successful');
         toast({
           title: "Restarted",
           description: "Analysis restarted with fresh crawl",
         });
       } catch (error) {
-        console.error('Auto-restart failed:', error);
+        console.error('❌ [FRONTEND] Auto-restart failed:', error);
         setIsLoading(false);
         toast({
           title: "Restart Failed",
@@ -232,7 +254,10 @@ const Index = () => {
       }
     }
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      console.log('🛑 [FRONTEND] Cleaning up poll interval');
+      clearInterval(pollInterval);
+    };
   }, [crawlId, isLoading, navigate, toast, url]);
 
   // Normalize URL for consistent project matching
@@ -282,15 +307,27 @@ const Index = () => {
 
   const handleSinglePageAnalyze = async () => {
     try {
+      console.log('🚀 [FRONTEND] Starting single-page analysis for:', url);
+      console.log('📊 [FRONTEND] Using heuristics:', heuristics);
+      
       const response = await supabase.functions.invoke('analyze-website', {
         body: { url }
       });
 
+      console.log('📥 [FRONTEND] Received response from backend:', response);
+
       if (response.error) {
+        console.error('❌ [FRONTEND] Backend error:', response.error);
         throw new Error(response.error.message || "Analysis failed");
       }
 
       const data = response.data;
+      console.log('✅ [FRONTEND] Analysis data received:', {
+        score: data?.overallScore,
+        violations: data?.violations?.length,
+        strengths: data?.strengths?.length,
+        screenshot: !!data?.screenshot
+      });
       
       if (!data) {
         throw new Error("No data returned from analysis");
@@ -298,9 +335,11 @@ const Index = () => {
 
       // Save to database only if user is logged in
       if (user) {
+        console.log('💾 [FRONTEND] Saving results to database for user:', user.id);
         const projectId = await findOrCreateProject(url);
 
         if (projectId) {
+          console.log('📝 [FRONTEND] Inserting analysis result for project:', projectId);
           await supabase.from("analysis_results").insert({
             project_id: projectId,
             user_id: user.id,
@@ -309,8 +348,10 @@ const Index = () => {
             screenshot: data.screenshot,
             heuristics: heuristics,
           });
+          console.log('✅ [FRONTEND] Analysis saved to database');
         }
 
+        console.log('🔄 [FRONTEND] Navigating to results page');
         navigate("/results", {
           state: {
             analysis: {
@@ -341,18 +382,29 @@ const Index = () => {
         });
       }
     } catch (error) {
-      console.error("Analysis error:", error);
+      console.error("❌ [FRONTEND] Analysis error:", error);
+      console.error("❌ [FRONTEND] Error details:", {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   };
 
   const handleBasicCrawl = async () => {
     try {
+      console.log('🚀 [FRONTEND] Starting basic crawl for:', url);
+      console.log('📊 [FRONTEND] Crawl mode:', crawlMode);
+      
       const maxPages = crawlMode === 'quick' ? 10 : crawlMode === 'light' ? 25 : crawlMode === 'standard' ? 50 : 100;
+      console.log('📄 [FRONTEND] Max pages to crawl:', maxPages);
       
       // Find or create project before starting crawl
+      console.log('🔍 [FRONTEND] Finding or creating project...');
       const projectId = await findOrCreateProject(url);
+      console.log('✅ [FRONTEND] Project ID:', projectId);
       
+      console.log('📡 [FRONTEND] Invoking crawl-website-basic edge function...');
       const { data, error } = await supabase.functions.invoke('crawl-website-basic', {
         body: {
           url,
@@ -362,9 +414,15 @@ const Index = () => {
         }
       });
 
-      if (error) throw error;
+      console.log('📥 [FRONTEND] Crawl response:', { success: data?.success, error });
+
+      if (error) {
+        console.error('❌ [FRONTEND] Crawl error:', error);
+        throw error;
+      }
 
       if (!data.success) {
+        console.error('❌ [FRONTEND] Crawl failed:', data.error);
         toast({
           title: "Crawl Failed",
           description: data.error || "Failed to crawl website",
@@ -375,6 +433,7 @@ const Index = () => {
 
       // If basic crawl returned pages, set crawl ID for status checking
       if (data.crawlId) {
+        console.log('✅ [FRONTEND] Crawl started with ID:', data.crawlId);
         setCrawlId(data.crawlId);
         toast({
           title: "Free Crawl Started",
@@ -382,7 +441,7 @@ const Index = () => {
         });
       }
     } catch (error) {
-      console.error("Basic crawl error:", error);
+      console.error("❌ [FRONTEND] Basic crawl error:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to start crawl",
@@ -393,9 +452,15 @@ const Index = () => {
 
   const handleFullWebsiteAnalyze = async () => {
     try {
-      // Find or create project before starting crawl
-      const projectId = await findOrCreateProject(url);
+      console.log('🚀 [FRONTEND] Starting full website crawl for:', url);
+      console.log('📊 [FRONTEND] Crawl mode:', crawlMode);
       
+      // Find or create project before starting crawl
+      console.log('🔍 [FRONTEND] Finding or creating project...');
+      const projectId = await findOrCreateProject(url);
+      console.log('✅ [FRONTEND] Project ID:', projectId);
+      
+      console.log('📡 [FRONTEND] Invoking start-website-crawl edge function...');
       const { data, error } = await supabase.functions.invoke('start-website-crawl', {
         body: {
           url,
@@ -405,9 +470,14 @@ const Index = () => {
         }
       });
 
+      console.log('📥 [FRONTEND] Crawl response:', { success: data?.success, crawlId: data?.crawlId, error });
+
       if (error) {
+        console.error('❌ [FRONTEND] Crawl error:', error);
+        
         // Handle specific error types
         if (error.message?.includes('rate limit') || error.message?.includes('429')) {
+          console.error('❌ [FRONTEND] Rate limit error detected');
           toast({
             title: "Rate Limit Reached",
             description: "Firecrawl API rate limit exceeded. Please wait 5-10 minutes and try again.",
@@ -417,6 +487,7 @@ const Index = () => {
         }
         
         if (error.message?.includes('credits') || error.message?.includes('402')) {
+          console.error('❌ [FRONTEND] Insufficient credits error detected');
           toast({
             title: "Insufficient Credits",
             description: error.message || "Not enough Firecrawl credits. Try a lighter crawl mode or upgrade your plan.",
@@ -429,6 +500,8 @@ const Index = () => {
       }
 
       if (!data.success) {
+        console.error('❌ [FRONTEND] Crawl failed:', data.error, 'Code:', data.errorCode);
+        
         // Handle specific error codes from edge function
         if (data.errorCode === 'INSUFFICIENT_CREDITS') {
           toast({
@@ -457,13 +530,18 @@ const Index = () => {
       }
 
       setCrawlId(data.crawlId);
+      console.log('✅ [FRONTEND] Crawl started successfully with ID:', data.crawlId);
       
       toast({
         title: "Crawl Started",
         description: "Discovering and analyzing all pages...",
       });
     } catch (error) {
-      console.error("Crawl error:", error);
+      console.error("❌ [FRONTEND] Crawl error:", error);
+      console.error("❌ [FRONTEND] Error details:", {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to start crawl",
@@ -475,10 +553,16 @@ const Index = () => {
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🎯 [FRONTEND] Form submitted - Starting analysis flow');
+    console.log('📋 [FRONTEND] Analysis type:', analysisType);
+    console.log('🌐 [FRONTEND] URL:', url);
+    
     // Basic URL validation
     try {
       new URL(url);
+      console.log('✅ [FRONTEND] URL validation passed');
     } catch {
+      console.error('❌ [FRONTEND] Invalid URL format');
       toast({
         title: "Invalid URL",
         description: "Please enter a valid website URL (e.g., https://example.com)",
@@ -492,14 +576,23 @@ const Index = () => {
     setCrawlStatus(null);
 
     try {
+      console.log('🎯 [FRONTEND] Form submitted - Starting analysis flow');
+      console.log('📋 [FRONTEND] Analysis type:', analysisType);
+      console.log('🌐 [FRONTEND] URL:', url);
+      
       if (analysisType === "single") {
+        console.log('➡️ [FRONTEND] Executing single-page analysis');
         await handleSinglePageAnalyze();
       } else if (useBasicCrawl) {
+        console.log('➡️ [FRONTEND] Executing basic crawl');
         await handleBasicCrawl();
       } else {
+        console.log('➡️ [FRONTEND] Executing full website crawl');
         await handleFullWebsiteAnalyze();
       }
+      console.log('✅ [FRONTEND] Analysis/Crawl initiated successfully');
     } catch (error) {
+      console.error('❌ [FRONTEND] Analysis failed:', error);
       toast({
         title: "Analysis Failed",
         description: error instanceof Error ? error.message : "Failed to analyze website. Please try again.",
