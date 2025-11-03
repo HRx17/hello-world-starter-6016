@@ -52,16 +52,18 @@ export async function performVisualDecomposition(
   // Validate and prepare screenshot data
   let screenshotData: string;
   if (screenshot.startsWith('data:image')) {
-    // Already has data URI prefix, extract base64 part
+    // Extract base64 part from data URI
     const parts = screenshot.split(',');
-    if (parts.length > 1) {
-      screenshotData = parts[1];
-    } else {
-      console.error('Invalid data URI format - no comma separator');
+    if (parts.length < 2) {
+      console.error('Invalid data URI format - missing comma separator');
       throw new Error('Invalid screenshot data format');
     }
+    screenshotData = parts[1];
+  } else if (screenshot.startsWith('http')) {
+    console.error('Screenshot is still a URL, should have been converted to base64');
+    throw new Error('Screenshot must be base64 encoded, not a URL');
   } else {
-    // Already base64 encoded
+    // Assume already base64 encoded
     screenshotData = screenshot;
   }
   
@@ -70,7 +72,7 @@ export async function performVisualDecomposition(
     throw new Error('Invalid screenshot data - too small or empty');
   }
   
-  console.log('Screenshot data validated:', screenshotData.substring(0, 50) + '...', `(${screenshotData.length} bytes)`);
+  console.log('Screenshot validated:', screenshotData.substring(0, 30) + '...', `(${screenshotData.length} chars)`);
 
   const prompt = `You are a UX expert analyzing a website screenshot for VISUAL usability issues.
 

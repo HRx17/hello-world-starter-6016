@@ -58,7 +58,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        formats: ['html', 'markdown', 'screenshot'],
+        formats: ['html', 'markdown', 'screenshot@fullPage'],
         onlyMainContent: false,
         includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer'],
         waitFor: 2000,
@@ -72,8 +72,26 @@ serve(async (req) => {
     }
 
     const firecrawlData = await firecrawlResponse.json();
-    const { html, markdown, screenshot, metadata } = firecrawlData.data;
+    let { html, markdown, screenshot, metadata } = firecrawlData.data;
     const websiteName = metadata?.title || new URL(url).hostname;
+    
+    // Convert screenshot URL to base64 if needed
+    if (screenshot && screenshot.startsWith('http')) {
+      console.log('Screenshot is a URL, downloading and converting to base64...');
+      try {
+        const imgResponse = await fetch(screenshot);
+        if (!imgResponse.ok) throw new Error(`Failed to download screenshot: ${imgResponse.status}`);
+        
+        const imgBuffer = await imgResponse.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+        screenshot = `data:image/png;base64,${base64}`;
+        console.log(`✓ Screenshot converted to base64 (${base64.length} chars)`);
+      } catch (error) {
+        console.error('Failed to download/convert screenshot:', error);
+        throw new Error('Failed to process screenshot from Firecrawl');
+      }
+    }
+    
     console.log('✓ Scraping complete');
 
     // STAGE 1: Visual Decomposition
