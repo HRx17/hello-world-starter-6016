@@ -34,6 +34,9 @@ figma.ui.onmessage = async (msg) => {
       const data = JSON.parse(msg.data);
       console.log('Parsed data:', data);
       
+      // Load all required fonts before creating any elements
+      await loadRequiredFonts();
+      
       if (data.exportType === 'user_journey_map') {
         console.log('Creating user journey map with data:', data.data);
         await createUserJourneyMap(data.data);
