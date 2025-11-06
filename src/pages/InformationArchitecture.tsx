@@ -5,13 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Sparkles, Download, Share2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Download, Share2, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+interface IANode {
+  id: string;
+  label: string;
+  parentId: string | null;
+  description?: string;
+  type?: string;
+}
 
 export default function InformationArchitecture() {
   const navigate = useNavigate();
@@ -20,10 +28,13 @@ export default function InformationArchitecture() {
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState("");
-  const [projectName, setProjectName] = useState("");
-  const [description, setDescription] = useState("");
-  const [userNeeds, setUserNeeds] = useState("");
-  const [generatedIA, setGeneratedIA] = useState<any>(null);
+  const [nodes, setNodes] = useState<IANode[]>([
+    { id: '1', label: 'Home', parentId: null, description: 'Main entry point', type: 'page' }
+  ]);
+  const [newNodeLabel, setNewNodeLabel] = useState("");
+  const [newNodeDescription, setNewNodeDescription] = useState("");
+  const [newNodeType, setNewNodeType] = useState("page");
+  const [selectedParentId, setSelectedParentId] = useState<string>('1');
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [figmaToken, setFigmaToken] = useState("");
 
@@ -45,63 +56,62 @@ export default function InformationArchitecture() {
     },
   });
 
-  const { data: study } = useQuery({
-    queryKey: ['study-plan', studyId],
-    queryFn: async () => {
-      if (!studyId) return null;
-      const { data, error } = await supabase
-        .from('study_plans')
-        .select('*')
-        .eq('id', studyId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!studyId,
-  });
+  const addNode = () => {
+    if (!newNodeLabel.trim()) {
+      toast.error("Please enter a node label");
+      return;
+    }
+    
+    const newNode: IANode = {
+      id: Date.now().toString(),
+      label: newNodeLabel,
+      parentId: selectedParentId,
+      description: newNodeDescription || undefined,
+      type: newNodeType
+    };
+    
+    setNodes([...nodes, newNode]);
+    setNewNodeLabel('');
+    setNewNodeDescription('');
+    toast.success("Node added!");
+  };
 
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('generate-information-architecture', {
-        body: { 
-          projectName,
-          description,
-          userNeeds,
-          studyData: study ? { title: study.title, problem: study.problem_statement } : null
-        }
-      });
+  const removeNode = (nodeId: string) => {
+    if (nodeId === '1') {
+      toast.error("Cannot remove root node");
+      return;
+    }
+    
+    const removeNodeAndChildren = (id: string): string[] => {
+      const childIds = nodes.filter(n => n.parentId === id).map(n => n.id);
+      return [id, ...childIds.flatMap(removeNodeAndChildren)];
+    };
+    
+    const idsToRemove = removeNodeAndChildren(nodeId);
+    setNodes(nodes.filter(n => !idsToRemove.includes(n.id)));
+    toast.success("Node removed");
+  };
 
-      if (error) throw error;
-      return data.informationArchitecture;
-    },
-    onSuccess: (data) => {
-      setGeneratedIA(data);
-      toast.success("Information architecture generated!");
-    },
-    onError: (error: any) => {
-      if (error.message?.includes('Rate limits exceeded')) {
-        toast.error("Rate limits exceeded, please try again later.");
-      } else if (error.message?.includes('Payment required')) {
-        toast.error("Payment required, please add funds to your workspace.");
-      } else {
-        toast.error("Failed to generate information architecture");
-      }
-    },
-  });
+  const getNodeLevel = (nodeId: string): number => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || !node.parentId) return 0;
+    return 1 + getNodeLevel(node.parentId);
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const iaStructure = {
+        title: title || 'Untitled IA',
+        nodes: nodes
+      };
 
       const { error } = await supabase
         .from('information_architectures')
         .insert({
-          user_id: user.id,
           study_plan_id: studyId,
-          title: title || projectName,
-          structure: generatedIA,
-          ai_generated: true,
+          title: title || 'Untitled IA',
+          structure: iaStructure,
+          ai_generated: false,
         });
 
       if (error) throw error;
@@ -109,11 +119,6 @@ export default function InformationArchitecture() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['information-architectures', studyId] });
       toast.success("Information architecture saved!");
-      setTitle("");
-      setProjectName("");
-      setDescription("");
-      setUserNeeds("");
-      setGeneratedIA(null);
     },
     onError: () => {
       toast.error("Failed to save information architecture");
@@ -122,10 +127,15 @@ export default function InformationArchitecture() {
 
   const exportToFigmaMutation = useMutation({
     mutationFn: async () => {
+      const iaStructure = {
+        title: title || 'Information Architecture',
+        nodes: nodes
+      };
+
       const { data, error } = await supabase.functions.invoke('export-to-figma', {
         body: {
           exportType: 'information_architecture',
-          data: generatedIA,
+          data: iaStructure,
           figmaAccessToken: figmaToken,
         }
       });
@@ -144,7 +154,12 @@ export default function InformationArchitecture() {
   });
 
   const downloadAsJSON = () => {
-    const dataStr = JSON.stringify(generatedIA, null, 2);
+    const iaStructure = {
+      title: title || 'Information Architecture',
+      nodes: nodes
+    };
+    
+    const dataStr = JSON.stringify(iaStructure, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
     const exportFileDefaultName = `information-architecture-${Date.now()}.json`;
 
@@ -154,24 +169,12 @@ export default function InformationArchitecture() {
     linkElement.click();
   };
 
-  const renderHierarchy = (items: any[], level = 0) => {
-    return items?.map((item) => (
-      <div key={item.id} style={{ marginLeft: `${level * 24}px` }} className="my-2">
-        <div className="flex items-center gap-2 p-2 border rounded hover:bg-accent">
-          <ChevronRight className="h-4 w-4" />
-          <div className="flex-1">
-            <p className="font-medium">{item.label}</p>
-            {item.description && (
-              <p className="text-sm text-muted-foreground">{item.description}</p>
-            )}
-            {item.type && (
-              <Badge variant="outline" className="mt-1">{item.type}</Badge>
-            )}
-          </div>
-        </div>
-        {item.children && renderHierarchy(item.children, level + 1)}
-      </div>
-    ));
+  const loadIA = (ia: any) => {
+    if (ia.structure?.nodes) {
+      setNodes(ia.structure.nodes);
+      setTitle(ia.structure.title || ia.title);
+      toast.success("IA loaded!");
+    }
   };
 
   return (
@@ -184,7 +187,7 @@ export default function InformationArchitecture() {
           <div>
             <h1 className="text-4xl font-bold">Information Architecture</h1>
             <p className="text-muted-foreground mt-2">
-              Design and organize your content structure with AI
+              Build your sitemap structure by adding pages and organizing hierarchically
             </p>
           </div>
         </div>
@@ -193,160 +196,201 @@ export default function InformationArchitecture() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Generate IA</CardTitle>
-                <CardDescription>Use AI to create a structured information architecture</CardDescription>
+                <CardTitle>Build IA Structure</CardTitle>
+                <CardDescription>Create a sitemap by adding pages and sections</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="title">Title</Label>
+                  <Label htmlFor="title">Project Title</Label>
                   <Input
                     id="title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="IA title"
+                    placeholder="E.g., E-commerce Website IA"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="projectName">Project Name</Label>
-                  <Input
-                    id="projectName"
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    placeholder="Your product or service name"
-                  />
+
+                <div className="border-t pt-4 space-y-3">
+                  <h4 className="font-semibold">Add New Page/Section</h4>
+                  
+                  <div>
+                    <Label htmlFor="nodeLabel">Page Name *</Label>
+                    <Input
+                      id="nodeLabel"
+                      value={newNodeLabel}
+                      onChange={(e) => setNewNodeLabel(e.target.value)}
+                      placeholder="E.g., Products, About Us, Contact"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="nodeType">Type</Label>
+                    <Select value={newNodeType} onValueChange={setNewNodeType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="page">Page</SelectItem>
+                        <SelectItem value="section">Section</SelectItem>
+                        <SelectItem value="category">Category</SelectItem>
+                        <SelectItem value="feature">Feature</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="nodeDescription">Description (optional)</Label>
+                    <Input
+                      id="nodeDescription"
+                      value={newNodeDescription}
+                      onChange={(e) => setNewNodeDescription(e.target.value)}
+                      placeholder="Brief description"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="parentSelect">Parent Page</Label>
+                    <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {nodes.map(node => (
+                          <SelectItem key={node.id} value={node.id}>
+                            {node.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button 
+                    onClick={addNode}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Page
+                  </Button>
                 </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What does this product/service do?"
-                    rows={3}
-                  />
+
+                <div className="border-t pt-4 flex gap-2">
+                  <Button 
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending || nodes.length === 0}
+                    className="flex-1"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save
+                  </Button>
+                  <Button 
+                    onClick={downloadAsJSON}
+                    disabled={nodes.length === 0}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </Button>
                 </div>
-                <div>
-                  <Label htmlFor="userNeeds">User Needs</Label>
-                  <Textarea
-                    id="userNeeds"
-                    value={userNeeds}
-                    onChange={(e) => setUserNeeds(e.target.value)}
-                    placeholder="What are users trying to accomplish?"
-                    rows={3}
-                  />
-                </div>
-                <Button 
-                  onClick={() => generateMutation.mutate()}
-                  disabled={!projectName || generateMutation.isPending}
-                  className="w-full"
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {generateMutation.isPending ? 'Generating...' : 'Generate IA'}
-                </Button>
+
+                <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full" disabled={nodes.length === 0}>
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Export to Figma
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Export to Figma</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="figma-token">Figma Access Token</Label>
+                        <Input
+                          id="figma-token"
+                          type="password"
+                          value={figmaToken}
+                          onChange={(e) => setFigmaToken(e.target.value)}
+                          placeholder="Enter your Figma access token"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Get your token from Figma Settings → Personal Access Tokens
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => exportToFigmaMutation.mutate()}
+                        disabled={!figmaToken || exportToFigmaMutation.isPending}
+                        className="w-full"
+                      >
+                        {exportToFigmaMutation.isPending ? 'Exporting...' : 'Export'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
-
-            {generatedIA && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button onClick={() => saveMutation.mutate()} className="w-full">
-                    Save Information Architecture
-                  </Button>
-                  <Button onClick={downloadAsJSON} variant="outline" className="w-full">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download as JSON
-                  </Button>
-                  <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Export to Figma
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Export to Figma</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="figma-token">Figma Access Token</Label>
-                          <Input
-                            id="figma-token"
-                            type="password"
-                            value={figmaToken}
-                            onChange={(e) => setFigmaToken(e.target.value)}
-                            placeholder="Enter your Figma access token"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Get your token from Figma Settings → Personal Access Tokens
-                          </p>
-                        </div>
-                        <Button 
-                          onClick={() => exportToFigmaMutation.mutate()}
-                          disabled={!figmaToken || exportToFigmaMutation.isPending}
-                          className="w-full"
-                        >
-                          {exportToFigmaMutation.isPending ? 'Exporting...' : 'Export'}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           <div className="space-y-6">
-            {generatedIA && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Generated IA</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {generatedIA.title && (
-                    <div className="p-4 bg-primary/10 rounded-lg">
-                      <h3 className="text-xl font-bold">{generatedIA.title}</h3>
-                    </div>
-                  )}
-                  
-                  {generatedIA.hierarchy && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Site Hierarchy</h4>
-                      {renderHierarchy(generatedIA.hierarchy)}
-                    </div>
-                  )}
-
-                  {generatedIA.navigation && (
-                    <div className="space-y-2">
-                      <h4 className="font-semibold">Navigation</h4>
-                      {generatedIA.navigation.primary && (
-                        <div>
-                          <p className="text-sm font-medium">Primary:</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {generatedIA.navigation.primary.map((nav: string) => (
-                              <Badge key={nav}>{nav}</Badge>
-                            ))}
+            <Card>
+              <CardHeader>
+                <CardTitle>IA Structure</CardTitle>
+                <CardDescription>{nodes.length} node{nodes.length !== 1 ? 's' : ''}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {nodes.map((node) => {
+                    const parent = nodes.find(n => n.id === node.parentId);
+                    const children = nodes.filter(n => n.parentId === node.id);
+                    const level = getNodeLevel(node.id);
+                    
+                    return (
+                      <div 
+                        key={node.id} 
+                        className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                        style={{ marginLeft: `${level * 16}px` }}
+                      >
+                        <ChevronRight className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{node.label}</span>
+                            {node.type && (
+                              <Badge variant="outline" className="text-xs">
+                                {node.type}
+                              </Badge>
+                            )}
+                            {children.length > 0 && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                {children.length}
+                              </span>
+                            )}
                           </div>
+                          {node.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{node.description}</p>
+                          )}
+                          {parent && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Under: {parent.label}
+                            </p>
+                          )}
                         </div>
-                      )}
-                      {generatedIA.navigation.secondary && (
-                        <div>
-                          <p className="text-sm font-medium">Secondary:</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {generatedIA.navigation.secondary.map((nav: string) => (
-                              <Badge key={nav} variant="outline">{nav}</Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                        {node.id !== '1' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeNode(node.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
@@ -358,7 +402,11 @@ export default function InformationArchitecture() {
                 ) : architectures && architectures.length > 0 ? (
                   <div className="space-y-2">
                     {architectures.map((ia) => (
-                      <div key={ia.id} className="p-3 border rounded-lg hover:bg-accent cursor-pointer">
+                      <div 
+                        key={ia.id} 
+                        className="p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                        onClick={() => loadIA(ia)}
+                      >
                         <p className="font-medium">{ia.title}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(ia.created_at).toLocaleDateString()}

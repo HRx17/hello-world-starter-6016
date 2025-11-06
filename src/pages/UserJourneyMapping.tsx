@@ -10,9 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Sparkles, Download, Share2, Smile, Meh, Frown } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Download, Share2, Smile, Meh, Frown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+
+interface JourneyStage {
+  id: string;
+  name: string;
+  actions: string[];
+  touchpoints: string[];
+  thoughts: string[];
+  painPoints: string[];
+  opportunities: string[];
+  emotionLevel: number;
+}
 
 export default function UserJourneyMapping() {
   const navigate = useNavigate();
@@ -22,8 +34,16 @@ export default function UserJourneyMapping() {
 
   const [title, setTitle] = useState("");
   const [selectedPersonaId, setSelectedPersonaId] = useState("");
-  const [scenario, setScenario] = useState("");
-  const [generatedJourney, setGeneratedJourney] = useState<any>(null);
+  const [stages, setStages] = useState<JourneyStage[]>([]);
+  
+  const [newStageName, setNewStageName] = useState("");
+  const [currentStageId, setCurrentStageId] = useState("");
+  const [newAction, setNewAction] = useState("");
+  const [newTouchpoint, setNewTouchpoint] = useState("");
+  const [newThought, setNewThought] = useState("");
+  const [newPainPoint, setNewPainPoint] = useState("");
+  const [newOpportunity, setNewOpportunity] = useState("");
+  
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [figmaToken, setFigmaToken] = useState("");
 
@@ -63,88 +83,116 @@ export default function UserJourneyMapping() {
     },
   });
 
-  const { data: study } = useQuery({
-    queryKey: ['study-plan', studyId],
-    queryFn: async () => {
-      if (!studyId) return null;
-      const { data, error } = await supabase
-        .from('study_plans')
-        .select('*')
-        .eq('id', studyId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!studyId,
-  });
+  const addStage = () => {
+    if (!newStageName.trim()) {
+      toast.error("Please enter a stage name");
+      return;
+    }
 
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      const selectedPersona = personas?.find(p => p.id === selectedPersonaId);
-      
-      const { data, error } = await supabase.functions.invoke('generate-user-journey-map', {
-        body: { 
-          persona: selectedPersona,
-          scenario,
-          studyData: study ? { title: study.title, problem: study.problem_statement } : null
+    const newStage: JourneyStage = {
+      id: Date.now().toString(),
+      name: newStageName,
+      actions: [],
+      touchpoints: [],
+      thoughts: [],
+      painPoints: [],
+      opportunities: [],
+      emotionLevel: 3
+    };
+
+    setStages([...stages, newStage]);
+    setNewStageName('');
+    setCurrentStageId(newStage.id);
+    toast.success("Stage added!");
+  };
+
+  const removeStage = (stageId: string) => {
+    setStages(stages.filter(s => s.id !== stageId));
+    if (currentStageId === stageId) {
+      setCurrentStageId(stages[0]?.id || '');
+    }
+    toast.success("Stage removed");
+  };
+
+  const addToStage = (field: keyof JourneyStage, value: string) => {
+    if (!currentStageId || !value.trim()) return;
+
+    setStages(stages.map(stage => {
+      if (stage.id === currentStageId) {
+        const fieldValue = stage[field];
+        if (Array.isArray(fieldValue)) {
+          return { ...stage, [field]: [...fieldValue, value] };
         }
-      });
-
-      if (error) throw error;
-      return data.userJourneyMap;
-    },
-    onSuccess: (data) => {
-      setGeneratedJourney(data);
-      toast.success("User journey map generated!");
-    },
-    onError: (error: any) => {
-      if (error.message?.includes('Rate limits exceeded')) {
-        toast.error("Rate limits exceeded, please try again later.");
-      } else if (error.message?.includes('Payment required')) {
-        toast.error("Payment required, please add funds to your workspace.");
-      } else {
-        toast.error("Failed to generate user journey map");
       }
-    },
-  });
+      return stage;
+    }));
+    toast.success("Added!");
+  };
+
+  const removeFromStage = (stageId: string, field: keyof JourneyStage, index: number) => {
+    setStages(stages.map(stage => {
+      if (stage.id === stageId) {
+        const fieldValue = stage[field];
+        if (Array.isArray(fieldValue)) {
+          return { ...stage, [field]: fieldValue.filter((_, i) => i !== index) };
+        }
+      }
+      return stage;
+    }));
+  };
+
+  const updateEmotion = (stageId: string, level: number) => {
+    setStages(stages.map(stage => 
+      stage.id === stageId ? { ...stage, emotionLevel: level } : stage
+    ));
+  };
+
+  const getEmotionIcon = (level: number) => {
+    if (level >= 4) return <Smile className="h-5 w-5 text-green-500" />;
+    if (level >= 3) return <Meh className="h-5 w-5 text-yellow-500" />;
+    return <Frown className="h-5 w-5 text-red-500" />;
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const journeyData = {
+        title: title || 'User Journey Map',
+        persona: selectedPersonaId,
+        stages: stages
+      };
 
       const { error } = await supabase
         .from('user_journey_maps')
         .insert({
-          user_id: user.id,
           study_plan_id: studyId,
           persona_id: selectedPersonaId || null,
-          title: title || generatedJourney.title,
-          journey_data: generatedJourney,
-          ai_generated: true,
+          title: title || 'User Journey Map',
+          journey_data: journeyData,
+          ai_generated: false,
         });
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-journey-maps', studyId] });
-      toast.success("User journey map saved!");
-      setTitle("");
-      setSelectedPersonaId("");
-      setScenario("");
-      setGeneratedJourney(null);
+      toast.success("Journey map saved!");
     },
     onError: () => {
-      toast.error("Failed to save user journey map");
+      toast.error("Failed to save journey map");
     },
   });
 
   const exportToFigmaMutation = useMutation({
     mutationFn: async () => {
+      const journeyData = {
+        title: title || 'User Journey Map',
+        stages: stages
+      };
+
       const { data, error } = await supabase.functions.invoke('export-to-figma', {
         body: {
           exportType: 'user_journey_map',
-          data: generatedJourney,
+          data: journeyData,
           figmaAccessToken: figmaToken,
         }
       });
@@ -163,7 +211,12 @@ export default function UserJourneyMapping() {
   });
 
   const downloadAsJSON = () => {
-    const dataStr = JSON.stringify(generatedJourney, null, 2);
+    const journeyData = {
+      title: title || 'User Journey Map',
+      stages: stages
+    };
+    
+    const dataStr = JSON.stringify(journeyData, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
     const exportFileDefaultName = `user-journey-${Date.now()}.json`;
 
@@ -173,11 +226,17 @@ export default function UserJourneyMapping() {
     linkElement.click();
   };
 
-  const getEmotionIcon = (level: number) => {
-    if (level >= 4) return <Smile className="h-5 w-5 text-green-500" />;
-    if (level >= 3) return <Meh className="h-5 w-5 text-yellow-500" />;
-    return <Frown className="h-5 w-5 text-red-500" />;
+  const loadJourney = (journey: any) => {
+    if (journey.journey_data?.stages) {
+      setStages(journey.journey_data.stages);
+      setTitle(journey.journey_data.title || journey.title);
+      setSelectedPersonaId(journey.persona_id || '');
+      setCurrentStageId(journey.journey_data.stages[0]?.id || '');
+      toast.success("Journey loaded!");
+    }
   };
+
+  const currentStage = stages.find(s => s.id === currentStageId);
 
   return (
     <DashboardLayout>
@@ -189,7 +248,7 @@ export default function UserJourneyMapping() {
           <div>
             <h1 className="text-4xl font-bold">User Journey Mapping</h1>
             <p className="text-muted-foreground mt-2">
-              Map user experiences with AI-powered journey mapping
+              Map user experiences through each stage of their journey
             </p>
           </div>
         </div>
@@ -198,19 +257,19 @@ export default function UserJourneyMapping() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Generate Journey Map</CardTitle>
-                <CardDescription>Use AI to create a detailed user journey</CardDescription>
+                <CardTitle>Journey Setup</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="title">Title</Label>
+                  <Label htmlFor="title">Journey Title</Label>
                   <Input
                     id="title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Journey map title"
+                    placeholder="E.g., Online Shopping Journey"
                   />
                 </div>
+                
                 <div>
                   <Label htmlFor="persona">Persona (Optional)</Label>
                   <Select value={selectedPersonaId} onValueChange={setSelectedPersonaId}>
@@ -227,145 +286,366 @@ export default function UserJourneyMapping() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="scenario">Scenario</Label>
-                  <Textarea
-                    id="scenario"
-                    value={scenario}
-                    onChange={(e) => setScenario(e.target.value)}
-                    placeholder="Describe the user's scenario or goal"
-                    rows={4}
-                  />
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="font-semibold">Add Journey Stage</h4>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newStageName}
+                      onChange={(e) => setNewStageName(e.target.value)}
+                      placeholder="E.g., Awareness, Research, Purchase"
+                    />
+                    <Button onClick={addStage}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <Button 
-                  onClick={() => generateMutation.mutate()}
-                  disabled={!scenario || generateMutation.isPending}
-                  className="w-full"
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {generateMutation.isPending ? 'Generating...' : 'Generate Journey Map'}
-                </Button>
+
+                {stages.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <Label>Select Stage to Edit</Label>
+                      <Select value={currentStageId} onValueChange={setCurrentStageId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stages.map(stage => (
+                            <SelectItem key={stage.id} value={stage.id}>
+                              {stage.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+
+                {currentStage && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h4 className="font-semibold">Edit: {currentStage.name}</h4>
+                      
+                      <div>
+                        <Label>Emotion Level</Label>
+                        <div className="flex gap-2 mt-2">
+                          {[1, 2, 3, 4, 5].map(level => (
+                            <Button
+                              key={level}
+                              size="sm"
+                              variant={currentStage.emotionLevel === level ? "default" : "outline"}
+                              onClick={() => updateEmotion(currentStage.id, level)}
+                            >
+                              {level}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Add Action</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={newAction}
+                            onChange={(e) => setNewAction(e.target.value)}
+                            placeholder="What does the user do?"
+                          />
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              addToStage('actions', newAction);
+                              setNewAction('');
+                            }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Add Touchpoint</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={newTouchpoint}
+                            onChange={(e) => setNewTouchpoint(e.target.value)}
+                            placeholder="Where do they interact? (website, app, store)"
+                          />
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              addToStage('touchpoints', newTouchpoint);
+                              setNewTouchpoint('');
+                            }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Add Thought</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={newThought}
+                            onChange={(e) => setNewThought(e.target.value)}
+                            placeholder="What are they thinking?"
+                          />
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              addToStage('thoughts', newThought);
+                              setNewThought('');
+                            }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Add Pain Point</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={newPainPoint}
+                            onChange={(e) => setNewPainPoint(e.target.value)}
+                            placeholder="What problems do they encounter?"
+                          />
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              addToStage('painPoints', newPainPoint);
+                              setNewPainPoint('');
+                            }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Add Opportunity</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={newOpportunity}
+                            onChange={(e) => setNewOpportunity(e.target.value)}
+                            placeholder="How can we improve this?"
+                          />
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              addToStage('opportunities', newOpportunity);
+                              setNewOpportunity('');
+                            }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <Separator />
+
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending || stages.length === 0}
+                    className="flex-1"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save
+                  </Button>
+                  <Button 
+                    onClick={downloadAsJSON}
+                    disabled={stages.length === 0}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+
+                <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full" disabled={stages.length === 0}>
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Export to Figma
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Export to Figma</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="figma-token">Figma Access Token</Label>
+                        <Input
+                          id="figma-token"
+                          type="password"
+                          value={figmaToken}
+                          onChange={(e) => setFigmaToken(e.target.value)}
+                          placeholder="Enter your Figma access token"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Get your token from Figma Settings → Personal Access Tokens
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => exportToFigmaMutation.mutate()}
+                        disabled={!figmaToken || exportToFigmaMutation.isPending}
+                        className="w-full"
+                      >
+                        {exportToFigmaMutation.isPending ? 'Exporting...' : 'Export'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
-
-            {generatedJourney && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button onClick={() => saveMutation.mutate()} className="w-full">
-                    Save Journey Map
-                  </Button>
-                  <Button onClick={downloadAsJSON} variant="outline" className="w-full">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download as JSON
-                  </Button>
-                  <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Export to Figma
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Export to Figma</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="figma-token">Figma Access Token</Label>
-                          <Input
-                            id="figma-token"
-                            type="password"
-                            value={figmaToken}
-                            onChange={(e) => setFigmaToken(e.target.value)}
-                            placeholder="Enter your Figma access token"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Get your token from Figma Settings → Personal Access Tokens
-                          </p>
-                        </div>
-                        <Button 
-                          onClick={() => exportToFigmaMutation.mutate()}
-                          disabled={!figmaToken || exportToFigmaMutation.isPending}
-                          className="w-full"
-                        >
-                          {exportToFigmaMutation.isPending ? 'Exporting...' : 'Export'}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           <div className="space-y-6">
-            {generatedJourney && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Generated Journey Map</CardTitle>
-                  {generatedJourney.title && (
-                    <CardDescription>{generatedJourney.title}</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {generatedJourney.stages?.map((stage: any, index: number) => (
-                    <div key={stage.id || index} className="border rounded-lg p-4 space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Journey Map</CardTitle>
+                <CardDescription>{stages.length} stage{stages.length !== 1 ? 's' : ''}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stages.map((stage, index) => (
+                    <div key={stage.id} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-bold text-lg">{stage.name}</h4>
-                        {stage.emotionLevel && getEmotionIcon(stage.emotionLevel)}
+                        <div className="flex items-center gap-2">
+                          <Badge>{index + 1}</Badge>
+                          <h4 className="font-bold">{stage.name}</h4>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getEmotionIcon(stage.emotionLevel)}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeStage(stage.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      
-                      {stage.actions && stage.actions.length > 0 && (
+
+                      {stage.actions.length > 0 && (
                         <div>
                           <p className="text-sm font-semibold">Actions:</p>
-                          <ul className="text-sm list-disc list-inside">
-                            {stage.actions.map((action: string, i: number) => (
-                              <li key={i}>{action}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {stage.touchpoints && stage.touchpoints.length > 0 && (
-                        <div>
-                          <p className="text-sm font-semibold">Touchpoints:</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {stage.touchpoints.map((tp: string, i: number) => (
-                              <Badge key={i} variant="outline">{tp}</Badge>
+                          <div className="space-y-1">
+                            {stage.actions.map((action, i) => (
+                              <div key={i} className="flex items-center justify-between text-sm bg-accent/50 p-2 rounded">
+                                <span>• {action}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => removeFromStage(stage.id, 'actions', i)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {stage.painPoints && stage.painPoints.length > 0 && (
+                      {stage.touchpoints.length > 0 && (
                         <div>
-                          <p className="text-sm font-semibold text-destructive">Pain Points:</p>
-                          <ul className="text-sm list-disc list-inside text-muted-foreground">
-                            {stage.painPoints.map((pain: string, i: number) => (
-                              <li key={i}>{pain}</li>
+                          <p className="text-sm font-semibold">Touchpoints:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {stage.touchpoints.map((tp, i) => (
+                              <Badge 
+                                key={i} 
+                                variant="outline"
+                                className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                                onClick={() => removeFromStage(stage.id, 'touchpoints', i)}
+                              >
+                                {tp} ×
+                              </Badge>
                             ))}
-                          </ul>
+                          </div>
                         </div>
                       )}
 
-                      {stage.opportunities && stage.opportunities.length > 0 && (
+                      {stage.thoughts.length > 0 && (
+                        <div>
+                          <p className="text-sm font-semibold">Thoughts:</p>
+                          <div className="space-y-1">
+                            {stage.thoughts.map((thought, i) => (
+                              <div key={i} className="flex items-center justify-between text-sm italic text-muted-foreground bg-accent/30 p-2 rounded">
+                                <span>"{thought}"</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => removeFromStage(stage.id, 'thoughts', i)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {stage.painPoints.length > 0 && (
+                        <div>
+                          <p className="text-sm font-semibold text-destructive">Pain Points:</p>
+                          <div className="space-y-1">
+                            {stage.painPoints.map((pain, i) => (
+                              <div key={i} className="flex items-center justify-between text-sm bg-destructive/10 p-2 rounded">
+                                <span>⚠️ {pain}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => removeFromStage(stage.id, 'painPoints', i)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {stage.opportunities.length > 0 && (
                         <div>
                           <p className="text-sm font-semibold text-green-600">Opportunities:</p>
-                          <ul className="text-sm list-disc list-inside text-muted-foreground">
-                            {stage.opportunities.map((opp: string, i: number) => (
-                              <li key={i}>{opp}</li>
+                          <div className="space-y-1">
+                            {stage.opportunities.map((opp, i) => (
+                              <div key={i} className="flex items-center justify-between text-sm bg-green-500/10 p-2 rounded">
+                                <span>💡 {opp}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => removeFromStage(stage.id, 'opportunities', i)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         </div>
                       )}
                     </div>
                   ))}
-                </CardContent>
-              </Card>
-            )}
+
+                  {stages.length === 0 && (
+                    <p className="text-muted-foreground text-center py-8">
+                      No stages yet. Add a stage to get started.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
@@ -377,7 +657,11 @@ export default function UserJourneyMapping() {
                 ) : journeys && journeys.length > 0 ? (
                   <div className="space-y-2">
                     {journeys.map((journey) => (
-                      <div key={journey.id} className="p-3 border rounded-lg hover:bg-accent cursor-pointer">
+                      <div 
+                        key={journey.id} 
+                        className="p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                        onClick={() => loadJourney(journey)}
+                      >
                         <p className="font-medium">{journey.title}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(journey.created_at).toLocaleDateString()}
