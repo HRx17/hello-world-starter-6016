@@ -496,6 +496,7 @@ const Results = () => {
                             violationNumber={violationNumber > 0 ? violationNumber : undefined}
                             framework={analysis.framework}
                             url={analysis.url}
+                            screenshot={analysis.screenshot}
                           />
                         );
                       })}

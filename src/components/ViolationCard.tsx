@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import { CroppedViolationImage } from "@/components/CroppedViolationImage";
 
 interface ViolationCardProps {
   violation: Violation;
   violationNumber?: number;
   framework?: string;
   url?: string;
+  screenshot?: string;
 }
 
 const severityConfig = {
@@ -36,7 +38,7 @@ const severityConfig = {
   },
 };
 
-export const ViolationCard = ({ violation, violationNumber, framework, url }: ViolationCardProps) => {
+export const ViolationCard = ({ violation, violationNumber, framework, url, screenshot }: ViolationCardProps) => {
   const config = severityConfig[violation.severity];
   const Icon = config.icon;
   const { toast } = useToast();
@@ -128,6 +130,16 @@ export const ViolationCard = ({ violation, violationNumber, framework, url }: Vi
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Cropped Screenshot Preview */}
+        {screenshot && violation.boundingBox && (
+          <CroppedViolationImage
+            screenshot={screenshot}
+            boundingBox={violation.boundingBox}
+            severity={violation.severity}
+            title={violation.title}
+          />
+        )}
+        
         <div>
           <p className="text-sm text-muted-foreground leading-relaxed">{violation.description}</p>
         </div>

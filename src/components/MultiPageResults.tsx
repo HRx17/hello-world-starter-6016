@@ -124,6 +124,7 @@ export const MultiPageResults = ({ crawl, pages, websiteName }: MultiPageResults
                         violation={violation}
                         framework={undefined}
                         url={crawl.url}
+                        screenshot={pages.find(p => p.violations?.some(v => v.title === violation.title))?.screenshot}
                       />
                     ))}
                   </div>
@@ -358,33 +359,15 @@ const PageAnalysisCard = ({ page }: { page: PageAnalysis }) => {
               <h4 className="text-sm font-semibold mb-3">
                 Issues Found ({page.violations.length})
               </h4>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {displayViolations?.map((violation, idx) => (
-                  <div key={idx} className="text-sm p-3 rounded bg-muted/50 border">
-                    <div className="flex items-start gap-2">
-                      <Badge 
-                        variant={
-                          violation.severity === 'high' ? 'destructive' : 
-                          violation.severity === 'medium' ? 'default' : 
-                          'secondary'
-                        }
-                        className="mt-0.5"
-                      >
-                        {violation.severity}
-                      </Badge>
-                      <div className="flex-1">
-                        <p className="font-medium">{violation.title}</p>
-                        <p className="text-muted-foreground text-xs mt-1">
-                          {violation.description}
-                        </p>
-                        {violation.location && (
-                          <p className="text-muted-foreground text-xs mt-1">
-                            📍 {violation.location}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <ViolationCard
+                    key={idx}
+                    violation={violation}
+                    framework={undefined}
+                    url={page.page_url}
+                    screenshot={page.screenshot}
+                  />
                 ))}
                 {page.violations.length > 3 && !showAllViolations && (
                   <Button
