@@ -343,6 +343,7 @@ export default function MindMapping() {
                 <ExportDialog
                   data={{ centralTopic, nodes }}
                   title="Mind Map"
+                  exportType="mind_map"
                   onDownloadJSON={handleDownloadJSON}
                   onDownloadHTML={handleDownloadHTML}
                   disabled={nodes.length === 0}

@@ -440,6 +440,7 @@ export default function UserJourneyMapping() {
                 <ExportDialog
                   data={{ title, stages }}
                   title="User Journey Map"
+                  exportType="user_journey_map"
                   onDownloadJSON={handleDownloadJSON}
                   onDownloadHTML={handleDownloadHTML}
                   disabled={stages.length === 0}

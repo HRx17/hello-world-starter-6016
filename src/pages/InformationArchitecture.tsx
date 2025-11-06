@@ -263,6 +263,7 @@ export default function InformationArchitecture() {
                 <ExportDialog
                   data={{ title, nodes }}
                   title="Information Architecture"
+                  exportType="information_architecture"
                   onDownloadJSON={handleDownloadJSON}
                   onDownloadHTML={handleDownloadHTML}
                   disabled={nodes.length === 0}

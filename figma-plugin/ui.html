@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 20px;
+      background: #f9fafb;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+    p {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 12px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .primary {
+      background: #3b82f6;
+      color: white;
+    }
+    .primary:hover {
+      background: #2563eb;
+    }
+    .primary:disabled {
+      background: #93c5fd;
+      cursor: not-allowed;
+    }
+    .secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+    .secondary:hover {
+      background: #e5e7eb;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+    .status.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .instructions {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .instructions h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e40af;
+      margin-bottom: 8px;
+    }
+    .instructions ol {
+      font-size: 13px;
+      color: #1e40af;
+      line-height: 1.6;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 UX Research Importer</h1>
+    <p>Import your UX research data from the web app into Figma</p>
+    
+    <div class="instructions">
+      <h3>How to use:</h3>
+      <ol>
+        <li>In the web app, click "Export to Figma"</li>
+        <li>Copy the generated JSON data</li>
+        <li>Paste it below and click "Import to Figma"</li>
+      </ol>
+    </div>
+    
+    <div class="input-group">
+      <label for="data-input">Paste your export data here:</label>
+      <textarea id="data-input" placeholder='{"exportType": "user_journey_map", "data": {...}}'></textarea>
+    </div>
+    
+    <div class="button-group">
+      <button class="secondary" id="cancel">Cancel</button>
+      <button class="primary" id="import">Import to Figma</button>
+    </div>
+    
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    const dataInput = document.getElementById('data-input');
+    const importBtn = document.getElementById('import');
+    const cancelBtn = document.getElementById('cancel');
+    const status = document.getElementById('status');
+
+    importBtn.addEventListener('click', () => {
+      const data = dataInput.value.trim();
+      
+      if (!data) {
+        showStatus('Please paste your export data', 'error');
+        return;
+      }
+      
+      try {
+        JSON.parse(data); // Validate JSON
+        importBtn.disabled = true;
+        importBtn.textContent = 'Importing...';
+        parent.postMessage({ pluginMessage: { type: 'import-data', data } }, '*');
+      } catch (e) {
+        showStatus('Invalid JSON format. Please check your data.', 'error');
+      }
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+    });
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      
+      if (msg.type === 'import-success') {
+        showStatus('✓ Successfully imported into Figma!', 'success');
+        importBtn.disabled = false;
+        importBtn.textContent = 'Import to Figma';
+        dataInput.value = '';
+      } else if (msg.type === 'import-error') {
+        showStatus(`✗ Import failed: ${msg.error}`, 'error');
+        importBtn.disabled = false;
+        importBtn.textContent = 'Import to Figma';
+      }
+    };
+
+    function showStatus(message, type) {
+      status.textContent = message;
+      status.className = `status ${type}`;
+      status.style.display = 'block';
+      
+      setTimeout(() => {
+        status.style.display = 'none';
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
