@@ -100,6 +100,9 @@ export default function InformationArchitecture() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const iaStructure = {
         title: title || 'Untitled IA',
         nodes: nodes
@@ -108,11 +111,12 @@ export default function InformationArchitecture() {
       const { error } = await supabase
         .from('information_architectures')
         .insert({
-          study_plan_id: studyId,
+          user_id: user.id,
+          study_plan_id: studyId || null,
           title: title || 'Untitled IA',
           structure: iaStructure,
           ai_generated: false,
-        });
+        } as any);
 
       if (error) throw error;
     },

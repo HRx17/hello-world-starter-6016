@@ -155,6 +155,9 @@ export default function UserJourneyMapping() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const journeyData = {
         title: title || 'User Journey Map',
         persona: selectedPersonaId,
@@ -164,12 +167,13 @@ export default function UserJourneyMapping() {
       const { error } = await supabase
         .from('user_journey_maps')
         .insert({
-          study_plan_id: studyId,
+          user_id: user.id,
+          study_plan_id: studyId || null,
           persona_id: selectedPersonaId || null,
           title: title || 'User Journey Map',
           journey_data: journeyData,
           ai_generated: false,
-        });
+        } as any);
 
       if (error) throw error;
     },

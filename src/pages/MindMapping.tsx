@@ -126,6 +126,9 @@ export default function MindMapping() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const mindMapData = {
         centralTopic: nodes.find(n => n.id === 'root')?.label || centralTopic,
         nodes: nodes
@@ -134,11 +137,12 @@ export default function MindMapping() {
       const { error } = await supabase
         .from('mind_maps')
         .insert({
-          study_plan_id: studyId,
+          user_id: user.id,
+          study_plan_id: studyId || null,
           title: title || centralTopic,
           content: mindMapData,
           ai_generated: false,
-        });
+        } as any);
 
       if (error) throw error;
     },
