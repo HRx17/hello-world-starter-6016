@@ -1,9 +1,15 @@
 {
   "name": "UX Probe - Research Importer",
-  "id": "ux-research-importer",
+  "id": "1568368912191242307",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
+  "menu": [
+    {
+      "name": "UX Probe - Research Importer",
+      "command": "open"
+    }
+  ],
   "editorType": ["figma", "figjam"],
   "networkAccess": {
     "allowedDomains": ["https://vaeyjsqalzcdejwsvoql.supabase.co"],

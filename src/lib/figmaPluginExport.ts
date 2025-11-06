@@ -3,10 +3,16 @@ import JSZip from 'jszip';
 export function generateFigmaPluginFiles() {
   const manifestContent = `{
   "name": "UX Probe - Research Importer",
-  "id": "ux-research-importer",
+  "id": "1568368912191242307",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
+  "menu": [
+    {
+      "name": "UX Probe - Research Importer",
+      "command": "open"
+    }
+  ],
   "editorType": ["figma", "figjam"],
   "networkAccess": {
     "allowedDomains": ["https://vaeyjsqalzcdejwsvoql.supabase.co"],
@@ -994,6 +1000,22 @@ export async function downloadFigmaPlugin() {
   zip.file('manifest.json', files['manifest.json']);
   zip.file('code.js', files['code.js']);
   zip.file('ui.html', files['ui.html']);
+  
+  // Add icon files - fetch from public directory
+  try {
+    const icon16Response = await fetch('/icon-512.png');
+    const icon128Response = await fetch('/icon-512.png');
+    
+    if (icon16Response.ok && icon128Response.ok) {
+      const icon16Blob = await icon16Response.blob();
+      const icon128Blob = await icon128Response.blob();
+      
+      zip.file('icon-16.png', icon16Blob);
+      zip.file('icon-128.png', icon128Blob);
+    }
+  } catch (error) {
+    console.error('Error loading icon files:', error);
+  }
   
   const content = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(content);
