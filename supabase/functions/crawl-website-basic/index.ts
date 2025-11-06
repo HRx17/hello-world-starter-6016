@@ -6,10 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function isPrivateIP(hostname: string): boolean {
+  return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname) ||
+         hostname.match(/^10\./) !== null ||
+         hostname.match(/^192\.168\./) !== null ||
+         hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) !== null ||
+         hostname.match(/^169\.254\./) !== null;
+}
+
 interface CrawlOptions {
   url: string;
   maxPages: number;
-  userId: string;
   projectId?: string;
 }
 
@@ -26,27 +33,65 @@ serve(async (req) => {
   }
 
   try {
-    const { url, maxPages = 10, userId, projectId }: CrawlOptions = await req.json();
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
-    console.log('Starting basic crawl for:', url, 'max pages:', maxPages);
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // Parse and validate request
+    const requestBody = await req.json();
+    const { url, maxPages = 10, projectId }: CrawlOptions = requestBody;
+    
+    console.log('Starting basic crawl for:', url, 'max pages:', maxPages, 'User:', user.id);
+
+    // Input validation
+    if (!url) {
+      throw new Error('URL is required');
+    }
 
     // Validate URL
     try {
-      new URL(url);
-    } catch {
-      throw new Error('Invalid URL provided');
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Only HTTP(S) URLs are allowed');
+      }
+      if (isPrivateIP(parsed.hostname)) {
+        throw new Error('Private/internal URLs are not allowed');
+      }
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Invalid URL provided');
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Validate maxPages
+    if (typeof maxPages !== 'number' || maxPages < 1 || maxPages > 100) {
+      throw new Error('maxPages must be between 1 and 100');
+    }
 
-    // Create crawl job record
+    // Create crawl job record (RLS enforces user_id)
     const { data: crawl, error: crawlError } = await supabase
       .from('website_crawls')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         project_id: projectId,
         url,
         status: 'crawling',

@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,16 +13,53 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const { violation, framework, url } = await req.json();
     
-    console.log('Generating AI recommendations for violation:', violation.heuristic);
+    // Input validation
+    if (!violation || !url) {
+      throw new Error('Missing required parameters');
+    }
+
+    if (typeof url !== 'string' || url.length > 2048) {
+      throw new Error('Invalid URL');
+    }
+
+    if (framework && typeof framework !== 'string') {
+      throw new Error('Invalid framework');
+    }
+    
+    console.log('Generating AI recommendations for violation:', violation.heuristic, 'User:', user.id);
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build context-aware prompt
     const frameworkContext = framework ? `The website is built with ${framework}.` : '';
     const elementContext = violation.element ? `The issue is in this element: ${violation.element}` : '';
     

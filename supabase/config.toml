@@ -1,19 +1,1 @@
 project_id = "vaeyjsqalzcdejwsvoql"
-
-[functions.analyze-website]
-verify_jwt = false
-
-[functions.generate-report]
-verify_jwt = false
-
-[functions.get-ai-recommendations]
-verify_jwt = false
-
-[functions.generate-study-plan]
-verify_jwt = false
-
-[functions.parse-ai-to-steps]
-verify_jwt = false
-
-[functions.get-step-guidance]
-verify_jwt = false

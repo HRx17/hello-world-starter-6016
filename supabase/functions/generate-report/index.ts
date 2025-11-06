@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -9,17 +11,45 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const { analysisData, projectName } = await req.json();
 
     if (!analysisData || !projectName) {
       throw new Error('Missing required data');
     }
 
+    // Validate input lengths
+    if (typeof projectName !== 'string' || projectName.length > 200) {
+      throw new Error('Invalid project name');
+    }
+
     // Generate HTML report
     const html = generateReportHTML(analysisData, projectName);
 
-    // Convert HTML to PDF-like format (simplified version)
-    // In production, you'd use a proper PDF generation library
     const pdfBlob = new Blob([html], { type: 'text/html' });
 
     return new Response(pdfBlob, {

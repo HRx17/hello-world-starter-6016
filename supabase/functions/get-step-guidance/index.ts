@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,8 +13,51 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const { stepTitle, stepDescription, studyContext } = await req.json();
-    console.log('Getting guidance for step:', stepTitle);
+
+    // Input validation
+    if (!stepTitle || !stepDescription) {
+      throw new Error('Step title and description are required');
+    }
+
+    if (typeof stepTitle !== 'string' || stepTitle.length > 500) {
+      throw new Error('Step title must be a string with max 500 characters');
+    }
+
+    if (typeof stepDescription !== 'string' || stepDescription.length > 2000) {
+      throw new Error('Step description must be a string with max 2000 characters');
+    }
+
+    if (studyContext && (typeof studyContext !== 'string' || studyContext.length > 5000)) {
+      throw new Error('Study context must be a string with max 5000 characters');
+    }
+
+    console.log('Getting guidance for step:', stepTitle, 'User:', user.id);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {

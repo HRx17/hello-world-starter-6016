@@ -30,7 +30,29 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user - analyze-website can be public but should validate input
     const { url, heuristics } = await req.json();
+    
+    // Input validation
+    if (!url || typeof url !== 'string') {
+      throw new Error('Valid URL is required');
+    }
+
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Only HTTP(S) URLs are allowed');
+      }
+      const hostname = parsed.hostname.toLowerCase();
+      if (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname) ||
+          hostname.match(/^10\./) || hostname.match(/^192\.168\./) ||
+          hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) || hostname.match(/^169\.254\./)) {
+        throw new Error('Private/internal URLs are not allowed');
+      }
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Invalid URL');
+    }
+
     console.log('='.repeat(60));
     console.log('PROFESSIONAL-GRADE MULTI-STAGE HEURISTIC EVALUATION');
     console.log('='.repeat(60));

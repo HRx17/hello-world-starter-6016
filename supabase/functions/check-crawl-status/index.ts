@@ -214,6 +214,32 @@ serve(async (req) => {
   let crawlId: string | undefined;
   
   try {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    // Create client with user's JWT token (respects RLS)
+    let supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const body = await req.json();
     crawlId = body.crawlId;
     
@@ -224,14 +250,9 @@ serve(async (req) => {
       );
     }
     
-    console.log('Checking crawl status for:', crawlId);
+    console.log('Checking crawl status for:', crawlId, 'User:', user.id);
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Get crawl job
+    // Get crawl job (RLS will enforce user_id check)
     const { data: crawl, error: crawlError } = await supabase
       .from('website_crawls')
       .select('*')
@@ -538,37 +559,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error checking crawl status:', error);
-    
-    // Try to get current crawl state for graceful degradation
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      
-      const { data: crawl } = await supabase
-        .from('website_crawls')
-        .select('*')
-        .eq('id', crawlId)
-        .single();
-      
-      if (crawl) {
-        // Return current state instead of hard error
-        return new Response(
-          JSON.stringify({ 
-            status: crawl.status,
-            crawled_pages: crawl.crawled_pages || 0,
-            analyzed_pages: crawl.analyzed_pages || 0,
-            message: 'Temporary error, continuing...'
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-    } catch (fallbackError) {
-      console.error('Fallback also failed:', fallbackError);
-    }
     
     return new Response(
       JSON.stringify({ 

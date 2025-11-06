@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,15 +13,49 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const { aiSuggestions } = await req.json();
-    console.log('Parsing AI suggestions to steps:', aiSuggestions);
+    
+    // Input validation
+    if (!aiSuggestions) {
+      throw new Error('AI suggestions are required');
+    }
+
+    if (typeof aiSuggestions !== 'string' || aiSuggestions.length > 20000) {
+      throw new Error('AI suggestions must be a string with max 20000 characters');
+    }
+
+    console.log('Parsing AI suggestions to steps for user:', user.id);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Use AI to parse the suggestions into structured steps
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -60,15 +95,12 @@ serve(async (req) => {
     const parsedText = data.choices[0].message.content;
     console.log('AI response:', parsedText);
 
-    // Parse the JSON from the response
     let steps;
     try {
-      // Remove markdown code blocks if present
       const cleanedText = parsedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       steps = JSON.parse(cleanedText);
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', parseError);
-      // Fallback: create a single step with the original text
       steps = [{
         title: 'Review AI Suggestions',
         description: 'Review and break down the AI suggestions manually',
@@ -76,7 +108,6 @@ serve(async (req) => {
       }];
     }
 
-    // Add IDs and completed status to each step
     const stepsWithMetadata = steps.map((step: any, index: number) => ({
       id: crypto.randomUUID(),
       title: step.title || `Step ${index + 1}`,
