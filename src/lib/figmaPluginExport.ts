@@ -215,9 +215,10 @@ async function createInformationArchitecture(data) {
   let yOffset = 100;
   
   const title = figma.createText();
+  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+  title.fontName = { family: "Inter", style: "Bold" };
   title.characters = data.name || 'Information Architecture';
   title.fontSize = 32;
-  title.fontName = { family: "Inter", style: "Bold" };
   title.x = 100;
   title.y = 50;
   frame.appendChild(title);
@@ -246,9 +247,10 @@ async function createIALevel(parent, items, x, y, level) {
     box.effects = [{ type: 'DROP_SHADOW', color: { r: 0, g: 0, b: 0, a: 0.1 }, offset: { x: 0, y: 2 }, radius: 8, visible: true, blendMode: 'NORMAL' }];
     
     const text = figma.createText();
+    await figma.loadFontAsync({ family: "Inter", style: "Medium" });
+    text.fontName = { family: "Inter", style: "Medium" };
     text.characters = item.name;
     text.fontSize = 16;
-    text.fontName = { family: "Inter", style: "Medium" };
     text.x = 15;
     text.y = itemHeight / 2 - 10;
     text.resize(170, text.height);
@@ -281,9 +283,9 @@ async function createMindMapNode(text, x, y, width, height, isCentral) {
   node.effects = [{ type: 'DROP_SHADOW', color: { r: 0, g: 0, b: 0, a: 0.15 }, offset: { x: 0, y: 4 }, radius: 12, visible: true, blendMode: 'NORMAL' }];
   
   const textNode = figma.createText();
+  textNode.fontName = { family: "Inter", style: isCentral ? "Semi Bold" : "Medium" };
   textNode.characters = text;
   textNode.fontSize = isCentral ? 18 : 14;
-  textNode.fontName = { family: "Inter", style: isCentral ? "SemiBold" : "Medium" };
   textNode.textAlignHorizontal = 'CENTER';
   textNode.textAlignVertical = 'CENTER';
   textNode.resize(width - 20, height);
