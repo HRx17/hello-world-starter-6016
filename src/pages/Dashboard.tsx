@@ -58,6 +58,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (user) {
+      console.log('[Dashboard] Initial load');
       loadProjects();
     }
   }, [user]);
@@ -65,25 +66,41 @@ const Dashboard = () => {
   // Reload when returning from results page with refresh state
   useEffect(() => {
     if (location.state?.refresh && user) {
+      console.log('[Dashboard] Refresh triggered from navigation state');
       loadProjects();
       // Clear the state to prevent refresh loops
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state]);
+  }, [location.state?.refresh]);
 
   // Reload projects when window gains focus (after returning from results)
   useEffect(() => {
     const handleFocus = () => {
-      if (user) {
+      if (user && document.visibilityState === 'visible') {
+        console.log('[Dashboard] Window focused, refreshing...');
+        loadProjects();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (user && document.visibilityState === 'visible') {
+        console.log('[Dashboard] Visibility changed to visible, refreshing...');
         loadProjects();
       }
     };
 
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [user]);
 
   const loadProjects = async () => {
+    console.log('[Dashboard] Loading projects...');
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from("projects")
@@ -110,6 +127,7 @@ const Dashboard = () => {
 
       if (error) throw error;
 
+      console.log('[Dashboard] Projects loaded:', data?.length || 0);
       setProjects((data as Project[]) || []);
     } catch (error) {
       console.error("Error loading projects:", error);
@@ -200,12 +218,28 @@ const Dashboard = () => {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 max-w-7xl mx-auto">
       <div className="mb-8 sm:mb-12 space-y-2 sm:space-y-3 animate-fade-in">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
-          Dashboard
-        </h1>
-        <p className="text-base sm:text-lg lg:text-xl text-muted-foreground">
-          View and manage your analyzed websites
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
+              Dashboard
+            </h1>
+            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground">
+              View and manage your analyzed websites
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              console.log('[Dashboard] Manual refresh clicked');
+              loadProjects();
+            }}
+            disabled={isLoading}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            {isLoading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
       </div>
 
       {projects.length === 0 ? (

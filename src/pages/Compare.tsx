@@ -62,23 +62,39 @@ const Compare = () => {
 
   useEffect(() => {
     if (user) {
+      console.log('[Compare] Initial load');
       loadProjects();
     }
   }, [user]);
 
   // Reload projects when page becomes visible (after returning from results)
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
+    const handleFocus = () => {
+      if (user && document.visibilityState === 'visible') {
+        console.log('[Compare] Window focused, refreshing...');
         loadProjects();
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (user && document.visibilityState === 'visible') {
+        console.log('[Compare] Visibility changed, refreshing...');
+        loadProjects();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [user]);
 
   const loadProjects = async () => {
+    console.log('[Compare] Loading projects...');
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from("projects")
@@ -145,6 +161,7 @@ const Compare = () => {
       // Sort by date (newest first)
       analyses.sort((a, b) => b.date.getTime() - a.date.getTime());
 
+      console.log('[Compare] Loaded analyses:', analyses.length);
       setProjects(data as Project[]);
       setAllAnalyses(analyses);
     } catch (error) {
