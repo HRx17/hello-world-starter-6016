@@ -147,6 +147,10 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
+  }
+
+  #root {
+    @apply overflow-x-hidden;
   }
 }

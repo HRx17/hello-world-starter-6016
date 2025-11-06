@@ -23,17 +23,17 @@ export const DashboardLayout = ({ children, onNavigate }: DashboardLayoutProps) 
     <>
       <AnimatedBackground />
       <SidebarProvider>
-        <div className="min-h-screen flex w-full">
+        <div className="min-h-screen flex w-full overflow-x-hidden">
           <AppSidebar onSignOut={handleSignOut} onNavigate={onNavigate} />
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-w-0">
             {/* Header */}
             <header className="w-full border-b bg-background/50 backdrop-blur-xl sticky top-0 z-10">
-              <div className="w-full px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="w-full px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                   <SidebarTrigger />
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-6 w-6 text-primary" />
-                    <span className="text-xl font-bold bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+                    <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent truncate">
                       UXProbe
                     </span>
                   </div>
@@ -42,13 +42,13 @@ export const DashboardLayout = ({ children, onNavigate }: DashboardLayoutProps) 
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto">
+            <main className="flex-1 overflow-x-hidden overflow-y-auto">
               {children}
             </main>
 
             {/* Footer */}
-            <footer className="w-full border-t bg-background/50 backdrop-blur-xl py-6">
-              <div className="w-full px-6 text-center text-sm text-muted-foreground">
+            <footer className="w-full border-t bg-background/50 backdrop-blur-xl py-4 sm:py-6">
+              <div className="w-full px-4 sm:px-6 text-center text-xs sm:text-sm text-muted-foreground">
                 <p className="mb-1">
                   &copy; 2025 UXProbe. Built with AI and expertise.
                 </p>
