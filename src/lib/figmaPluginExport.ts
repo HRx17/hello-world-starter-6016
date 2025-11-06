@@ -46,9 +46,6 @@ figma.ui.onmessage = async (msg) => {
     await figma.clientStorage.deleteAsync('uxprobe_session');
   } else if (msg.type === 'import-data') {
     try {
-      // Load all fonts first
-      await loadRequiredFonts();
-      
       console.log('Parsing data:', msg.data);
       const data = JSON.parse(msg.data);
       console.log('Parsed data:', data);
@@ -65,9 +62,10 @@ figma.ui.onmessage = async (msg) => {
       figma.notify('✓ Successfully imported into Figma!');
       figma.ui.postMessage({ type: 'import-success' });
     } catch (error) {
-      console.error('Import error:', error);
-      figma.notify('✗ Import failed: ' + error.message);
-      figma.ui.postMessage({ type: 'import-error', error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Import error:', errorMessage, error);
+      figma.notify('✗ Import failed: ' + errorMessage);
+      figma.ui.postMessage({ type: 'import-error', error: errorMessage });
     }
   } else if (msg.type === 'cancel') {
     figma.closePlugin();
@@ -85,9 +83,10 @@ async function createUserJourneyMap(data) {
   const spacing = 50;
   
   const title = figma.createText();
+  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+  title.fontName = { family: "Inter", style: "Bold" };
   title.characters = data.title || 'User Journey Map';
   title.fontSize = 32;
-  title.fontName = { family: "Inter", style: "Bold" };
   title.x = 100;
   title.y = 50;
   frame.appendChild(title);
@@ -105,9 +104,10 @@ async function createUserJourneyMap(data) {
     let yPos = 30;
     
     const stageName = figma.createText();
+    await figma.loadFontAsync({ family: "Inter", style: "SemiBold" });
+    stageName.fontName = { family: "Inter", style: "SemiBold" };
     stageName.characters = stage.name;
     stageName.fontSize = 20;
-    stageName.fontName = { family: "Inter", style: "SemiBold" };
     stageName.x = 20;
     stageName.y = yPos;
     stageName.resize(stageWidth - 40, stageName.height);
@@ -135,9 +135,10 @@ async function createUserJourneyMap(data) {
     }
     
     const emotionText = figma.createText();
+    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+    emotionText.fontName = { family: "Inter", style: "Regular" };
     emotionText.characters = \`Emotion: \${getEmotionEmoji(stage.emotionLevel)}\`;
     emotionText.fontSize = 16;
-    emotionText.fontName = { family: "Inter", style: "Regular" };
     emotionText.x = 20;
     emotionText.y = yPos;
     stageFrame.appendChild(emotionText);
@@ -296,20 +297,22 @@ async function createMindMapNode(text, x, y, width, height, isCentral) {
 
 async function addSection(parent, title, items, yPos, width) {
   const sectionTitle = figma.createText();
+  await figma.loadFontAsync({ family: "Inter", style: "SemiBold" });
+  sectionTitle.fontName = { family: "Inter", style: "SemiBold" };
   sectionTitle.characters = title;
   sectionTitle.fontSize = 14;
-  sectionTitle.fontName = { family: "Inter", style: "SemiBold" };
   sectionTitle.x = 20;
   sectionTitle.y = yPos;
   sectionTitle.fills = [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }];
   parent.appendChild(sectionTitle);
   yPos += 30;
   
+  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
   for (const item of items) {
     const bullet = figma.createText();
+    bullet.fontName = { family: "Inter", style: "Regular" };
     bullet.characters = \`• \${item}\`;
     bullet.fontSize = 13;
-    bullet.fontName = { family: "Inter", style: "Regular" };
     bullet.x = 20;
     bullet.y = yPos;
     bullet.resize(width - 40, bullet.height);
