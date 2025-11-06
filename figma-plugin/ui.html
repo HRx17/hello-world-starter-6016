@@ -324,7 +324,7 @@
       if (e.key === 'Enter') handleLogin();
     });
 
-    // Listen for session restoration
+    // Listen for messages from plugin code
     window.onmessage = (event) => {
       const msg = event.data.pluginMessage;
       
@@ -525,15 +525,29 @@
 
         if (type === 'user_journey_map') {
           if (!item.journey_data) {
-            throw new Error('Invalid journey map data');
+            throw new Error('Journey map has no data');
           }
+          
+          // Validate journey data structure
+          const journeyData = typeof item.journey_data === 'string' 
+            ? JSON.parse(item.journey_data) 
+            : item.journey_data;
+          
+          if (!journeyData.title) {
+            journeyData.title = item.title || 'User Journey Map';
+          }
+          
+          if (!journeyData.stages || !Array.isArray(journeyData.stages)) {
+            throw new Error('Journey map missing stages array');
+          }
+          
           exportData = {
             exportType: 'user_journey_map',
-            data: item.journey_data
+            data: journeyData
           };
         } else if (type === 'mind_map') {
           if (!item.content) {
-            throw new Error('Invalid mind map data');
+            throw new Error('Mind map has no content');
           }
           exportData = {
             exportType: 'mind_map',
@@ -541,7 +555,7 @@
           };
         } else if (type === 'information_architecture') {
           if (!item.structure) {
-            throw new Error('Invalid architecture data');
+            throw new Error('Architecture has no structure');
           }
           exportData = {
             exportType: 'information_architecture',
@@ -560,7 +574,7 @@
           } 
         }, '*');
       } catch (error) {
-        showStatus('Failed to import: ' + error.message, 'error');
+        showStatus('Import failed: ' + error.message, 'error');
       }
     }
 
@@ -629,15 +643,6 @@
       }, 5000);
     }
 
-    window.onmessage = (event) => {
-      const msg = event.data.pluginMessage;
-      
-      if (msg.type === 'import-success') {
-        showStatus('✓ Successfully imported into Figma!', 'success');
-      } else if (msg.type === 'import-error') {
-        showStatus(`✗ Import failed: ${msg.error}`, 'error');
-      }
-    };
   </script>
 </body>
 </html>
