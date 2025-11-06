@@ -20,6 +20,9 @@ import ObservationsBoard from "./pages/ObservationsBoard";
 import PersonaBuilder from "./pages/PersonaBuilder";
 import PersonaDetail from "./pages/PersonaDetail";
 import StepWorkspace from "./pages/StepWorkspace";
+import MindMapping from "./pages/MindMapping";
+import InformationArchitecture from "./pages/InformationArchitecture";
+import UserJourneyMapping from "./pages/UserJourneyMapping";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -133,6 +136,30 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <PersonaDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/mind-mapping" 
+            element={
+              <ProtectedRoute>
+                <MindMapping />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/information-architecture" 
+            element={
+              <ProtectedRoute>
+                <InformationArchitecture />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/research/user-journey" 
+            element={
+              <ProtectedRoute>
+                <UserJourneyMapping />
               </ProtectedRoute>
             } 
           />

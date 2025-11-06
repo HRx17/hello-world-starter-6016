@@ -115,7 +115,16 @@ export default function Research() {
             <h1 className="text-4xl font-bold">UX Research</h1>
             <p className="text-muted-foreground mt-2">Plan studies, conduct interviews, and synthesize insights</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => navigate('/research/mind-mapping')}>
+              Mind Map
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/research/information-architecture')}>
+              IA Tool
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/research/user-journey')}>
+              Journey Map
+            </Button>
             {view === "interviews" && (
               <Button variant="outline" onClick={() => navigate('/research/interview/new')}>
                 <Plus className="mr-2 h-4 w-4" />
