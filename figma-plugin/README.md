@@ -1,37 +1,56 @@
-# UX Research Figma Plugin
+# UX Probe - Figma Plugin
 
-A Figma plugin to easily import UX research data (User Journey Maps, Mind Maps, and Information Architecture) from your web app directly into Figma.
+A Figma plugin that lets you browse and import your UX research data (User Journey Maps, Mind Maps, and Information Architecture) directly from your UX Probe account into Figma.
+
+## Features
+
+✅ **Direct Account Integration** - Sign in with your UX Probe credentials
+✅ **Browse Your Research** - View all your saved research data in tabs
+✅ **One-Click Import** - Import any research item directly into Figma
+✅ **Beautiful Visualizations** - Professional layouts with proper formatting
+✅ **Works in Figma & FigJam** - Compatible with both platforms
 
 ## Installation
 
-### For Users:
+### From Web App (Recommended):
 
-1. **Download the plugin files** (code.ts, manifest.json, ui.html)
-2. **In Figma**, go to Menu → Plugins → Development → Import plugin from manifest
-3. **Select** the manifest.json file
-4. The plugin is now installed and ready to use!
+1. **In UX Probe web app**, go to User Journey Mapping, Mind Mapping, or Information Architecture
+2. Click **"Download Figma Plugin"** button
+3. Extract the downloaded ZIP file
+4. **In Figma**, go to Menu → Plugins → Development → Import plugin from manifest
+5. **Select** the `manifest.json` file from the extracted folder
+6. The plugin is now installed!
 
 ### For Development:
 
-1. Install the Figma desktop app
-2. Clone/download the plugin files
-3. Compile TypeScript: `npx tsc code.ts --target es6`
-4. In Figma: Menu → Plugins → Development → Import plugin from manifest
-5. Select the manifest.json file
+1. Clone/download the plugin files from the `figma-plugin` directory
+2. Compile TypeScript: `npx tsc code.ts --target es6`
+3. In Figma: Menu → Plugins → Development → Import plugin from manifest
+4. Select the manifest.json file
 
 ## How to Use
 
-### Step 1: Export from Web App
-1. Open your UX research tool (User Journey Mapping, Mind Mapping, or Information Architecture)
-2. Click the **"Export to Figma"** button
-3. Copy the generated JSON data
+### Sign In & Browse
 
-### Step 2: Import to Figma
-1. Open Figma/FigJam
-2. Run the plugin: Menu → Plugins → Development → UX Research Importer
-3. Paste the copied JSON data
-4. Click **"Import to Figma"**
-5. Your research data is now beautifully visualized in Figma!
+1. Open Figma or FigJam
+2. Run the plugin: Menu → Plugins → Development → UX Probe - Research Importer
+3. **Sign in** with your UX Probe email and password
+4. Browse your research data in three tabs:
+   - **User Journeys** - All your user journey maps
+   - **Mind Maps** - All your mind maps
+   - **Info Architecture** - All your information architecture diagrams
+
+### Import to Figma
+
+1. Click on any research item you want to import
+2. The plugin will automatically create a beautifully formatted visualization in Figma
+3. Continue importing as many items as you need!
+
+## Supported Research Types
+
+- **User Journey Maps**: Full journey stages with actions, touchpoints, thoughts, pain points, opportunities, and emotions
+- **Mind Maps**: Central topic with branching ideas and sub-branches
+- **Information Architecture**: Hierarchical site/app structure with multiple levels
 
 ## Supported Export Types
 

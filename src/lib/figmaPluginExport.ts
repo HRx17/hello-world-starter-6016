@@ -1,20 +1,21 @@
 import JSZip from 'jszip';
 
-const PLUGIN_FILES = {
-  'manifest.json': `{
-  "name": "UX Research Importer",
+export function generateFigmaPluginFiles() {
+  const manifestContent = `{
+  "name": "UX Probe - Research Importer",
   "id": "ux-research-importer",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
   "editorType": ["figma", "figjam"],
   "networkAccess": {
-    "allowedDomains": ["none"]
+    "allowedDomains": ["https://vaeyjsqalzcdejwsvoql.supabase.co"],
+    "reasoning": "Required to fetch user's research data from authenticated backend"
   }
-}`,
+}`;
 
-  'code.js': `// Show the plugin UI
-figma.showUI(__html__, { width: 400, height: 500 });
+  const codeContent = `// Show the plugin UI
+figma.showUI(__html__, { width: 400, height: 600 });
 
 // Load all required fonts upfront
 async function loadRequiredFonts() {
@@ -67,6 +68,7 @@ async function createUserJourneyMap(data) {
   const title = figma.createText();
   title.characters = data.title || 'User Journey Map';
   title.fontSize = 32;
+  title.fontName = { family: "Inter", style: "Bold" };
   title.x = 100;
   title.y = 50;
   frame.appendChild(title);
@@ -86,6 +88,7 @@ async function createUserJourneyMap(data) {
     const stageName = figma.createText();
     stageName.characters = stage.name;
     stageName.fontSize = 20;
+    stageName.fontName = { family: "Inter", style: "SemiBold" };
     stageName.x = 20;
     stageName.y = yPos;
     stageName.resize(stageWidth - 40, stageName.height);
@@ -115,6 +118,7 @@ async function createUserJourneyMap(data) {
     const emotionText = figma.createText();
     emotionText.characters = \`Emotion: \${getEmotionEmoji(stage.emotionLevel)}\`;
     emotionText.fontSize = 16;
+    emotionText.fontName = { family: "Inter", style: "Regular" };
     emotionText.x = 20;
     emotionText.y = yPos;
     stageFrame.appendChild(emotionText);
@@ -193,6 +197,7 @@ async function createInformationArchitecture(data) {
   const title = figma.createText();
   title.characters = data.name || 'Information Architecture';
   title.fontSize = 32;
+  title.fontName = { family: "Inter", style: "Bold" };
   title.x = 100;
   title.y = 50;
   frame.appendChild(title);
@@ -223,6 +228,7 @@ async function createIALevel(parent, items, x, y, level) {
     const text = figma.createText();
     text.characters = item.name;
     text.fontSize = 16;
+    text.fontName = { family: "Inter", style: "Medium" };
     text.x = 15;
     text.y = itemHeight / 2 - 10;
     text.resize(170, text.height);
@@ -257,6 +263,7 @@ async function createMindMapNode(text, x, y, width, height, isCentral) {
   const textNode = figma.createText();
   textNode.characters = text;
   textNode.fontSize = isCentral ? 18 : 14;
+  textNode.fontName = { family: "Inter", style: isCentral ? "SemiBold" : "Medium" };
   textNode.textAlignHorizontal = 'CENTER';
   textNode.textAlignVertical = 'CENTER';
   textNode.resize(width - 20, height);
@@ -272,6 +279,7 @@ async function addSection(parent, title, items, yPos, width) {
   const sectionTitle = figma.createText();
   sectionTitle.characters = title;
   sectionTitle.fontSize = 14;
+  sectionTitle.fontName = { family: "Inter", style: "SemiBold" };
   sectionTitle.x = 20;
   sectionTitle.y = yPos;
   sectionTitle.fills = [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }];
@@ -282,6 +290,7 @@ async function addSection(parent, title, items, yPos, width) {
     const bullet = figma.createText();
     bullet.characters = \`• \${item}\`;
     bullet.fontSize = 13;
+    bullet.fontName = { family: "Inter", style: "Regular" };
     bullet.x = 20;
     bullet.y = yPos;
     bullet.resize(width - 40, bullet.height);
@@ -295,9 +304,9 @@ async function addSection(parent, title, items, yPos, width) {
 function getEmotionEmoji(level) {
   const emojis = ['😞', '😟', '😐', '🙂', '😊'];
   return emojis[Math.max(0, Math.min(4, level - 1))] || '😐';
-}`,
+}`;
 
-  'ui.html': `<!DOCTYPE html>
+  const uiContent = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -305,89 +314,211 @@ function getEmotionEmoji(level) {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      padding: 20px;
+      padding: 0;
       background: #f9fafb;
+      height: 100vh;
+      overflow: hidden;
     }
-    .container {
-      background: white;
-      border-radius: 12px;
+    
+    .auth-screen {
       padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
-    h1 {
-      font-size: 20px;
-      font-weight: 600;
+    .auth-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .auth-header h1 {
+      font-size: 24px;
+      font-weight: 700;
       color: #111827;
       margin-bottom: 8px;
     }
-    p {
+    .auth-header p {
       font-size: 14px;
       color: #6b7280;
-      margin-bottom: 20px;
       line-height: 1.5;
     }
     .input-group {
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     label {
       display: block;
       font-size: 13px;
       font-weight: 500;
       color: #374151;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
-    textarea {
+    input {
       width: 100%;
-      min-height: 200px;
-      padding: 12px;
+      padding: 10px 12px;
       border: 1.5px solid #e5e7eb;
       border-radius: 8px;
-      font-family: 'Monaco', 'Courier New', monospace;
-      font-size: 12px;
-      resize: vertical;
+      font-size: 14px;
+      font-family: inherit;
       transition: border-color 0.2s;
     }
-    textarea:focus {
+    input:focus {
       outline: none;
       border-color: #3b82f6;
     }
-    .button-group {
-      display: flex;
-      gap: 10px;
-    }
     button {
-      flex: 1;
-      padding: 10px 16px;
+      width: 100%;
+      padding: 12px 16px;
       border: none;
       border-radius: 8px;
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
+      font-family: inherit;
     }
-    .primary {
+    .btn-primary {
       background: #3b82f6;
       color: white;
     }
-    .primary:hover {
+    .btn-primary:hover:not(:disabled) {
       background: #2563eb;
     }
-    .primary:disabled {
+    .btn-primary:disabled {
       background: #93c5fd;
       cursor: not-allowed;
     }
-    .secondary {
+    .btn-secondary {
       background: #f3f4f6;
       color: #374151;
+      margin-top: 8px;
     }
-    .secondary:hover {
+    .btn-secondary:hover {
       background: #e5e7eb;
     }
-    .status {
-      margin-top: 16px;
+    
+    .main-screen {
+      display: none;
+      height: 100vh;
+      flex-direction: column;
+    }
+    .header {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .user-info {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 12px;
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      width: auto;
+    }
+    .logout-btn:hover {
+      background: #fef2f2;
+    }
+    
+    .tabs {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .tab {
+      flex: 1;
       padding: 12px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #6b7280;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: auto;
+    }
+    .tab.active {
+      color: #3b82f6;
+      border-bottom-color: #3b82f6;
+    }
+    .tab:hover {
+      color: #374151;
+    }
+    
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+    
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .item-card {
+      background: white;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .item-card:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+    }
+    .item-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+    .item-card p {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: #9ca3af;
+    }
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 48px 24px;
+      color: #6b7280;
+    }
+    
+    .status {
+      padding: 12px 16px;
       border-radius: 8px;
       font-size: 13px;
+      margin: 16px;
       display: none;
     }
     .status.success {
@@ -400,99 +531,331 @@ function getEmotionEmoji(level) {
       color: #991b1b;
       border: 1px solid #fca5a5;
     }
-    .instructions {
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 20px;
-    }
-    .instructions h3 {
-      font-size: 14px;
-      font-weight: 600;
-      color: #1e40af;
-      margin-bottom: 8px;
-    }
-    .instructions ol {
-      font-size: 13px;
-      color: #1e40af;
-      line-height: 1.6;
-      padding-left: 20px;
-    }
-    .instructions li {
-      margin-bottom: 4px;
+    
+    .hidden {
+      display: none !important;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🎨 UX Research Importer</h1>
-    <p>Import your UX research data from the web app into Figma</p>
-    
-    <div class="instructions">
-      <h3>How to use:</h3>
-      <ol>
-        <li>In the web app, click "Copy for Figma Plugin"</li>
-        <li>Paste the data below</li>
-        <li>Click "Import to Figma"</li>
-      </ol>
+  <div class="auth-screen" id="authScreen">
+    <div class="auth-header">
+      <h1>🎨 UX Probe</h1>
+      <p>Sign in to import your research data into Figma</p>
     </div>
     
     <div class="input-group">
-      <label for="data-input">Paste your export data here:</label>
-      <textarea id="data-input" placeholder='{"exportType": "user_journey_map", "data": {...}}'></textarea>
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="your@email.com" />
     </div>
     
-    <div class="button-group">
-      <button class="secondary" id="cancel">Cancel</button>
-      <button class="primary" id="import">Import to Figma</button>
+    <div class="input-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" />
     </div>
     
-    <div class="status" id="status"></div>
+    <button class="btn-primary" id="loginBtn">Sign In</button>
+    <button class="btn-secondary" id="cancelBtn">Cancel</button>
   </div>
 
+  <div class="main-screen" id="mainScreen">
+    <div class="header">
+      <h2>Your Research Data</h2>
+      <div>
+        <span class="user-info" id="userEmail"></span>
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+    
+    <div class="tabs">
+      <button class="tab active" data-tab="journeys">User Journeys</button>
+      <button class="tab" data-tab="mindmaps">Mind Maps</button>
+      <button class="tab" data-tab="ia">Info Architecture</button>
+    </div>
+    
+    <div class="content">
+      <div class="tab-panel active" id="journeysPanel">
+        <div class="loading">Loading...</div>
+      </div>
+      <div class="tab-panel" id="mindmapsPanel">
+        <div class="loading">Loading...</div>
+      </div>
+      <div class="tab-panel" id="iaPanel">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+
   <script>
-    const dataInput = document.getElementById('data-input');
-    const importBtn = document.getElementById('import');
-    const cancelBtn = document.getElementById('cancel');
+    const API_URL = 'https://vaeyjsqalzcdejwsvoql.supabase.co';
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZXlqc3FhbHpjZGVqd3N2b3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2MDYwMDIsImV4cCI6MjA3NjE4MjAwMn0.jThP8cy8deaDkQZlTz6Bb0C1DU6praULawIej2vBghA';
+    
+    let accessToken = null;
+    let userEmail = null;
+
+    const authScreen = document.getElementById('authScreen');
+    const mainScreen = document.getElementById('mainScreen');
+    const loginBtn = document.getElementById('loginBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const userEmailSpan = document.getElementById('userEmail');
+    const tabs = document.querySelectorAll('.tab');
     const status = document.getElementById('status');
 
-    importBtn.addEventListener('click', () => {
-      const data = dataInput.value.trim();
-      
-      if (!data) {
-        showStatus('Please paste your export data', 'error');
+    loginBtn.addEventListener('click', handleLogin);
+    cancelBtn.addEventListener('click', () => parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*'));
+    logoutBtn.addEventListener('click', handleLogout);
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+        switchTab(tabName);
+      });
+    });
+
+    emailInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') passwordInput.focus();
+    });
+    
+    passwordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    async function handleLogin() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!email || !password) {
+        showStatus('Please enter email and password', 'error');
         return;
       }
-      
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Signing in...';
+
       try {
-        JSON.parse(data);
-        importBtn.disabled = true;
-        importBtn.textContent = 'Importing...';
-        parent.postMessage({ pluginMessage: { type: 'import-data', data } }, '*');
-      } catch (e) {
-        showStatus('Invalid JSON format. Please check your data.', 'error');
+        const response = await fetch(\`\${API_URL}/auth/v1/token?grant_type=password\`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': ANON_KEY
+          },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error_description || 'Login failed');
+        }
+
+        accessToken = data.access_token;
+        userEmail = email;
+        
+        showMainScreen();
+        await loadAllData();
+      } catch (error) {
+        showStatus('Login failed: ' + error.message, 'error');
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign In';
       }
-    });
+    }
 
-    cancelBtn.addEventListener('click', () => {
-      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
-    });
+    function handleLogout() {
+      accessToken = null;
+      userEmail = null;
+      emailInput.value = '';
+      passwordInput.value = '';
+      authScreen.classList.remove('hidden');
+      mainScreen.style.display = 'none';
+    }
 
-    window.onmessage = (event) => {
-      const msg = event.data.pluginMessage;
+    function showMainScreen() {
+      authScreen.classList.add('hidden');
+      mainScreen.style.display = 'flex';
+      userEmailSpan.textContent = userEmail;
+    }
+
+    function switchTab(tabName) {
+      tabs.forEach(t => t.classList.remove('active'));
+      document.querySelector(\`[data-tab="\${tabName}"]\`).classList.add('active');
       
-      if (msg.type === 'import-success') {
-        showStatus('✓ Successfully imported into Figma!', 'success');
-        importBtn.disabled = false;
-        importBtn.textContent = 'Import to Figma';
-        dataInput.value = '';
-      } else if (msg.type === 'import-error') {
-        showStatus(\`✗ Import failed: \${msg.error}\`, 'error');
-        importBtn.disabled = false;
-        importBtn.textContent = 'Import to Figma';
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(\`\${tabName}Panel\`).classList.add('active');
+    }
+
+    async function loadAllData() {
+      await Promise.all([
+        loadJourneys(),
+        loadMindMaps(),
+        loadIA()
+      ]);
+    }
+
+    async function loadJourneys() {
+      const panel = document.getElementById('journeysPanel');
+      try {
+        const response = await fetch(\`\${API_URL}/functions/v1/get-figma-user-journey-maps\`, {
+          headers: {
+            'Authorization': \`Bearer \${accessToken}\`,
+            'apikey': ANON_KEY
+          }
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.error || 'Failed to load');
+
+        renderItems(panel, result.data, 'user_journey_map');
+      } catch (error) {
+        panel.innerHTML = \`<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error: \${error.message}</p></div>\`;
       }
-    };
+    }
+
+    async function loadMindMaps() {
+      const panel = document.getElementById('mindmapsPanel');
+      try {
+        const response = await fetch(\`\${API_URL}/functions/v1/get-figma-mind-maps\`, {
+          headers: {
+            'Authorization': \`Bearer \${accessToken}\`,
+            'apikey': ANON_KEY
+          }
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.error || 'Failed to load');
+
+        renderItems(panel, result.data, 'mind_map');
+      } catch (error) {
+        panel.innerHTML = \`<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error: \${error.message}</p></div>\`;
+      }
+    }
+
+    async function loadIA() {
+      const panel = document.getElementById('iaPanel');
+      try {
+        const response = await fetch(\`\${API_URL}/functions/v1/get-figma-information-architectures\`, {
+          headers: {
+            'Authorization': \`Bearer \${accessToken}\`,
+            'apikey': ANON_KEY
+          }
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.error || 'Failed to load');
+
+        renderItems(panel, result.data, 'information_architecture');
+      } catch (error) {
+        panel.innerHTML = \`<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error: \${error.message}</p></div>\`;
+      }
+    }
+
+    function renderItems(panel, items, type) {
+      if (!items || items.length === 0) {
+        panel.innerHTML = \`<div class="empty-state"><div class="empty-state-icon">📭</div><p>No \${type.replace('_', ' ')}s found</p></div>\`;
+        return;
+      }
+
+      const itemList = document.createElement('div');
+      itemList.className = 'item-list';
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = \`
+          <h3>\${escapeHtml(item.title)}</h3>
+          <p>\${new Date(item.created_at).toLocaleDateString()}</p>
+        \`;
+        
+        card.addEventListener('click', () => {
+          importItem(item, type);
+        });
+        
+        itemList.appendChild(card);
+      });
+
+      panel.innerHTML = '';
+      panel.appendChild(itemList);
+    }
+
+    function importItem(item, type) {
+      let exportData = null;
+
+      if (type === 'user_journey_map') {
+        exportData = {
+          exportType: 'user_journey_map',
+          data: item.journey_data
+        };
+      } else if (type === 'mind_map') {
+        exportData = {
+          exportType: 'mind_map',
+          data: transformMindMapData(item.content)
+        };
+      } else if (type === 'information_architecture') {
+        exportData = {
+          exportType: 'information_architecture',
+          data: transformIAData(item.structure)
+        };
+      }
+
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'import-data', 
+          data: JSON.stringify(exportData)
+        } 
+      }, '*');
+    }
+
+    function transformMindMapData(content) {
+      const branches = [];
+      const rootNode = content.nodes.find(n => n.id === 'root');
+      const rootChildren = content.nodes.filter(n => n.parentId === 'root');
+
+      rootChildren.forEach(child => {
+        const subBranches = content.nodes
+          .filter(n => n.parentId === child.id)
+          .map(n => n.label);
+
+        branches.push({
+          topic: child.label,
+          subBranches: subBranches
+        });
+      });
+
+      return {
+        title: content.title || rootNode.label,
+        centralTopic: rootNode.label,
+        branches: branches
+      };
+    }
+
+    function transformIAData(structure) {
+      function buildHierarchy(nodes, parentId = null) {
+        return nodes
+          .filter(n => n.parentId === parentId)
+          .map(node => ({
+            name: node.label,
+            children: buildHierarchy(nodes, node.id)
+          }));
+      }
+
+      return {
+        name: structure.title,
+        sections: buildHierarchy(structure.nodes, null)
+      };
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
 
     function showStatus(message, type) {
       status.textContent = message;
@@ -503,98 +866,40 @@ function getEmotionEmoji(level) {
         status.style.display = 'none';
       }, 5000);
     }
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      
+      if (msg.type === 'import-success') {
+        showStatus('✓ Successfully imported into Figma!', 'success');
+      } else if (msg.type === 'import-error') {
+        showStatus(\`✗ Import failed: \${msg.error}\`, 'error');
+      }
+    };
   </script>
 </body>
-</html>`,
+</html>`;
 
-  'README.md': `# UX Research Figma Plugin
-
-A Figma plugin to easily import UX research data (User Journey Maps, Mind Maps, and Information Architecture) from your web app directly into Figma.
-
-## Installation
-
-### Step 1: Download Plugin Files
-You've already downloaded this ZIP file containing all necessary plugin files.
-
-### Step 2: Install in Figma
-1. **Open Figma Desktop App** (the plugin won't work in the browser version for development plugins)
-2. Go to **Menu → Plugins → Development → "Import plugin from manifest..."**
-3. **Navigate to this folder** and select the \`manifest.json\` file
-4. Click **Open** - The plugin is now installed!
-
-## How to Use
-
-### Step 1: Export from Web App
-1. Open your UX research tool (User Journey Mapping, Mind Mapping, or Information Architecture)
-2. Click the **"Copy for Figma Plugin"** button (purple gradient button)
-3. The data is automatically copied to your clipboard
-
-### Step 2: Import to Figma
-1. Open Figma or FigJam
-2. Run the plugin: **Menu → Plugins → Development → UX Research Importer**
-3. **Paste** the data (Ctrl+V or Cmd+V)
-4. Click **"Import to Figma"**
-5. Your research data is now beautifully visualized! 🎉
-
-## Supported Export Types
-
-✅ **User Journey Maps**: Full journey stages with actions, touchpoints, thoughts, pain points, opportunities, and emotions
-✅ **Mind Maps**: Central topic with branching ideas and sub-branches  
-✅ **Information Architecture**: Hierarchical site/app structure with multiple levels
-
-## Features
-
-- ✅ One-click import after initial setup
-- ✅ Maintains formatting and structure
-- ✅ Automatic layout and spacing
-- ✅ Professional visual design
-- ✅ Works in both Figma and FigJam
-- ✅ No API tokens required
-
-## Troubleshooting
-
-**Plugin doesn't appear:**
-- Make sure you're using the Figma **Desktop App** (not browser)
-- Check that you imported the \`manifest.json\` file correctly
-- Try restarting Figma
-
-**Import fails:**
-- Verify you copied the complete export data from the web app
-- Check that you clicked "Copy for Figma Plugin" (not other export options)
-- Make sure the data is pasted without any extra characters
-
-**Visual issues:**
-- The plugin uses Inter font - make sure it's available in your Figma file
-- If layouts look off, try zooming out to see the full visualization
-
-## Need Help?
-
-Contact support or check the documentation in the web app for more assistance.
-
----
-
-**Version:** 1.0.0  
-**Compatible with:** Figma Desktop App, FigJam  
-**License:** Free to use
-`
-};
+  return {
+    'manifest.json': manifestContent,
+    'code.js': codeContent,
+    'ui.html': uiContent
+  };
+}
 
 export async function downloadFigmaPlugin() {
   const zip = new JSZip();
+  const files = generateFigmaPluginFiles();
   
-  // Add all plugin files to the ZIP
-  Object.entries(PLUGIN_FILES).forEach(([filename, content]) => {
-    zip.file(filename, content);
-  });
+  zip.file('manifest.json', files['manifest.json']);
+  zip.file('code.js', files['code.js']);
+  zip.file('ui.html', files['ui.html']);
   
-  // Generate the ZIP file
-  const blob = await zip.generateAsync({ type: 'blob' });
-  
-  // Create download link
-  const url = URL.createObjectURL(blob);
+  const content = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(content);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `ux-research-figma-plugin-${Date.now()}.zip`;
+  link.download = 'ux-probe-figma-plugin.zip';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
