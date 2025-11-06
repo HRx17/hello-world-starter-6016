@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, FileJson, FileText, Image, Copy, Check } from 'lucide-react';
+import { Download, FileJson, FileText, Image, Copy, Check, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import { downloadFigmaPlugin } from '@/lib/figmaPluginExport';
 
 interface ExportDialogProps {
   data: any;
@@ -40,6 +41,11 @@ export function ExportDialog({
     } catch (err) {
       toast.error("Failed to copy to clipboard");
     }
+  };
+
+  const handleDownloadPlugin = () => {
+    downloadFigmaPlugin();
+    toast.success("✓ Plugin downloaded! Follow the README to install.");
   };
 
   return (
@@ -133,13 +139,25 @@ export function ExportDialog({
             </Button>
           )}
 
-          <div className="pt-3 border-t space-y-2">
-            <p className="text-xs text-muted-foreground">
-              <strong>📌 New to Figma export?</strong>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Install our free Figma plugin once (see <code className="bg-muted px-1 py-0.5 rounded">figma-plugin/README.md</code>), then it's just copy-paste!
-            </p>
+          <div className="pt-3 border-t space-y-3">
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-foreground">
+                📌 First time using Figma export?
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Download our free plugin once, install it in Figma, then copy-paste data to create beautiful visualizations!
+              </p>
+            </div>
+            
+            <Button
+              onClick={handleDownloadPlugin}
+              variant="outline"
+              className="w-full justify-start text-sm"
+              size="sm"
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Download Figma Plugin (ZIP)
+            </Button>
           </div>
         </div>
       </DialogContent>
