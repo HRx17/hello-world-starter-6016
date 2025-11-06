@@ -9,10 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save, Download, Share2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ArrowLeft, Plus, Trash2, Save, Download } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { FigmaExportDialog } from "@/components/FigmaExportDialog";
 
 interface MindMapNode {
   id: string;
@@ -35,9 +35,6 @@ export default function MindMapping() {
   const [newNodeLabel, setNewNodeLabel] = useState("");
   const [newNodeNotes, setNewNodeNotes] = useState("");
   const [selectedParentId, setSelectedParentId] = useState<string>('');
-  
-  const [showExportDialog, setShowExportDialog] = useState(false);
-  const [figmaToken, setFigmaToken] = useState("");
 
   const { data: mindMaps, isLoading } = useQuery({
     queryKey: ['mind-maps', studyId],
@@ -156,7 +153,7 @@ export default function MindMapping() {
   });
 
   const exportToFigmaMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (token: string) => {
       const mindMapData = {
         centralTopic: nodes.find(n => n.id === 'root')?.label || centralTopic,
         nodes: nodes
@@ -166,7 +163,7 @@ export default function MindMapping() {
         body: {
           exportType: 'mind_map',
           data: mindMapData,
-          figmaAccessToken: figmaToken,
+          figmaAccessToken: token,
         }
       });
 
@@ -175,8 +172,9 @@ export default function MindMapping() {
     },
     onSuccess: (data) => {
       toast.success("Exported to Figma!");
-      window.open(data.figmaFileUrl, '_blank');
-      setShowExportDialog(false);
+      if (data.figmaFileUrl) {
+        window.open(data.figmaFileUrl, '_blank');
+      }
     },
     onError: () => {
       toast.error("Failed to export to Figma");
@@ -378,41 +376,11 @@ export default function MindMapping() {
                   </Button>
                 </div>
 
-                <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full" disabled={nodes.length === 0}>
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Export to Figma
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Export to Figma</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="figma-token">Figma Access Token</Label>
-                        <Input
-                          id="figma-token"
-                          type="password"
-                          value={figmaToken}
-                          onChange={(e) => setFigmaToken(e.target.value)}
-                          placeholder="Enter your Figma access token"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Get your token from Figma Settings → Personal Access Tokens
-                        </p>
-                      </div>
-                      <Button 
-                        onClick={() => exportToFigmaMutation.mutate()}
-                        disabled={!figmaToken || exportToFigmaMutation.isPending}
-                        className="w-full"
-                      >
-                        {exportToFigmaMutation.isPending ? 'Exporting...' : 'Export'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <FigmaExportDialog
+                  onExport={(token) => exportToFigmaMutation.mutateAsync(token)}
+                  isExporting={exportToFigmaMutation.isPending}
+                  disabled={nodes.length === 0}
+                />
               </CardContent>
             </Card>
           </div>

@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save, Download, Share2, ChevronRight } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ArrowLeft, Plus, Trash2, Save, Download, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FigmaExportDialog } from "@/components/FigmaExportDialog";
 
 interface IANode {
   id: string;
@@ -35,8 +35,6 @@ export default function InformationArchitecture() {
   const [newNodeDescription, setNewNodeDescription] = useState("");
   const [newNodeType, setNewNodeType] = useState("page");
   const [selectedParentId, setSelectedParentId] = useState<string>('1');
-  const [showExportDialog, setShowExportDialog] = useState(false);
-  const [figmaToken, setFigmaToken] = useState("");
 
   const { data: architectures, isLoading } = useQuery({
     queryKey: ['information-architectures', studyId],
@@ -130,7 +128,7 @@ export default function InformationArchitecture() {
   });
 
   const exportToFigmaMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (token: string) => {
       const iaStructure = {
         title: title || 'Information Architecture',
         nodes: nodes
@@ -140,7 +138,7 @@ export default function InformationArchitecture() {
         body: {
           exportType: 'information_architecture',
           data: iaStructure,
-          figmaAccessToken: figmaToken,
+          figmaAccessToken: token,
         }
       });
 
@@ -149,8 +147,9 @@ export default function InformationArchitecture() {
     },
     onSuccess: (data) => {
       toast.success("Exported to Figma!");
-      window.open(data.figmaFileUrl, '_blank');
-      setShowExportDialog(false);
+      if (data.figmaFileUrl) {
+        window.open(data.figmaFileUrl, '_blank');
+      }
     },
     onError: () => {
       toast.error("Failed to export to Figma");
@@ -297,41 +296,11 @@ export default function InformationArchitecture() {
                   </Button>
                 </div>
 
-                <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full" disabled={nodes.length === 0}>
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Export to Figma
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Export to Figma</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="figma-token">Figma Access Token</Label>
-                        <Input
-                          id="figma-token"
-                          type="password"
-                          value={figmaToken}
-                          onChange={(e) => setFigmaToken(e.target.value)}
-                          placeholder="Enter your Figma access token"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Get your token from Figma Settings → Personal Access Tokens
-                        </p>
-                      </div>
-                      <Button 
-                        onClick={() => exportToFigmaMutation.mutate()}
-                        disabled={!figmaToken || exportToFigmaMutation.isPending}
-                        className="w-full"
-                      >
-                        {exportToFigmaMutation.isPending ? 'Exporting...' : 'Export'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <FigmaExportDialog
+                  onExport={(token) => exportToFigmaMutation.mutateAsync(token)}
+                  isExporting={exportToFigmaMutation.isPending}
+                  disabled={nodes.length === 0}
+                />
               </CardContent>
             </Card>
           </div>
