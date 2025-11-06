@@ -483,68 +483,95 @@
     }
 
     function importItem(item, type) {
-      let exportData = null;
+      try {
+        let exportData = null;
 
-      if (type === 'user_journey_map') {
-        exportData = {
-          exportType: 'user_journey_map',
-          data: item.journey_data
-        };
-      } else if (type === 'mind_map') {
-        exportData = {
-          exportType: 'mind_map',
-          data: transformMindMapData(item.content)
-        };
-      } else if (type === 'information_architecture') {
-        exportData = {
-          exportType: 'information_architecture',
-          data: transformIAData(item.structure)
-        };
+        if (type === 'user_journey_map') {
+          if (!item.journey_data) {
+            throw new Error('Invalid journey map data');
+          }
+          exportData = {
+            exportType: 'user_journey_map',
+            data: item.journey_data
+          };
+        } else if (type === 'mind_map') {
+          if (!item.content) {
+            throw new Error('Invalid mind map data');
+          }
+          exportData = {
+            exportType: 'mind_map',
+            data: transformMindMapData(item.content)
+          };
+        } else if (type === 'information_architecture') {
+          if (!item.structure) {
+            throw new Error('Invalid architecture data');
+          }
+          exportData = {
+            exportType: 'information_architecture',
+            data: transformIAData(item.structure)
+          };
+        }
+
+        if (!exportData) {
+          throw new Error('Unknown data type');
+        }
+
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'import-data', 
+            data: JSON.stringify(exportData)
+          } 
+        }, '*');
+      } catch (error) {
+        showStatus('Failed to import: ' + error.message, 'error');
       }
-
-      parent.postMessage({ 
-        pluginMessage: { 
-          type: 'import-data', 
-          data: JSON.stringify(exportData)
-        } 
-      }, '*');
     }
 
     function transformMindMapData(content) {
+      if (!content || !content.nodes || !Array.isArray(content.nodes)) {
+        return { title: 'Mind Map', centralTopic: 'Main Topic', branches: [] };
+      }
+      
       const branches = [];
       const rootNode = content.nodes.find(n => n.id === 'root');
+      if (!rootNode) return { title: content.title || 'Mind Map', centralTopic: 'Main Topic', branches: [] };
+      
       const rootChildren = content.nodes.filter(n => n.parentId === 'root');
 
       rootChildren.forEach(child => {
         const subBranches = content.nodes
           .filter(n => n.parentId === child.id)
-          .map(n => n.label);
+          .map(n => n.label || n.name || 'Untitled');
 
         branches.push({
-          topic: child.label,
+          topic: child.label || child.name || 'Branch',
           subBranches: subBranches
         });
       });
 
       return {
-        title: content.title || rootNode.label,
-        centralTopic: rootNode.label,
+        title: content.title || rootNode.label || 'Mind Map',
+        centralTopic: rootNode.label || rootNode.name || 'Main Topic',
         branches: branches
       };
     }
 
     function transformIAData(structure) {
+      if (!structure || !structure.nodes || !Array.isArray(structure.nodes)) {
+        return { name: 'Information Architecture', sections: [] };
+      }
+      
       function buildHierarchy(nodes, parentId = null) {
         return nodes
           .filter(n => n.parentId === parentId)
           .map(node => ({
-            name: node.label,
+            name: node.label || node.name || 'Untitled',
             children: buildHierarchy(nodes, node.id)
           }));
       }
 
       return {
-        name: structure.title,
+        name: structure.title || 'Information Architecture',
         sections: buildHierarchy(structure.nodes, null)
       };
     }
