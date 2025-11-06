@@ -33,9 +33,12 @@ figma.ui.onmessage = async (msg) => {
       // Load all fonts first
       await loadRequiredFonts();
       
+      console.log('Parsing data:', msg.data);
       const data = JSON.parse(msg.data);
+      console.log('Parsed data:', data);
       
       if (data.exportType === 'user_journey_map') {
+        console.log('Creating user journey map with data:', data.data);
         await createUserJourneyMap(data.data);
       } else if (data.exportType === 'mind_map') {
         await createMindMap(data.data);
@@ -46,6 +49,7 @@ figma.ui.onmessage = async (msg) => {
       figma.notify('✓ Successfully imported into Figma!');
       figma.ui.postMessage({ type: 'import-success' });
     } catch (error) {
+      console.error('Import error:', error);
       figma.notify('✗ Import failed: ' + error.message);
       figma.ui.postMessage({ type: 'import-error', error: error.message });
     }
@@ -68,6 +72,7 @@ async function createUserJourneyMap(data: any) {
   const title = figma.createText();
   title.characters = data.title || 'User Journey Map';
   title.fontSize = 32;
+  title.fontName = { family: "Inter", style: "Bold" };
   title.x = 100;
   title.y = 50;
   frame.appendChild(title);
@@ -89,6 +94,7 @@ async function createUserJourneyMap(data: any) {
     const stageName = figma.createText();
     stageName.characters = stage.name;
     stageName.fontSize = 20;
+    stageName.fontName = { family: "Inter", style: "SemiBold" };
     stageName.x = 20;
     stageName.y = yPos;
     stageName.resize(stageWidth - 40, stageName.height);
@@ -124,6 +130,7 @@ async function createUserJourneyMap(data: any) {
     const emotionText = figma.createText();
     emotionText.characters = `Emotion: ${getEmotionEmoji(stage.emotionLevel)}`;
     emotionText.fontSize = 16;
+    emotionText.fontName = { family: "Inter", style: "Regular" };
     emotionText.x = 20;
     emotionText.y = yPos;
     stageFrame.appendChild(emotionText);
@@ -289,6 +296,7 @@ async function addSection(parent: FrameNode, title: string, items: string[], yPo
   const sectionTitle = figma.createText();
   sectionTitle.characters = title;
   sectionTitle.fontSize = 14;
+  sectionTitle.fontName = { family: "Inter", style: "SemiBold" };
   sectionTitle.x = 20;
   sectionTitle.y = yPos;
   sectionTitle.fills = [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }];
@@ -299,6 +307,7 @@ async function addSection(parent: FrameNode, title: string, items: string[], yPo
     const bullet = figma.createText();
     bullet.characters = `• ${item}`;
     bullet.fontSize = 13;
+    bullet.fontName = { family: "Inter", style: "Regular" };
     bullet.x = 20;
     bullet.y = yPos;
     bullet.resize(width - 40, bullet.height);

@@ -49,9 +49,12 @@ figma.ui.onmessage = async (msg) => {
       // Load all fonts first
       await loadRequiredFonts();
       
+      console.log('Parsing data:', msg.data);
       const data = JSON.parse(msg.data);
+      console.log('Parsed data:', data);
       
       if (data.exportType === 'user_journey_map') {
+        console.log('Creating user journey map with data:', data.data);
         await createUserJourneyMap(data.data);
       } else if (data.exportType === 'mind_map') {
         await createMindMap(data.data);
@@ -62,6 +65,7 @@ figma.ui.onmessage = async (msg) => {
       figma.notify('✓ Successfully imported into Figma!');
       figma.ui.postMessage({ type: 'import-success' });
     } catch (error) {
+      console.error('Import error:', error);
       figma.notify('✗ Import failed: ' + error.message);
       figma.ui.postMessage({ type: 'import-error', error: error.message });
     }
@@ -838,6 +842,7 @@ function getEmotionEmoji(level) {
 
     function importItem(item, type) {
       try {
+        console.log('Importing item:', item, 'Type:', type);
         let exportData = null;
 
         if (type === 'user_journey_map') {
@@ -850,6 +855,8 @@ function getEmotionEmoji(level) {
             ? JSON.parse(item.journey_data) 
             : item.journey_data;
           
+          console.log('Journey data:', journeyData);
+          
           if (!journeyData.title) {
             journeyData.title = item.title || 'User Journey Map';
           }
@@ -857,6 +864,8 @@ function getEmotionEmoji(level) {
           if (!journeyData.stages || !Array.isArray(journeyData.stages)) {
             throw new Error('Journey map missing stages array');
           }
+          
+          console.log('Validated journey data:', journeyData);
           
           exportData = {
             exportType: 'user_journey_map',
@@ -884,6 +893,7 @@ function getEmotionEmoji(level) {
           throw new Error('Unknown data type');
         }
 
+        console.log('Sending export data:', exportData);
         parent.postMessage({ 
           pluginMessage: { 
             type: 'import-data', 
@@ -891,6 +901,7 @@ function getEmotionEmoji(level) {
           } 
         }, '*');
       } catch (error) {
+        console.error('Import error:', error);
         showStatus('Import failed: ' + error.message, 'error');
       }
     }

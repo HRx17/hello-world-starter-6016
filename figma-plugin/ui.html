@@ -521,6 +521,7 @@
 
     function importItem(item, type) {
       try {
+        console.log('Importing item:', item, 'Type:', type);
         let exportData = null;
 
         if (type === 'user_journey_map') {
@@ -533,6 +534,8 @@
             ? JSON.parse(item.journey_data) 
             : item.journey_data;
           
+          console.log('Journey data:', journeyData);
+          
           if (!journeyData.title) {
             journeyData.title = item.title || 'User Journey Map';
           }
@@ -540,6 +543,8 @@
           if (!journeyData.stages || !Array.isArray(journeyData.stages)) {
             throw new Error('Journey map missing stages array');
           }
+          
+          console.log('Validated journey data:', journeyData);
           
           exportData = {
             exportType: 'user_journey_map',
@@ -567,6 +572,7 @@
           throw new Error('Unknown data type');
         }
 
+        console.log('Sending export data:', exportData);
         parent.postMessage({ 
           pluginMessage: { 
             type: 'import-data', 
@@ -574,6 +580,7 @@
           } 
         }, '*');
       } catch (error) {
+        console.error('Import error:', error);
         showStatus('Import failed: ' + error.message, 'error');
       }
     }
