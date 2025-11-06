@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save, Download, Smile, Meh, Frown } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Smile, Meh, Frown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FigmaExportDialog } from "@/components/FigmaExportDialog";
+import { ExportDialog } from "@/components/ExportDialog";
+import { downloadJSON, downloadHTML, generateJourneyHTML } from "@/lib/exportHelpers";
 
 interface JourneyStage {
   id: string;
@@ -183,49 +184,21 @@ export default function UserJourneyMapping() {
     },
   });
 
-  const exportToFigmaMutation = useMutation({
-    mutationFn: async (token: string) => {
-      const journeyData = {
-        title: title || 'User Journey Map',
-        stages: stages
-      };
-
-      const { data, error } = await supabase.functions.invoke('export-to-figma', {
-        body: {
-          exportType: 'user_journey_map',
-          data: journeyData,
-          figmaAccessToken: token,
-        }
-      });
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      toast.success("Exported to Figma!");
-      if (data.figmaFileUrl) {
-        window.open(data.figmaFileUrl, '_blank');
-      }
-    },
-    onError: () => {
-      toast.error("Failed to export to Figma");
-    },
-  });
-
-  const downloadAsJSON = () => {
+  const handleDownloadJSON = () => {
     const journeyData = {
       title: title || 'User Journey Map',
       stages: stages
     };
-    
-    const dataStr = JSON.stringify(journeyData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-    const exportFileDefaultName = `user-journey-${Date.now()}.json`;
+    downloadJSON(journeyData, `user-journey-${Date.now()}.json`);
+  };
 
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+  const handleDownloadHTML = () => {
+    const journeyData = {
+      title: title || 'User Journey Map',
+      stages: stages
+    };
+    const html = generateJourneyHTML(journeyData);
+    downloadHTML(html, `user-journey-${Date.now()}.html`);
   };
 
   const loadJourney = (journey: any) => {
@@ -462,20 +435,13 @@ export default function UserJourneyMapping() {
                     <Save className="w-4 h-4 mr-2" />
                     Save
                   </Button>
-                  <Button 
-                    onClick={downloadAsJSON}
-                    disabled={stages.length === 0}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download
-                  </Button>
                 </div>
 
-                <FigmaExportDialog
-                  onExport={(token) => exportToFigmaMutation.mutateAsync(token)}
-                  isExporting={exportToFigmaMutation.isPending}
+                <ExportDialog
+                  data={{ title, stages }}
+                  title="User Journey Map"
+                  onDownloadJSON={handleDownloadJSON}
+                  onDownloadHTML={handleDownloadHTML}
                   disabled={stages.length === 0}
                 />
               </CardContent>

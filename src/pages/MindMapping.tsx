@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save, Download } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { FigmaExportDialog } from "@/components/FigmaExportDialog";
+import { ExportDialog } from "@/components/ExportDialog";
+import { downloadJSON, downloadHTML, generateMindMapHTML } from "@/lib/exportHelpers";
 
 interface MindMapNode {
   id: string;
@@ -152,49 +153,21 @@ export default function MindMapping() {
     },
   });
 
-  const exportToFigmaMutation = useMutation({
-    mutationFn: async (token: string) => {
-      const mindMapData = {
-        centralTopic: nodes.find(n => n.id === 'root')?.label || centralTopic,
-        nodes: nodes
-      };
-
-      const { data, error } = await supabase.functions.invoke('export-to-figma', {
-        body: {
-          exportType: 'mind_map',
-          data: mindMapData,
-          figmaAccessToken: token,
-        }
-      });
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      toast.success("Exported to Figma!");
-      if (data.figmaFileUrl) {
-        window.open(data.figmaFileUrl, '_blank');
-      }
-    },
-    onError: () => {
-      toast.error("Failed to export to Figma");
-    },
-  });
-
-  const downloadAsJSON = () => {
+  const handleDownloadJSON = () => {
     const mindMapData = {
       centralTopic: nodes.find(n => n.id === 'root')?.label || centralTopic,
       nodes: nodes
     };
-    
-    const dataStr = JSON.stringify(mindMapData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-    const exportFileDefaultName = `mind-map-${Date.now()}.json`;
+    downloadJSON(mindMapData, `mind-map-${Date.now()}.json`);
+  };
 
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+  const handleDownloadHTML = () => {
+    const mindMapData = {
+      centralTopic: nodes.find(n => n.id === 'root')?.label || centralTopic,
+      nodes: nodes
+    };
+    const html = generateMindMapHTML(mindMapData);
+    downloadHTML(html, `mind-map-${Date.now()}.html`);
   };
 
   const loadMap = (map: any) => {
@@ -365,20 +338,13 @@ export default function MindMapping() {
                     <Save className="w-4 h-4 mr-2" />
                     Save
                   </Button>
-                  <Button 
-                    onClick={downloadAsJSON}
-                    disabled={nodes.length === 0}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download
-                  </Button>
                 </div>
 
-                <FigmaExportDialog
-                  onExport={(token) => exportToFigmaMutation.mutateAsync(token)}
-                  isExporting={exportToFigmaMutation.isPending}
+                <ExportDialog
+                  data={{ centralTopic, nodes }}
+                  title="Mind Map"
+                  onDownloadJSON={handleDownloadJSON}
+                  onDownloadHTML={handleDownloadHTML}
                   disabled={nodes.length === 0}
                 />
               </CardContent>
