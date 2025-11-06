@@ -320,7 +320,12 @@ const Results = () => {
             <div className="flex items-center justify-between mb-4">
               <Button
                 variant="ghost"
-                onClick={() => navigate(user ? "/dashboard" : "/")}
+                onClick={() => {
+                  // Trigger refresh on dashboard when navigating back
+                  navigate(user ? "/dashboard" : "/", { 
+                    state: { refresh: true } 
+                  });
+                }}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 {user ? "Back to Dashboard" : "Back to Home"}

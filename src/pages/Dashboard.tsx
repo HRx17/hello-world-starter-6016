@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +51,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const location = useLocation();
 
   // Protected route - handled by ProtectedRoute wrapper in App.tsx
   // No need for manual redirect here
@@ -59,6 +60,27 @@ const Dashboard = () => {
     if (user) {
       loadProjects();
     }
+  }, [user]);
+
+  // Reload when returning from results page with refresh state
+  useEffect(() => {
+    if (location.state?.refresh && user) {
+      loadProjects();
+      // Clear the state to prevent refresh loops
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state]);
+
+  // Reload projects when window gains focus (after returning from results)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user) {
+        loadProjects();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [user]);
 
   const loadProjects = async () => {

@@ -66,6 +66,18 @@ const Compare = () => {
     }
   }, [user]);
 
+  // Reload projects when page becomes visible (after returning from results)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        loadProjects();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user]);
+
   const loadProjects = async () => {
     try {
       const { data, error } = await supabase
