@@ -91,6 +91,77 @@ export type Database = {
           },
         ]
       }
+      figma_exports: {
+        Row: {
+          created_at: string | null
+          export_type: string
+          exported_data: Json
+          figma_file_key: string | null
+          figma_file_url: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          export_type: string
+          exported_data?: Json
+          figma_file_key?: string | null
+          figma_file_url?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          export_type?: string
+          exported_data?: Json
+          figma_file_key?: string | null
+          figma_file_url?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      information_architectures: {
+        Row: {
+          ai_generated: boolean | null
+          created_at: string | null
+          id: string
+          structure: Json
+          study_plan_id: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          created_at?: string | null
+          id?: string
+          structure?: Json
+          study_plan_id?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_generated?: boolean | null
+          created_at?: string | null
+          id?: string
+          structure?: Json
+          study_plan_id?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "information_architectures_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       insight_clusters: {
         Row: {
           color: string | null
@@ -184,6 +255,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "interview_sessions_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mind_maps: {
+        Row: {
+          ai_generated: boolean | null
+          content: Json
+          created_at: string | null
+          id: string
+          study_plan_id: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          content?: Json
+          created_at?: string | null
+          id?: string
+          study_plan_id?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_generated?: boolean | null
+          content?: Json
+          created_at?: string | null
+          id?: string
+          study_plan_id?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mind_maps_study_plan_id_fkey"
             columns: ["study_plan_id"]
             isOneToOne: false
             referencedRelation: "study_plans"
@@ -545,6 +657,57 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_journey_maps: {
+        Row: {
+          ai_generated: boolean | null
+          created_at: string | null
+          id: string
+          journey_data: Json
+          persona_id: string | null
+          study_plan_id: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          created_at?: string | null
+          id?: string
+          journey_data?: Json
+          persona_id?: string | null
+          study_plan_id?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_generated?: boolean | null
+          created_at?: string | null
+          id?: string
+          journey_data?: Json
+          persona_id?: string | null
+          study_plan_id?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_journey_maps_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_journey_maps_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
             referencedColumns: ["id"]
           },
         ]
