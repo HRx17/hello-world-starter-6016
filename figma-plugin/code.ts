@@ -287,8 +287,14 @@ async function createMindMapNode(text: string, x: number, y: number, width: numb
   node.effects = [{ type: 'DROP_SHADOW', color: { r: 0, g: 0, b: 0, a: 0.15 }, offset: { x: 0, y: 4 }, radius: 12, visible: true, blendMode: 'NORMAL' }];
   
   const textNode = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: isCentral ? "Semi Bold" : "Medium" });
-  textNode.fontName = { family: "Inter", style: isCentral ? "Semi Bold" : "Medium" };
+  // Load font before using it (same pattern as journey map)
+  if (isCentral) {
+    await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
+    textNode.fontName = { family: "Inter", style: "Semi Bold" };
+  } else {
+    await figma.loadFontAsync({ family: "Inter", style: "Medium" });
+    textNode.fontName = { family: "Inter", style: "Medium" };
+  }
   textNode.characters = text;
   textNode.fontSize = isCentral ? 18 : 14;
   textNode.textAlignHorizontal = 'CENTER';
