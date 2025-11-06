@@ -290,6 +290,7 @@
     
     let accessToken = null;
     let userEmail = null;
+    let sessionRestored = false;
 
     // DOM Elements
     const authScreen = document.getElementById('authScreen');
@@ -323,6 +324,29 @@
       if (e.key === 'Enter') handleLogin();
     });
 
+    // Listen for session restoration
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      
+      if (msg.type === 'restore-session') {
+        restoreSession(msg.session);
+      } else if (msg.type === 'import-success') {
+        showStatus('✓ Successfully imported into Figma!', 'success');
+      } else if (msg.type === 'import-error') {
+        showStatus(\`✗ Import failed: \${msg.error}\`, 'error');
+      }
+    };
+
+    function restoreSession(session) {
+      if (session && session.accessToken && session.userEmail) {
+        accessToken = session.accessToken;
+        userEmail = session.userEmail;
+        sessionRestored = true;
+        showMainScreen();
+        loadAllData();
+      }
+    }
+
     async function handleLogin() {
       const email = emailInput.value.trim();
       const password = passwordInput.value;
@@ -354,6 +378,14 @@
         accessToken = data.access_token;
         userEmail = email;
         
+        // Store session for persistence
+        parent.postMessage({
+          pluginMessage: {
+            type: 'store-session',
+            session: { accessToken: data.access_token, userEmail: email }
+          }
+        }, '*');
+        
         showMainScreen();
         await loadAllData();
       } catch (error) {
@@ -370,6 +402,11 @@
       passwordInput.value = '';
       authScreen.classList.remove('hidden');
       mainScreen.style.display = 'none';
+      
+      // Clear stored session
+      parent.postMessage({
+        pluginMessage: { type: 'clear-session' }
+      }, '*');
     }
 
     function showMainScreen() {

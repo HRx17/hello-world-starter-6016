@@ -54,7 +54,7 @@ figma.ui.onmessage = async (msg) => {
   }
 };
 
-async function createUserJourneyMap(data: any) {
+async function createUserJourneyMap(data) {
   const frame = figma.createFrame();
   frame.name = data.title || 'User Journey Map';
   frame.resize(2400, 1200);
@@ -64,15 +64,14 @@ async function createUserJourneyMap(data: any) {
   const stageWidth = 400;
   const spacing = 50;
   
-  // Title
   const title = figma.createText();
   title.characters = data.title || 'User Journey Map';
   title.fontSize = 32;
+  title.fontName = { family: "Inter", style: "Bold" };
   title.x = 100;
   title.y = 50;
   frame.appendChild(title);
   
-  // Create stages
   for (const stage of data.stages || []) {
     const stageFrame = figma.createFrame();
     stageFrame.name = stage.name;
@@ -85,45 +84,40 @@ async function createUserJourneyMap(data: any) {
     
     let yPos = 30;
     
-    // Stage name
     const stageName = figma.createText();
     stageName.characters = stage.name;
     stageName.fontSize = 20;
+    stageName.fontName = { family: "Inter", style: "SemiBold" };
     stageName.x = 20;
     stageName.y = yPos;
     stageName.resize(stageWidth - 40, stageName.height);
     stageFrame.appendChild(stageName);
     yPos += 60;
     
-    // Actions
     if (stage.actions && stage.actions.length > 0) {
       yPos = await addSection(stageFrame, 'Actions', stage.actions, yPos, stageWidth);
     }
     
-    // Touchpoints
     if (stage.touchpoints && stage.touchpoints.length > 0) {
       yPos = await addSection(stageFrame, 'Touchpoints', stage.touchpoints, yPos, stageWidth);
     }
     
-    // Thoughts
     if (stage.thoughts && stage.thoughts.length > 0) {
       yPos = await addSection(stageFrame, 'Thoughts', stage.thoughts, yPos, stageWidth);
     }
     
-    // Pain Points
     if (stage.painPoints && stage.painPoints.length > 0) {
       yPos = await addSection(stageFrame, 'Pain Points', stage.painPoints, yPos, stageWidth);
     }
     
-    // Opportunities
     if (stage.opportunities && stage.opportunities.length > 0) {
       yPos = await addSection(stageFrame, 'Opportunities', stage.opportunities, yPos, stageWidth);
     }
     
-    // Emotion
     const emotionText = figma.createText();
     emotionText.characters = `Emotion: ${getEmotionEmoji(stage.emotionLevel)}`;
     emotionText.fontSize = 16;
+    emotionText.fontName = { family: "Inter", style: "Regular" };
     emotionText.x = 20;
     emotionText.y = yPos;
     stageFrame.appendChild(emotionText);
@@ -135,19 +129,17 @@ async function createUserJourneyMap(data: any) {
   figma.viewport.scrollAndZoomIntoView([frame]);
 }
 
-async function createMindMap(data: any) {
+async function createMindMap(data) {
   const frame = figma.createFrame();
   frame.name = data.title || 'Mind Map';
   frame.resize(3000, 2000);
   frame.fills = [{ type: 'SOLID', color: { r: 0.98, g: 0.98, b: 0.98 } }];
   
-  // Central node
   const centerX = 1500;
   const centerY = 1000;
   const centralNode = await createMindMapNode(data.centralTopic, centerX, centerY, 200, 100, true);
   frame.appendChild(centralNode);
   
-  // Branch nodes
   const branches = data.branches || [];
   const angleStep = (2 * Math.PI) / branches.length;
   const radius = 400;
@@ -160,7 +152,6 @@ async function createMindMap(data: any) {
     const branchNode = await createMindMapNode(branches[i].topic, x, y, 180, 80, false);
     frame.appendChild(branchNode);
     
-    // Create connector line
     const line = figma.createLine();
     line.resize(Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)), 0);
     line.rotation = Math.atan2(y - centerY, x - centerX) * (180 / Math.PI);
@@ -170,7 +161,6 @@ async function createMindMap(data: any) {
     line.strokeWeight = 2;
     frame.appendChild(line);
     
-    // Sub-branches
     const subBranches = branches[i].subBranches || [];
     for (let j = 0; j < subBranches.length; j++) {
       const subAngle = angle + ((j - (subBranches.length - 1) / 2) * 0.5);
@@ -195,7 +185,7 @@ async function createMindMap(data: any) {
   figma.viewport.scrollAndZoomIntoView([frame]);
 }
 
-async function createInformationArchitecture(data: any) {
+async function createInformationArchitecture(data) {
   const frame = figma.createFrame();
   frame.name = data.name || 'Information Architecture';
   frame.resize(3000, 2000);
@@ -203,21 +193,20 @@ async function createInformationArchitecture(data: any) {
   
   let yOffset = 100;
   
-  // Title
   const title = figma.createText();
   title.characters = data.name || 'Information Architecture';
   title.fontSize = 32;
+  title.fontName = { family: "Inter", style: "Bold" };
   title.x = 100;
   title.y = 50;
   frame.appendChild(title);
   
-  // Create hierarchy
   await createIALevel(frame, data.sections || [], 100, yOffset, 0);
   
   figma.viewport.scrollAndZoomIntoView([frame]);
 }
 
-async function createIALevel(parent: FrameNode, items: any[], x: number, y: number, level: number) {
+async function createIALevel(parent, items, x, y, level) {
   const indent = level * 250;
   const itemHeight = 80;
   const spacing = 30;
@@ -238,6 +227,7 @@ async function createIALevel(parent: FrameNode, items: any[], x: number, y: numb
     const text = figma.createText();
     text.characters = item.name;
     text.fontSize = 16;
+    text.fontName = { family: "Inter", style: "Medium" };
     text.x = 15;
     text.y = itemHeight / 2 - 10;
     text.resize(170, text.height);
@@ -245,12 +235,10 @@ async function createIALevel(parent: FrameNode, items: any[], x: number, y: numb
     
     parent.appendChild(box);
     
-    // Create children
     if (item.children && item.children.length > 0) {
       const childY = itemY + itemHeight + spacing;
       await createIALevel(parent, item.children, x, childY, level + 1);
       
-      // Draw connector
       const line = figma.createLine();
       line.resize(250, 0);
       line.x = x + indent + 200;
@@ -262,7 +250,7 @@ async function createIALevel(parent: FrameNode, items: any[], x: number, y: numb
   }
 }
 
-async function createMindMapNode(text: string, x: number, y: number, width: number, height: number, isCentral: boolean) {
+async function createMindMapNode(text, x, y, width, height, isCentral) {
   const node = figma.createFrame();
   node.resize(width, height);
   node.x = x - width / 2;
@@ -274,6 +262,7 @@ async function createMindMapNode(text: string, x: number, y: number, width: numb
   const textNode = figma.createText();
   textNode.characters = text;
   textNode.fontSize = isCentral ? 18 : 14;
+  textNode.fontName = { family: "Inter", style: isCentral ? "SemiBold" : "Medium" };
   textNode.textAlignHorizontal = 'CENTER';
   textNode.textAlignVertical = 'CENTER';
   textNode.resize(width - 20, height);
@@ -285,10 +274,11 @@ async function createMindMapNode(text: string, x: number, y: number, width: numb
   return node;
 }
 
-async function addSection(parent: FrameNode, title: string, items: string[], yPos: number, width: number) {
+async function addSection(parent, title, items, yPos, width) {
   const sectionTitle = figma.createText();
   sectionTitle.characters = title;
   sectionTitle.fontSize = 14;
+  sectionTitle.fontName = { family: "Inter", style: "SemiBold" };
   sectionTitle.x = 20;
   sectionTitle.y = yPos;
   sectionTitle.fills = [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }];
@@ -299,6 +289,7 @@ async function addSection(parent: FrameNode, title: string, items: string[], yPo
     const bullet = figma.createText();
     bullet.characters = `• ${item}`;
     bullet.fontSize = 13;
+    bullet.fontName = { family: "Inter", style: "Regular" };
     bullet.x = 20;
     bullet.y = yPos;
     bullet.resize(width - 40, bullet.height);
@@ -309,7 +300,7 @@ async function addSection(parent: FrameNode, title: string, items: string[], yPo
   return yPos + 20;
 }
 
-function getEmotionEmoji(level: number): string {
+function getEmotionEmoji(level) {
   const emojis = ['😞', '😟', '😐', '🙂', '😊'];
   return emojis[Math.max(0, Math.min(4, level - 1))] || '😐';
 }

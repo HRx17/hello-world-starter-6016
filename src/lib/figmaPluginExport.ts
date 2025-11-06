@@ -17,6 +17,15 @@ export function generateFigmaPluginFiles() {
   const codeContent = `// Show the plugin UI
 figma.showUI(__html__, { width: 400, height: 600 });
 
+// Check for stored session on load
+figma.clientStorage.getAsync('uxprobe_session').then((session) => {
+  if (session) {
+    figma.ui.postMessage({ type: 'restore-session', session });
+  }
+}).catch(() => {
+  // No stored session, user will need to login
+});
+
 // Load all required fonts upfront
 async function loadRequiredFonts() {
   await Promise.all([
@@ -29,7 +38,13 @@ async function loadRequiredFonts() {
 
 // Handle messages from the UI
 figma.ui.onmessage = async (msg) => {
-  if (msg.type === 'import-data') {
+  if (msg.type === 'store-session') {
+    // Store session data for persistence
+    await figma.clientStorage.setAsync('uxprobe_session', msg.session);
+  } else if (msg.type === 'clear-session') {
+    // Clear stored session on logout
+    await figma.clientStorage.deleteAsync('uxprobe_session');
+  } else if (msg.type === 'import-data') {
     try {
       // Load all fonts first
       await loadRequiredFonts();
@@ -594,6 +609,7 @@ function getEmotionEmoji(level) {
     
     let accessToken = null;
     let userEmail = null;
+    let sessionRestored = false;
 
     const authScreen = document.getElementById('authScreen');
     const mainScreen = document.getElementById('mainScreen');
@@ -624,6 +640,29 @@ function getEmotionEmoji(level) {
     passwordInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleLogin();
     });
+
+    // Listen for session restoration
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      
+      if (msg.type === 'restore-session') {
+        restoreSession(msg.session);
+      } else if (msg.type === 'import-success') {
+        showStatus('✓ Successfully imported into Figma!', 'success');
+      } else if (msg.type === 'import-error') {
+        showStatus(\`✗ Import failed: \${msg.error}\`, 'error');
+      }
+    };
+
+    function restoreSession(session) {
+      if (session && session.accessToken && session.userEmail) {
+        accessToken = session.accessToken;
+        userEmail = session.userEmail;
+        sessionRestored = true;
+        showMainScreen();
+        loadAllData();
+      }
+    }
 
     async function handleLogin() {
       const email = emailInput.value.trim();
@@ -656,6 +695,14 @@ function getEmotionEmoji(level) {
         accessToken = data.access_token;
         userEmail = email;
         
+        // Store session for persistence
+        parent.postMessage({
+          pluginMessage: {
+            type: 'store-session',
+            session: { accessToken: data.access_token, userEmail: email }
+          }
+        }, '*');
+        
         showMainScreen();
         await loadAllData();
       } catch (error) {
@@ -672,6 +719,11 @@ function getEmotionEmoji(level) {
       passwordInput.value = '';
       authScreen.classList.remove('hidden');
       mainScreen.style.display = 'none';
+      
+      // Clear stored session
+      parent.postMessage({
+        pluginMessage: { type: 'clear-session' }
+      }, '*');
     }
 
     function showMainScreen() {
