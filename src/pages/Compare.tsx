@@ -157,27 +157,27 @@ const Compare = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-6xl mx-auto">
       <Button
         variant="ghost"
         onClick={() => navigate("/dashboard")}
-        className="mb-6"
+        className="mb-4 sm:mb-6"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Dashboard
       </Button>
 
-      <div className="mb-8 space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight">Compare Projects</h1>
-        <p className="text-muted-foreground">
+      <div className="mb-6 sm:mb-8 space-y-2">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Compare Projects</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Select 2-5 projects to compare their UX scores side by side
         </p>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Comparison Name</CardTitle>
-          <CardDescription>
+      <Card className="mb-4 sm:mb-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg sm:text-xl">Comparison Name</CardTitle>
+          <CardDescription className="text-sm">
             Give this comparison a descriptive name
           </CardDescription>
         </CardHeader>
@@ -186,14 +186,15 @@ const Compare = () => {
             placeholder="e.g., Homepage Redesign Comparison"
             value={comparisonName}
             onChange={(e) => setComparisonName(e.target.value)}
+            className="text-sm sm:text-base"
           />
         </CardContent>
       </Card>
 
       {projects.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center">
-            <p className="text-muted-foreground mb-4">
+          <CardContent className="py-12 sm:py-16 text-center px-4">
+            <p className="text-sm sm:text-base text-muted-foreground mb-4">
               No analyzed projects available for comparison
             </p>
             <Button onClick={() => navigate("/")}>Analyze a Website</Button>
@@ -201,7 +202,7 @@ const Compare = () => {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-4 sm:mb-6">
             {projects.map((project) => {
               const score = getLatestScore(project);
               const isSelected = selectedProjects.has(project.id);
@@ -214,21 +215,21 @@ const Compare = () => {
                   }`}
                   onClick={() => toggleProject(project.id)}
                 >
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-3 flex-1">
-                        <Checkbox checked={isSelected} />
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+                        <Checkbox checked={isSelected} className="shrink-0 mt-1" />
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg truncate">
+                          <CardTitle className="text-base sm:text-lg truncate">
                             {project.name}
                           </CardTitle>
-                          <CardDescription className="truncate">
+                          <CardDescription className="truncate text-xs sm:text-sm mt-1">
                             {new URL(project.url).hostname}
                           </CardDescription>
                         </div>
                       </div>
                       {score !== null && (
-                        <Badge className={`${getScoreColor(score)} shrink-0`}>
+                        <Badge className={`${getScoreColor(score)} shrink-0 text-xs sm:text-sm px-2 py-0.5`}>
                           <BarChart3 className="h-3 w-3 mr-1" />
                           {score}
                         </Badge>
@@ -236,8 +237,8 @@ const Compare = () => {
                     </div>
                   </CardHeader>
                   {project.framework && (
-                    <CardContent>
-                      <Badge variant="outline">{project.framework}</Badge>
+                    <CardContent className="pt-0">
+                      <Badge variant="outline" className="text-xs">{project.framework}</Badge>
                     </CardContent>
                   )}
                 </Card>
@@ -245,14 +246,15 @@ const Compare = () => {
             })}
           </div>
 
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {selectedProjects.size} project{selectedProjects.size !== 1 ? "s" : ""} selected
             </p>
             <Button
               onClick={handleCompare}
               disabled={selectedProjects.size < 2}
               size="lg"
+              className="w-full sm:w-auto"
             >
               Create Comparison
             </Button>
