@@ -14,7 +14,7 @@ figma.clientStorage.getAsync('uxprobe_session').then((session) => {
 async function loadRequiredFonts() {
   await Promise.all([
     figma.loadFontAsync({ family: "Inter", style: "Bold" }),
-    figma.loadFontAsync({ family: "Inter", style: "SemiBold" }),
+    figma.loadFontAsync({ family: "Inter", style: "Semi Bold" }),
     figma.loadFontAsync({ family: "Inter", style: "Medium" }),
     figma.loadFontAsync({ family: "Inter", style: "Regular" })
   ]);
@@ -91,8 +91,8 @@ async function createUserJourneyMap(data: any) {
     
     // Stage name
     const stageName = figma.createText();
-    await figma.loadFontAsync({ family: "Inter", style: "SemiBold" });
-    stageName.fontName = { family: "Inter", style: "SemiBold" };
+    await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
+    stageName.fontName = { family: "Inter", style: "Semi Bold" };
     stageName.characters = stage.name;
     stageName.fontSize = 20;
     stageName.x = 20;
@@ -295,8 +295,8 @@ async function createMindMapNode(text: string, x: number, y: number, width: numb
 
 async function addSection(parent: FrameNode, title: string, items: string[], yPos: number, width: number) {
   const sectionTitle = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: "SemiBold" });
-  sectionTitle.fontName = { family: "Inter", style: "SemiBold" };
+  await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
+  sectionTitle.fontName = { family: "Inter", style: "Semi Bold" };
   sectionTitle.characters = title;
   sectionTitle.fontSize = 14;
   sectionTitle.x = 20;
