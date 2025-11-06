@@ -81,23 +81,23 @@ async function createUserJourneyMap(data) {
     stageFrame.appendChild(stageName);
     yPos += 60;
     
-    if (stage.actions?.length > 0) {
+    if (stage.actions && stage.actions.length > 0) {
       yPos = await addSection(stageFrame, 'Actions', stage.actions, yPos, stageWidth);
     }
     
-    if (stage.touchpoints?.length > 0) {
+    if (stage.touchpoints && stage.touchpoints.length > 0) {
       yPos = await addSection(stageFrame, 'Touchpoints', stage.touchpoints, yPos, stageWidth);
     }
     
-    if (stage.thoughts?.length > 0) {
+    if (stage.thoughts && stage.thoughts.length > 0) {
       yPos = await addSection(stageFrame, 'Thoughts', stage.thoughts, yPos, stageWidth);
     }
     
-    if (stage.painPoints?.length > 0) {
+    if (stage.painPoints && stage.painPoints.length > 0) {
       yPos = await addSection(stageFrame, 'Pain Points', stage.painPoints, yPos, stageWidth);
     }
     
-    if (stage.opportunities?.length > 0) {
+    if (stage.opportunities && stage.opportunities.length > 0) {
       yPos = await addSection(stageFrame, 'Opportunities', stage.opportunities, yPos, stageWidth);
     }
     
@@ -222,7 +222,7 @@ async function createIALevel(parent, items, x, y, level) {
     
     parent.appendChild(box);
     
-    if (item.children?.length > 0) {
+    if (item.children && item.children.length > 0) {
       const childY = itemY + itemHeight + spacing;
       await createIALevel(parent, item.children, x, childY, level + 1);
       
