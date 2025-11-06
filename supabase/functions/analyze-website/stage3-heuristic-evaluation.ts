@@ -24,42 +24,66 @@ interface HeuristicStrength {
 }
 
 const HEURISTIC_SPECIFIC_PROMPTS: Record<string, string> = {
-  "visibility": `**VISUAL ANALYSIS: System Status Visibility**
+  "visibility": `**ACT LIKE A HUMAN: System Status Visibility**
 
-Look at the SCREENSHOT and identify:
-❌ BAD EXAMPLES TO FLAG:
-- Generic loading spinners with no progress indication
-- No feedback when clicking buttons (no visual state change)
-- Current page not highlighted in navigation
-- Form submissions with no loading state
-- File uploads with no progress bar
-- Search with no indication it's processing
+You're a user on this website. Look at the screenshot carefully.
 
-✅ WHAT TO LOOK FOR:
-- Are there visual loading indicators?
-- Do buttons show hover/active states?
-- Is the current page visually distinct in navigation?
-- Do users know when the system is processing?
+**Questions to ask yourself as a user:**
+1. If I clicked a button, would I know something is happening?
+   - Look for: Loading states, spinners, progress bars, "Saving..." text
+   - Flag if: Buttons look the same before/after click, no visual feedback
 
-IGNORE: HTML meta tags, console logs, network requests
-REPORT: Only missing VISIBLE feedback elements`,
+2. Can I tell where I am in the site?
+   - Look at: Navigation menu - is current page highlighted/underlined/bold?
+   - Look at: Breadcrumbs - are they present and clear?
+   - Flag if: All nav items look identical, no way to know current location
 
-  "match_real_world": `**VISUAL ANALYSIS: Real-World Language**
+3. If I'm waiting for something (search, file upload, form submit), do I know it's working?
+   - Look for: Progress indicators, status messages, visual cues
+   - Flag if: No indication of progress or time remaining
 
-Look at the SCREENSHOT and identify:
-❌ BAD EXAMPLES TO FLAG:
-- Technical jargon in visible buttons ("Execute Query", "POST Data")
-- Unclear icons without labels (abstract symbols users won't recognize)
-- Industry-specific terms without explanation visible to users
-- Ambiguous button labels ("Submit", "OK" without context)
+4. Can I see the results of my actions?
+   - Look for: Confirmation messages ("Item added to cart"), success states
+   - Flag if: Actions seem to happen silently with no confirmation
 
-✅ WHAT TO LOOK FOR:
-- Are button labels clear and action-oriented?
-- Do icons use universally understood symbols?
-- Is terminology user-friendly?
+**IGNORE:** 
+- HTML attributes, meta tags, console logs
+- Backend status codes
+- Things not visible to the user
 
-IGNORE: Code comments, variable names
-REPORT: Only confusing VISIBLE text and iconography`,
+**REPORT:** 
+Only VISIBLE issues - what would frustrate a user who can't tell if the system is working`,
+
+  "match_real_world": `**ACT LIKE A HUMAN: Real-World Language & Conventions**
+
+Imagine you're a typical user (not a developer) looking at this website.
+
+**Read the visible text and ask:**
+1. Do I understand what these buttons do?
+   - Good: "Download Report", "Add to Cart", "Create Account"
+   - Bad: "Execute", "Submit", "Process", "POST" (too vague/technical)
+   - Flag if: Button labels are generic, vague, or use programming terms
+
+2. Can I understand the icons without hovering?
+   - Look at: Icons throughout the page
+   - Good: Universally known symbols (trash = delete, house = home, magnifying glass = search)
+   - Bad: Abstract or ambiguous icons, custom icons without text labels
+   - Flag if: You have to guess what an icon means
+
+3. Is the language familiar or does it feel like "computer speak"?
+   - Look for: Industry jargon, acronyms without explanation, technical terms
+   - Good: "Sign in", "Your profile", "Recent activity"
+   - Bad: "Authenticate", "User config", "Log entries"
+   - Flag if: Average person wouldn't understand the terminology
+
+4. Do visual patterns match real-world expectations?
+   - Look at: Form layouts, navigation patterns, button positions
+   - Good: Logo top-left (clickable to home), hamburger menu for mobile, footer at bottom
+   - Bad: Unusual navigation patterns, unexpected element positions
+   - Flag if: Layout breaks common web conventions
+
+**IGNORE:** Variable names, code comments, HTML structure
+**REPORT:** Only user-facing text, icons, and visual patterns that would confuse a non-technical person`,
 
   "user_control": `**VISUAL ANALYSIS: User Control & Freedom**
 
@@ -78,23 +102,50 @@ Look at the SCREENSHOT and identify:
 IGNORE: Browser back button functionality
 REPORT: Only missing VISIBLE control elements`,
 
-  "consistency": `**VISUAL ANALYSIS: Consistency & Standards**
+  "consistency": `**ACT LIKE A HUMAN: Consistency & Pattern Recognition**
 
-Look at the SCREENSHOT and identify:
-❌ BAD EXAMPLES TO FLAG:
-- Multiple button styles for similar actions (different colors, sizes)
-- Navigation menu changes position across pages
-- Inconsistent spacing and alignment
-- Different icons for the same action
-- Mixed design patterns (modern + outdated elements)
+As you scan this page, your brain naturally looks for patterns. Notice what feels "off" or inconsistent.
 
-✅ WHAT TO LOOK FOR:
-- Do similar elements look similar?
-- Is visual hierarchy consistent?
-- Do colors mean the same thing throughout?
+**1. BUTTON CONSISTENCY:**
+   - Look at ALL buttons on the page
+   - Do primary action buttons look the same? (same color, size, style)
+   - Do secondary buttons have a consistent alternative style?
+   - Flag if: Similar actions use different button styles, or same-looking buttons do different things
 
-IGNORE: Code consistency, CSS structure
-REPORT: Only VISIBLE inconsistencies users experience`,
+**2. SPACING & ALIGNMENT:**
+   - Look at margins and padding around elements
+   - Do similar sections have similar spacing?
+   - Are elements aligned properly? (left-aligned text, centered headings, etc.)
+   - Flag if: Spacing is random, elements are misaligned, no consistent grid
+
+**3. NAVIGATION PATTERNS:**
+   - Look at the navigation menu/header
+   - Is it positioned consistently? (always top, always same height)
+   - Do navigation items have consistent styling?
+   - Flag if: Nav items vary in size/style, or navigation appears differently across sections
+
+**4. ICON USAGE:**
+   - Do the same types of actions use the same icons?
+   - Are icon styles consistent? (all outline, or all filled, not mixed)
+   - Flag if: Delete action uses different icons in different places, or icon styles clash
+
+**5. COLOR MEANING:**
+   - If red is used for "delete/danger", is it used consistently?
+   - If blue is used for primary actions, is it used consistently?
+   - Flag if: Same color means different things, or same action uses different colors
+
+**6. TYPOGRAPHY:**
+   - Are heading levels visually distinct and consistent?
+   - Is body text the same size throughout?
+   - Flag if: H2s look different in different sections, random font size variations
+
+**7. VISUAL PATTERNS:**
+   - Do cards/containers have consistent styling?
+   - Are similar content types presented similarly?
+   - Flag if: Same type of content looks completely different in different places
+
+**IGNORE:** CSS class names, code structure
+**REPORT:** Visual inconsistencies that would make a user think "why does this button look different?" or feel confused by varying patterns`,
 
   "error_prevention": `**VISUAL ANALYSIS: Error Prevention**
 
@@ -149,25 +200,55 @@ Look at the SCREENSHOT and identify:
 IGNORE: Backend optimizations, responsive code
 REPORT: Only missing VISIBLE efficiency features`,
 
-  "minimalist": `**VISUAL ANALYSIS: Aesthetic & Minimalist Design**
+  "minimalist": `**ACT LIKE A HUMAN: First Impression & Visual Design**
 
-Look at the SCREENSHOT and identify:
-❌ BAD EXAMPLES TO FLAG:
-- Cluttered layouts with no whitespace
-- Competing visual elements (multiple CTAs fighting for attention)
-- Outdated design (Web 1.0 gradients, bevels, heavy shadows)
-- Too much text without visual breathing room
-- Distracting animations or visual noise
-- Poor visual hierarchy (everything looks equally important)
+Look at this screenshot as if you just landed on the website. Be honest about your gut reaction.
 
-✅ WHAT TO LOOK FOR:
-- Is the design clean and modern?
-- Is there sufficient whitespace?
-- Is visual hierarchy clear?
-- Is the color scheme tasteful?
+**1. FIRST 3-SECOND IMPRESSION:**
+   - Does this look modern (2024-2025 design) or outdated (2010s or earlier)?
+   - What year does this design feel like it's from?
+   - Does it feel cluttered or clean?
+   - Do you feel overwhelmed or at ease?
 
-IGNORE: File size, code bloat
-REPORT: VISIBLE clutter and dated aesthetics`,
+**2. DATED DESIGN PATTERNS (Flag these immediately):**
+   - ❌ Heavy gradients with shine/gloss effects
+   - ❌ Beveled or embossed elements (3D-looking buttons)
+   - ❌ Heavy drop shadows or inner shadows
+   - ❌ Overly saturated, bright colors (especially web-safe color palettes)
+   - ❌ Decorative dividers, ornate borders
+   - ❌ Stock photo montages or cheesy imagery
+   - ❌ Flash-era design (glossy buttons, reflections)
+
+**3. SPATIAL ANALYSIS (Look at the layout):**
+   - Is there enough whitespace / breathing room?
+   - Are elements crammed together?
+   - Do related items have appropriate proximity?
+   - Is there a clear visual hierarchy or does everything compete for attention?
+   - Are there awkward gaps or inconsistent spacing?
+
+**4. VISUAL HIERARCHY:**
+   - Can you immediately tell what's most important on the page?
+   - Is there one clear primary action/CTA?
+   - Or are there 5 different things screaming for attention?
+   - Are font sizes and weights used to create clear levels of importance?
+
+**5. INFORMATION DENSITY:**
+   - Is there too much text/content crammed in?
+   - Are paragraphs long and intimidating?
+   - Is the page trying to say too many things at once?
+   - Would a user feel exhausted looking at this?
+
+**6. COLOR & AESTHETICS:**
+   - Is the color palette tasteful and modern?
+   - Do colors clash or compete?
+   - Is there good contrast without being harsh?
+   - Does the design feel cohesive?
+
+**CRITICAL: Be brutally honest about dated designs.**
+Many websites have "Web 2.0" or early 2010s aesthetics that desperately need updates. Flag these clearly.
+
+**IGNORE:** Code optimization, file sizes
+**REPORT:** Visual clutter, outdated aesthetics, poor spatial design - what would make a user think "this looks old"`,
 
   "error_recovery": `**VISUAL ANALYSIS: Error Recognition & Recovery**
 

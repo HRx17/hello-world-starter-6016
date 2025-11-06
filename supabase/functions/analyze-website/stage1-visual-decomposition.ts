@@ -74,32 +74,71 @@ export async function performVisualDecomposition(
   
   console.log('Screenshot validated:', screenshotData.substring(0, 30) + '...', `(${screenshotData.length} chars)`);
 
-  const prompt = `You are a UX expert analyzing a website screenshot for VISUAL usability issues.
+  const prompt = `You are a senior UX researcher from Nielsen Norman Group. You're looking at this website screenshot with fresh eyes, like a first-time user would.
 
-**TASK: Identify VISUAL UX problems and design issues**
+**YOUR TASK: Look at this page as a HUMAN USER would see it**
 
-Focus on what USERS SEE and EXPERIENCE:
-1. **Outdated Design Patterns**: Web 1.0 aesthetics (heavy gradients, bevels, outdated colors)
-2. **Visual Hierarchy Issues**: Everything same size/weight, no clear focus points
-3. **Color & Contrast**: Low contrast text, poor readability, clashing colors
-4. **Layout & Spacing**: Cluttered design, insufficient whitespace, elements too close
-5. **Consistency**: Different button styles, inconsistent navigation patterns
-6. **Visual Feedback**: Missing hover states, unclear clickable areas, no visual indicators
-7. **Information Architecture**: Too much competing information, unclear grouping
-8. **Typography**: Poor font choices, readability issues, inconsistent sizing
+Imagine you just landed on this website. What jumps out at you? What feels wrong or dated?
 
-Also extract key UI elements for reference:
-- Navigation menus and their visual treatment
-- Buttons and their states (primary, secondary, disabled appearances)
-- Forms and input fields
-- Call-to-action elements
-- Visual hierarchy patterns
+## VISUAL & LAYOUT ANALYSIS (Most Important)
 
-**COLOR CONTRAST ANALYSIS:**
-- Identify text with poor contrast (<4.5:1)
-- Flag dated color schemes (saturated web-safe colors, heavy gradients)
+**1. FIRST IMPRESSIONS (What a user sees in 3 seconds):**
+   - Does this look modern or dated? (2025 vs 2010 web design)
+   - Is there a clear visual hierarchy? Where does your eye go first?
+   - What's the most prominent element? Is it what SHOULD be most prominent?
+   - Does anything look "off" - spacing, alignment, colors?
 
-Return comprehensive JSON focusing on VISUAL UX ISSUES, not technical code problems.`;
+**2. SPATIAL RELATIONSHIPS & LAYOUT:**
+   - Are elements too close together? (causing visual clutter)
+   - Is there enough breathing room / whitespace?
+   - Do related items look related? (proximity principle)
+   - Are there awkward gaps or misalignments?
+   - Does the layout look balanced or lopsided?
+
+**3. COLOR & CONTRAST (Critical for Readability):**
+   - Can you easily read ALL text against its background?
+   - Are there any gray-on-gray or low-contrast combinations?
+   - Do colors look harmonious or clashing?
+   - Are dated color choices used? (Overly saturated blues, gradients with shine effects)
+   - Is the color palette modern or reminiscent of early 2000s web?
+
+**4. TYPOGRAPHY & READABILITY:**
+   - Are fonts easy to read?
+   - Is text size appropriate? (Not too small, especially for body text)
+   - Is there too much variation in fonts/sizes? (inconsistency)
+   - Are headings clearly distinguished from body text?
+
+**5. VISUAL DESIGN PATTERNS (Dated vs Modern):**
+   - DATED PATTERNS to flag: Heavy drop shadows, glossy buttons, heavy gradients, beveled edges, skeuomorphism, Web 2.0 shine effects
+   - MODERN PATTERNS: Flat or subtle depth, generous whitespace, clean typography, subtle shadows, clear hierarchy
+
+**6. INTERACTION AFFORDANCES:**
+   - Can you tell what's clickable? (buttons should look like buttons)
+   - Are clickable elements visually distinct?
+   - Do elements that look the same have the same function?
+   - Are interactive states visible? (hover, active, focus indicators)
+
+**7. INFORMATION DENSITY:**
+   - Is there too much competing for attention?
+   - Are there clear visual sections?
+   - Does any area feel overwhelming or cluttered?
+
+## EXTRACT SPECIFIC UI ELEMENTS:
+For reference, identify and locate:
+- Navigation patterns and their position
+- Primary and secondary buttons (note their visual treatment)
+- Form inputs and their states
+- Call-to-action elements and their prominence
+- Any visual inconsistencies (same element looking different in different places)
+
+## OUTPUT FORMAT:
+Return detailed JSON with:
+1. **elements**: Array of UI components with precise locations (bounding boxes as percentages)
+2. **visualHierarchy**: Categorized elements (header, nav, main content, footer, modals)
+3. **colorPalette**: Extracted colors (primary, secondary, text, background)
+4. **contrastIssues**: Any text/background pairs with poor contrast (<4.5:1 ratio)
+
+**CRITICAL: Focus on VISUAL issues a human would notice, not code/HTML problems.**`;
 
   // Retry logic for transient failures
   let lastError: Error | null = null;
