@@ -293,7 +293,8 @@ export async function evaluatePerHeuristic(
   screenshot: string,
   html: string,
   markdown: string,
-  apiKey: string
+  apiKey: string,
+  interactionContext: string = ''
 ): Promise<{ violations: HeuristicViolation[]; strengths: HeuristicStrength[] }> {
   console.log(`Stage 3: Evaluating heuristic: ${heuristicName}`);
   
@@ -319,6 +320,8 @@ ${JSON.stringify(visualData, null, 2).substring(0, 3000)}
 
 **PAGE CONTENT (for context only):**
 ${markdown.substring(0, 1000)}
+
+${interactionContext}
 `;
 
   try {

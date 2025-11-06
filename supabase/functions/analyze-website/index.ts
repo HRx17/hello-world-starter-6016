@@ -48,8 +48,8 @@ serve(async (req) => {
       throw new Error('GOOGLE_AI_API_KEY not configured');
     }
 
-    // STEP 0: Scrape with Firecrawl
-    console.log('\n[STEP 0] Scraping website with Firecrawl...');
+    // STEP 0: Scrape with Firecrawl (with interaction states - FREE!)
+    console.log('\n[STEP 0] Scraping website with Firecrawl (capturing interaction states)...');
     const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -62,6 +62,15 @@ serve(async (req) => {
         onlyMainContent: false,
         includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer'],
         waitFor: 2000,
+        // FREE browser automation - capture interaction states!
+        actions: [
+          // Wait for page to fully load
+          { type: 'wait', milliseconds: 2000 },
+          // Try to submit any forms (reveals validation errors)
+          { type: 'click', selector: 'form button[type="submit"], form input[type="submit"]' },
+          // Wait for error messages to appear
+          { type: 'wait', milliseconds: 1000 },
+        ],
       }),
     });
 
@@ -128,7 +137,7 @@ serve(async (req) => {
     const structuralData = performStructuralAnalysis(html, markdown);
     console.log('✓ Stage 2 complete');
 
-    // STAGE 3: Per-Heuristic Evaluation
+    // STAGE 3: Per-Heuristic Evaluation (with interaction context)
     console.log('\n[STAGE 3] Per-Heuristic Evaluation (10 focused analyses)...');
     
     // Determine which heuristics to evaluate
@@ -142,6 +151,23 @@ serve(async (req) => {
     }
 
     console.log(`  Evaluating ${heuristicsToEvaluate.length} heuristics...`);
+    
+    // Note about interaction states captured
+    const interactionContext = `
+    
+**INTERACTION STATE CAPTURED:**
+This screenshot was taken AFTER attempting common interactions:
+- Page fully loaded with dynamic content
+- Form submission attempted (to reveal error messages)
+- 2-second wait for error states to appear
+
+This means you can now see:
+- Error messages and validation feedback
+- Loading states that appeared
+- Any modals or tooltips that were triggered
+- Dynamic content that loaded after interactions
+
+Analyze what's visible in this post-interaction state.`;
 
     // Run all heuristic evaluations in parallel for maximum efficiency
     // Using Promise.allSettled to ensure one failure doesn't stop all analyses
@@ -155,7 +181,8 @@ serve(async (req) => {
           screenshot,
           html,
           markdown,
-          GOOGLE_AI_API_KEY
+          GOOGLE_AI_API_KEY,
+          interactionContext // Pass interaction context
         )
       )
     );
