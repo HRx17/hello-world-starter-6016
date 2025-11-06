@@ -1,10 +1,23 @@
 // Show the plugin UI
 figma.showUI(__html__, { width: 400, height: 500 });
 
+// Load all required fonts upfront
+async function loadRequiredFonts() {
+  await Promise.all([
+    figma.loadFontAsync({ family: "Inter", style: "Bold" }),
+    figma.loadFontAsync({ family: "Inter", style: "SemiBold" }),
+    figma.loadFontAsync({ family: "Inter", style: "Medium" }),
+    figma.loadFontAsync({ family: "Inter", style: "Regular" })
+  ]);
+}
+
 // Handle messages from the UI
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'import-data') {
     try {
+      // Load all fonts first
+      await loadRequiredFonts();
+      
       const data = JSON.parse(msg.data);
       
       if (data.exportType === 'user_journey_map') {
@@ -18,7 +31,7 @@ figma.ui.onmessage = async (msg) => {
       figma.notify('✓ Successfully imported into Figma!');
       figma.ui.postMessage({ type: 'import-success' });
     } catch (error) {
-      figma.notify('✗ Import failed. Please check your data format.');
+      figma.notify('✗ Import failed: ' + error.message);
       figma.ui.postMessage({ type: 'import-error', error: error.message });
     }
   } else if (msg.type === 'cancel') {
@@ -38,7 +51,6 @@ async function createUserJourneyMap(data: any) {
   
   // Title
   const title = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
   title.characters = data.title || 'User Journey Map';
   title.fontSize = 32;
   title.x = 100;
@@ -60,7 +72,6 @@ async function createUserJourneyMap(data: any) {
     
     // Stage name
     const stageName = figma.createText();
-    await figma.loadFontAsync({ family: "Inter", style: "Bold" });
     stageName.characters = stage.name;
     stageName.fontSize = 20;
     stageName.x = 20;
@@ -96,7 +107,6 @@ async function createUserJourneyMap(data: any) {
     
     // Emotion
     const emotionText = figma.createText();
-    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
     emotionText.characters = `Emotion: ${getEmotionEmoji(stage.emotionLevel)}`;
     emotionText.fontSize = 16;
     emotionText.x = 20;
@@ -180,7 +190,6 @@ async function createInformationArchitecture(data: any) {
   
   // Title
   const title = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
   title.characters = data.name || 'Information Architecture';
   title.fontSize = 32;
   title.x = 100;
@@ -212,7 +221,6 @@ async function createIALevel(parent: FrameNode, items: any[], x: number, y: numb
     box.effects = [{ type: 'DROP_SHADOW', color: { r: 0, g: 0, b: 0, a: 0.1 }, offset: { x: 0, y: 2 }, radius: 8, visible: true, blendMode: 'NORMAL' }];
     
     const text = figma.createText();
-    await figma.loadFontAsync({ family: "Inter", style: "Medium" });
     text.characters = item.name;
     text.fontSize = 16;
     text.x = 15;
@@ -249,7 +257,6 @@ async function createMindMapNode(text: string, x: number, y: number, width: numb
   node.effects = [{ type: 'DROP_SHADOW', color: { r: 0, g: 0, b: 0, a: 0.15 }, offset: { x: 0, y: 4 }, radius: 12, visible: true, blendMode: 'NORMAL' }];
   
   const textNode = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: isCentral ? "Bold" : "Medium" });
   textNode.characters = text;
   textNode.fontSize = isCentral ? 18 : 14;
   textNode.textAlignHorizontal = 'CENTER';
@@ -265,7 +272,6 @@ async function createMindMapNode(text: string, x: number, y: number, width: numb
 
 async function addSection(parent: FrameNode, title: string, items: string[], yPos: number, width: number) {
   const sectionTitle = figma.createText();
-  await figma.loadFontAsync({ family: "Inter", style: "SemiBold" });
   sectionTitle.characters = title;
   sectionTitle.fontSize = 14;
   sectionTitle.x = 20;
@@ -276,7 +282,6 @@ async function addSection(parent: FrameNode, title: string, items: string[], yPo
   
   for (const item of items) {
     const bullet = figma.createText();
-    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
     bullet.characters = `• ${item}`;
     bullet.fontSize = 13;
     bullet.x = 20;
