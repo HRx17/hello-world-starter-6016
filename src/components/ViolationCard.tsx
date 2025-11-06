@@ -130,7 +130,11 @@ export const ViolationCard = ({ violation, violationNumber, framework, url, scre
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Cropped Screenshot Preview */}
+        <div>
+          <p className="text-sm text-muted-foreground leading-relaxed">{violation.description}</p>
+        </div>
+
+        {/* Cropped Screenshot Preview - Moved after description for better flow */}
         {screenshot && violation.boundingBox && (
           <CroppedViolationImage
             screenshot={screenshot}
@@ -139,10 +143,6 @@ export const ViolationCard = ({ violation, violationNumber, framework, url, scre
             title={violation.title}
           />
         )}
-        
-        <div>
-          <p className="text-sm text-muted-foreground leading-relaxed">{violation.description}</p>
-        </div>
         
         {/* Location Text Section */}
         {violation.location && (

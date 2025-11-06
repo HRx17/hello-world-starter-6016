@@ -28,22 +28,26 @@ const HEURISTIC_SPECIFIC_PROMPTS: Record<string, string> = {
 
 You're a user on this website. Look at the screenshot carefully.
 
-**Questions to ask yourself as a user:**
+**STRENGTHS TO RECOGNIZE (Report these!):**
+✅ Shopping cart badge shows item count
+✅ Active page highlighted in navigation
+✅ Breadcrumbs show current location
+✅ Progress bars or step indicators visible
+✅ Clear loading states or spinners
+✅ "Added to cart" or similar confirmation messages visible
+✅ Search results show "Found X results" or similar feedback
+
+**ISSUES TO FLAG:**
 1. If I clicked a button, would I know something is happening?
-   - Look for: Loading states, spinners, progress bars, "Saving..." text
    - Flag if: Buttons look the same before/after click, no visual feedback
 
 2. Can I tell where I am in the site?
-   - Look at: Navigation menu - is current page highlighted/underlined/bold?
-   - Look at: Breadcrumbs - are they present and clear?
    - Flag if: All nav items look identical, no way to know current location
 
-3. If I'm waiting for something (search, file upload, form submit), do I know it's working?
-   - Look for: Progress indicators, status messages, visual cues
+3. If I'm waiting for something (search, file upload), do I know it's working?
    - Flag if: No indication of progress or time remaining
 
 4. Can I see the results of my actions?
-   - Look for: Confirmation messages ("Item added to cart"), success states
    - Flag if: Actions seem to happen silently with no confirmation
 
 **IGNORE:** 
@@ -52,38 +56,35 @@ You're a user on this website. Look at the screenshot carefully.
 - Things not visible to the user
 
 **REPORT:** 
-Only VISIBLE issues - what would frustrate a user who can't tell if the system is working`,
+Both strengths AND issues related to system status visibility`,
 
   "match_real_world": `**ACT LIKE A HUMAN: Real-World Language & Conventions**
 
 Imagine you're a typical user (not a developer) looking at this website.
 
-**Read the visible text and ask:**
+**STRENGTHS TO RECOGNIZE:**
+✅ Clear, descriptive button labels ("Add to Cart", "Check Out")
+✅ Familiar icons (shopping cart, search, home) with good labels
+✅ Plain language that a non-technical person understands
+✅ Logo in top-left (clickable to home) - industry convention
+✅ Footer at bottom with expected links (About, Contact, Privacy)
+✅ Breadcrumbs or clear navigation following standard patterns
+
+**ISSUES TO FLAG:**
 1. Do I understand what these buttons do?
-   - Good: "Download Report", "Add to Cart", "Create Account"
-   - Bad: "Execute", "Submit", "Process", "POST" (too vague/technical)
-   - Flag if: Button labels are generic, vague, or use programming terms
+   - Flag if: Button labels are generic, vague, or use programming terms ("Submit", "Execute", "Process")
 
 2. Can I understand the icons without hovering?
-   - Look at: Icons throughout the page
-   - Good: Universally known symbols (trash = delete, house = home, magnifying glass = search)
-   - Bad: Abstract or ambiguous icons, custom icons without text labels
-   - Flag if: You have to guess what an icon means
+   - Flag if: Abstract icons with no text labels, unfamiliar symbols
 
 3. Is the language familiar or does it feel like "computer speak"?
-   - Look for: Industry jargon, acronyms without explanation, technical terms
-   - Good: "Sign in", "Your profile", "Recent activity"
-   - Bad: "Authenticate", "User config", "Log entries"
-   - Flag if: Average person wouldn't understand the terminology
+   - Flag if: Jargon, unexplained acronyms, technical terms ("Authenticate", "Config", "Log entries")
 
 4. Do visual patterns match real-world expectations?
-   - Look at: Form layouts, navigation patterns, button positions
-   - Good: Logo top-left (clickable to home), hamburger menu for mobile, footer at bottom
-   - Bad: Unusual navigation patterns, unexpected element positions
-   - Flag if: Layout breaks common web conventions
+   - Flag if: Logo not top-left, unusual navigation, unexpected button positions
 
 **IGNORE:** Variable names, code comments, HTML structure
-**REPORT:** Only user-facing text, icons, and visual patterns that would confuse a non-technical person`,
+**REPORT:** Both good and bad examples of real-world language matching`,
 
   "user_control": `**VISUAL ANALYSIS: User Control & Freedom**
 
@@ -150,20 +151,25 @@ As you scan this page, your brain naturally looks for patterns. Notice what feel
   "error_prevention": `**VISUAL ANALYSIS: Error Prevention**
 
 Look at the SCREENSHOT and identify:
-❌ BAD EXAMPLES TO FLAG:
-- Destructive actions (delete, clear) with no confirmation dialog
-- No visual indication of required fields
-- Date inputs without format examples shown
-- Submit buttons active when form is incomplete
-- No constraints visible on inputs (password requirements hidden)
 
-✅ WHAT TO LOOK FOR:
-- Are there confirmation dialogs before dangerous actions?
-- Do forms show constraints and requirements?
-- Are required fields marked visually?
+✅ STRENGTHS TO RECOGNIZE:
+- Confirmation dialogs before destructive actions ("Are you sure you want to delete?")
+- Required fields marked with asterisks or "(required)" labels
+- Password strength indicators visible while typing
+- Format examples shown in placeholder or helper text ("MM/DD/YYYY")
+- Visual constraints shown ("Password must be 8+ characters")
+- Disabled submit buttons until form is valid
+- Autocomplete or suggestions to prevent typos
 
-IGNORE: HTML5 validation attributes
-REPORT: Only missing VISIBLE prevention mechanisms`,
+❌ ISSUES TO FLAG:
+- Destructive actions (delete, clear) with no visible confirmation
+- Required fields not visually marked
+- Input constraints hidden (user must discover through trial-and-error)
+- Date/email inputs without format guidance
+- No prevention of common errors
+
+IGNORE: HTML5 validation attributes, backend validation
+REPORT: Only VISIBLE prevention mechanisms (or lack thereof)`,
 
   "recognition": `**VISUAL ANALYSIS: Recognition Rather Than Recall**
 
@@ -356,20 +362,24 @@ For EACH violation you must provide ALL these fields:
   ],
   "strengths": [
     {
-      "description": "What's done well",
-      "example": "Specific example from the page"
+      "description": "What's done well and why it's effective (minimum 20 words)",
+      "example": "Specific example from the page with location"
     }
   ]
 }
 
-**CRITICAL RULES:**
+**CRITICAL RULES FOR BALANCED ANALYSIS:**
 1. Base analysis 95% on SCREENSHOT, 5% on text content
-2. DO NOT report: meta tags, HTML attributes, ARIA labels, viewport, alt text, semantic HTML
-3. DO report: outdated visual design, poor visual hierarchy, cluttered layouts, unclear UI elements
-4. Every violation needs ALL fields above or it will be rejected
-5. Title must be specific (>6 words), not generic
-6. Research backing must cite specific UX research
-7. User impact must quantify the problem
+2. BE BALANCED: Report both violations AND strengths. World-class sites like Amazon should show many strengths.
+3. DO NOT report: meta tags, HTML attributes, ARIA labels, viewport, alt text, semantic HTML
+4. DO report: outdated visual design, poor visual hierarchy, cluttered layouts, unclear UI elements
+5. ONLY flag genuine issues - don't invent problems if the UX is good
+6. For mature sites (Amazon, Google, etc.), expect to find MORE strengths than violations
+7. Every violation needs ALL fields above or it will be rejected
+8. Title must be specific (>6 words), not generic
+9. Research backing must cite specific UX research
+10. User impact must quantify the problem
+11. Strengths must be detailed (>20 words) and specific
 
 Context (for reference only):
 ${contextData}

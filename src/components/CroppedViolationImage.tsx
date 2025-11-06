@@ -27,16 +27,23 @@ export const CroppedViolationImage = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    setIsLoading(true);
+    setError(false);
+
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Try without crossOrigin first for better compatibility
+    // img.crossOrigin = "anonymous";
 
     img.onload = () => {
       try {
+        console.log("Screenshot loaded successfully", { screenshot, boundingBox });
         const { x, y, width, height } = boundingBox;
         
         // Convert percentages to pixels
         const imgWidth = img.naturalWidth;
         const imgHeight = img.naturalHeight;
+        
+        console.log("Image dimensions:", { imgWidth, imgHeight, boundingBox });
         
         const pixelX = (x / 100) * imgWidth;
         const pixelY = (y / 100) * imgHeight;
@@ -98,6 +105,7 @@ export const CroppedViolationImage = ({
         ctx.lineWidth = 3;
         ctx.strokeRect(highlightX, highlightY, highlightWidth, highlightHeight);
 
+        console.log("Screenshot cropped and rendered successfully");
         setIsLoading(false);
       } catch (err) {
         console.error("Error cropping image:", err);
@@ -106,8 +114,8 @@ export const CroppedViolationImage = ({
       }
     };
 
-    img.onerror = () => {
-      console.error("Failed to load screenshot");
+    img.onerror = (e) => {
+      console.error("Failed to load screenshot:", screenshot, e);
       setError(true);
       setIsLoading(false);
     };
@@ -116,13 +124,23 @@ export const CroppedViolationImage = ({
   }, [screenshot, boundingBox, severity]);
 
   if (error) {
-    return null; // Don't show anything if image fails to load
+    // Show a placeholder when image fails to load
+    return (
+      <Card className="overflow-hidden bg-muted/30 border-yellow-500/50">
+        <div className="p-2 bg-muted/50">
+          <p className="text-xs text-muted-foreground font-medium">Violation Location</p>
+        </div>
+        <div className="p-4 text-center text-sm text-muted-foreground">
+          <p>Unable to load screenshot preview</p>
+        </div>
+      </Card>
+    );
   }
 
   return (
     <Card className="overflow-hidden bg-muted/30">
       <div className="p-2 bg-muted/50">
-        <p className="text-xs text-muted-foreground font-medium">Violation Location</p>
+        <p className="text-xs text-muted-foreground font-medium">📍 Violation Location</p>
       </div>
       <div className="relative bg-white">
         {isLoading && (
