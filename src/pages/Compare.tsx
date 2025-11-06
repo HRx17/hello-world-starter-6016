@@ -6,25 +6,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart3, ArrowLeft } from "lucide-react";
+import { BarChart3, ArrowLeft, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+
+interface AnalysisResult {
+  id: string;
+  score: number;
+  analyzed_at: string;
+}
+
+interface WebsiteCrawl {
+  id: string;
+  overall_score: number;
+  completed_at: string;
+  status: string;
+  analyzed_pages: number;
+}
 
 interface Project {
   id: string;
   name: string;
   url: string;
   framework: string | null;
-  analysis_results: {
-    score: number;
-    analyzed_at: string;
-  }[];
+  analysis_results: AnalysisResult[];
+  website_crawls: WebsiteCrawl[];
+}
+
+interface SelectableAnalysis {
+  id: string;
+  projectId: string;
+  projectName: string;
+  url: string;
+  score: number;
+  date: Date;
+  type: 'single' | 'crawl';
+  pages?: number;
 }
 
 const Compare = () => {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [allAnalyses, setAllAnalyses] = useState<SelectableAnalysis[]>([]);
+  const [selectedAnalyses, setSelectedAnalyses] = useState<Set<string>>(new Set());
   const [comparisonName, setComparisonName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
@@ -53,20 +76,65 @@ const Compare = () => {
           url,
           framework,
           analysis_results (
+            id,
             score,
             analyzed_at
+          ),
+          website_crawls (
+            id,
+            overall_score,
+            completed_at,
+            status,
+            analyzed_pages
           )
         `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // Only show projects that have at least one analysis
-      const projectsWithAnalysis = (data || []).filter(
-        (p: any) => p.analysis_results && p.analysis_results.length > 0
-      );
+      // Process all analyses from all projects
+      const analyses: SelectableAnalysis[] = [];
+      
+      (data || []).forEach((project: any) => {
+        // Add single-page analyses
+        if (project.analysis_results) {
+          project.analysis_results.forEach((analysis: AnalysisResult) => {
+            analyses.push({
+              id: analysis.id,
+              projectId: project.id,
+              projectName: project.name,
+              url: project.url,
+              score: analysis.score,
+              date: new Date(analysis.analyzed_at),
+              type: 'single'
+            });
+          });
+        }
 
-      setProjects(projectsWithAnalysis as Project[]);
+        // Add crawl analyses (only completed ones)
+        if (project.website_crawls) {
+          project.website_crawls
+            .filter((crawl: WebsiteCrawl) => crawl.status === 'completed')
+            .forEach((crawl: WebsiteCrawl) => {
+              analyses.push({
+                id: crawl.id,
+                projectId: project.id,
+                projectName: project.name,
+                url: project.url,
+                score: crawl.overall_score,
+                date: new Date(crawl.completed_at),
+                type: 'crawl',
+                pages: crawl.analyzed_pages
+              });
+            });
+        }
+      });
+
+      // Sort by date (newest first)
+      analyses.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+      setProjects(data as Project[]);
+      setAllAnalyses(analyses);
     } catch (error) {
       console.error("Error loading projects:", error);
       toast({
@@ -79,29 +147,29 @@ const Compare = () => {
     }
   };
 
-  const toggleProject = (projectId: string) => {
-    const newSelected = new Set(selectedProjects);
-    if (newSelected.has(projectId)) {
-      newSelected.delete(projectId);
+  const toggleAnalysis = (analysisId: string) => {
+    const newSelected = new Set(selectedAnalyses);
+    if (newSelected.has(analysisId)) {
+      newSelected.delete(analysisId);
     } else {
       if (newSelected.size >= 5) {
         toast({
           title: "Maximum Reached",
-          description: "You can compare up to 5 projects at once.",
+          description: "You can compare up to 5 analyses at once.",
           variant: "destructive",
         });
         return;
       }
-      newSelected.add(projectId);
+      newSelected.add(analysisId);
     }
-    setSelectedProjects(newSelected);
+    setSelectedAnalyses(newSelected);
   };
 
   const handleCompare = async () => {
-    if (selectedProjects.size < 2) {
+    if (selectedAnalyses.size < 2) {
       toast({
-        title: "Select More Projects",
-        description: "Please select at least 2 projects to compare.",
+        title: "Select More Analyses",
+        description: "Please select at least 2 analyses to compare.",
         variant: "destructive",
       });
       return;
@@ -117,10 +185,17 @@ const Compare = () => {
     }
 
     try {
+      // Get project IDs from selected analyses
+      const projectIds = [...new Set(
+        allAnalyses
+          .filter(a => selectedAnalyses.has(a.id))
+          .map(a => a.projectId)
+      )];
+
       const { error } = await supabase.from("comparisons").insert({
         user_id: user!.id,
         name: comparisonName,
-        project_ids: Array.from(selectedProjects),
+        project_ids: projectIds,
       });
 
       if (error) throw error;
@@ -139,11 +214,6 @@ const Compare = () => {
         variant: "destructive",
       });
     }
-  };
-
-  const getLatestScore = (project: Project) => {
-    if (!project.analysis_results || project.analysis_results.length === 0) return null;
-    return project.analysis_results[0].score;
   };
 
   const getScoreColor = (score: number) => {
@@ -168,9 +238,9 @@ const Compare = () => {
       </Button>
 
       <div className="mb-6 sm:mb-8 space-y-2">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Compare Projects</h1>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Compare Analyses</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Select 2-5 projects to compare their UX scores side by side
+          Select 2-5 analyses to compare their UX scores side by side
         </p>
       </div>
 
@@ -191,11 +261,11 @@ const Compare = () => {
         </CardContent>
       </Card>
 
-      {projects.length === 0 ? (
+      {allAnalyses.length === 0 ? (
         <Card>
           <CardContent className="py-12 sm:py-16 text-center px-4">
             <p className="text-sm sm:text-base text-muted-foreground mb-4">
-              No analyzed projects available for comparison
+              No analyses available for comparison
             </p>
             <Button onClick={() => navigate("/")}>Analyze a Website</Button>
           </CardContent>
@@ -203,17 +273,16 @@ const Compare = () => {
       ) : (
         <>
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-4 sm:mb-6">
-            {projects.map((project) => {
-              const score = getLatestScore(project);
-              const isSelected = selectedProjects.has(project.id);
+            {allAnalyses.map((analysis) => {
+              const isSelected = selectedAnalyses.has(analysis.id);
 
               return (
                 <Card
-                  key={project.id}
+                  key={analysis.id}
                   className={`cursor-pointer transition-all ${
                     isSelected ? "ring-2 ring-primary" : ""
                   }`}
-                  onClick={() => toggleProject(project.id)}
+                  onClick={() => toggleAnalysis(analysis.id)}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2 min-w-0">
@@ -221,26 +290,34 @@ const Compare = () => {
                         <Checkbox checked={isSelected} className="shrink-0 mt-1" />
                         <div className="flex-1 min-w-0">
                           <CardTitle className="text-base sm:text-lg truncate">
-                            {project.name}
+                            {analysis.projectName}
                           </CardTitle>
                           <CardDescription className="truncate text-xs sm:text-sm mt-1">
-                            {new URL(project.url).hostname}
+                            {new URL(analysis.url).hostname}
                           </CardDescription>
+                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span>
+                              {analysis.date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric' 
+                              })}
+                            </span>
+                            {analysis.type === 'crawl' && analysis.pages && (
+                              <Badge variant="outline" className="text-xs ml-2">
+                                {analysis.pages} pages
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      {score !== null && (
-                        <Badge className={`${getScoreColor(score)} shrink-0 text-xs sm:text-sm px-2 py-0.5`}>
-                          <BarChart3 className="h-3 w-3 mr-1" />
-                          {score}
-                        </Badge>
-                      )}
+                      <Badge className={`${getScoreColor(analysis.score)} shrink-0 text-xs sm:text-sm px-2 py-0.5`}>
+                        <BarChart3 className="h-3 w-3 mr-1" />
+                        {analysis.score}
+                      </Badge>
                     </div>
                   </CardHeader>
-                  {project.framework && (
-                    <CardContent className="pt-0">
-                      <Badge variant="outline" className="text-xs">{project.framework}</Badge>
-                    </CardContent>
-                  )}
                 </Card>
               );
             })}
@@ -248,11 +325,11 @@ const Compare = () => {
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <p className="text-xs sm:text-sm text-muted-foreground">
-              {selectedProjects.size} project{selectedProjects.size !== 1 ? "s" : ""} selected
+              {selectedAnalyses.size} {selectedAnalyses.size === 1 ? "analysis" : "analyses"} selected
             </p>
             <Button
               onClick={handleCompare}
-              disabled={selectedProjects.size < 2}
+              disabled={selectedAnalyses.size < 2}
               size="lg"
               className="w-full sm:w-auto"
             >
