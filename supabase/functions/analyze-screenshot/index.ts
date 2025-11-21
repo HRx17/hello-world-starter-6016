@@ -18,9 +18,9 @@ serve(async (req) => {
       throw new Error('Image URL is required');
     }
 
-    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
-    if (!GOOGLE_AI_API_KEY) {
-      throw new Error('Google AI API key not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('Lovable AI API key not configured');
     }
 
     // Use selected heuristics or default Nielsen's 10
@@ -37,19 +37,36 @@ serve(async (req) => {
       "help_and_documentation"
     ];
 
-    console.log('Analyzing screenshot with AI...');
+    console.log('Analyzing screenshot with Lovable AI...');
 
-    // Call Google AI Vision API
+    // Prepare the image data
+    let imageData = imageUrl;
+    if (imageUrl.startsWith('http')) {
+      // If it's a URL, we need to fetch and convert to base64
+      const imgResponse = await fetch(imageUrl);
+      const imgBuffer = await imgResponse.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+      imageData = `data:image/jpeg;base64,${base64}`;
+    }
+
+    // Call Lovable AI Gateway with vision support
     const aiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`,
+      'https://ai.gateway.lovable.dev/v1/chat/completions',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                text: `You are a UX expert analyzing a design screenshot for usability heuristic violations.
+          model: 'google/gemini-2.5-pro', // Best for vision + reasoning
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `You are a UX expert analyzing a design screenshot for usability heuristic violations.
 
 IMPORTANT: Analyze the image carefully and identify specific usability issues based on Nielsen's 10 Usability Heuristics.
 
@@ -85,36 +102,41 @@ Return your analysis in this exact JSON format:
 }
 
 Be thorough but realistic. Look for actual usability issues, not just nitpicks.`
-              },
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: imageUrl.split(',')[1] || imageUrl
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: imageData
+                  }
                 }
-              }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.4,
-            topK: 32,
-            topP: 1,
-            maxOutputTokens: 4096,
-          }
+              ]
+            }
+          ],
+          max_tokens: 4096,
+          temperature: 0.4
         }),
       }
     );
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI API Error:', errorText);
+      console.error('Lovable AI Error:', errorText);
+      
+      if (aiResponse.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again in a moment.');
+      }
+      if (aiResponse.status === 402) {
+        throw new Error('Payment required. Please add credits to your Lovable workspace.');
+      }
+      
       throw new Error(`AI analysis failed: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
     console.log('AI Response received');
 
-    // Parse AI response
-    const aiText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Parse AI response (OpenAI format)
+    const aiText = aiData.choices?.[0]?.message?.content || '';
     
     // Extract JSON from response
     const jsonMatch = aiText.match(/\{[\s\S]*\}/);
