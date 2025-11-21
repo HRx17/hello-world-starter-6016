@@ -23,6 +23,8 @@ import StepWorkspace from "./pages/StepWorkspace";
 import MindMapping from "./pages/MindMapping";
 import InformationArchitecture from "./pages/InformationArchitecture";
 import UserJourneyMapping from "./pages/UserJourneyMapping";
+import ScreenshotAnalysis from "./pages/ScreenshotAnalysis";
+import ScreenshotResults from "./pages/ScreenshotResults";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -160,6 +162,22 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <UserJourneyMapping />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/screenshot-analysis" 
+            element={
+              <ProtectedRoute>
+                <ScreenshotAnalysis />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/screenshot-results/:id" 
+            element={
+              <ProtectedRoute>
+                <ScreenshotResults />
               </ProtectedRoute>
             } 
           />

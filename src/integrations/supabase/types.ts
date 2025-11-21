@@ -121,6 +121,47 @@ export type Database = {
         }
         Relationships: []
       }
+      heuristic_sets: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          heuristics: Json
+          id: string
+          is_public: boolean | null
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          heuristics?: Json
+          id?: string
+          is_public?: boolean | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          heuristics?: Json
+          id?: string
+          is_public?: boolean | null
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "heuristic_sets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       information_architectures: {
         Row: {
           ai_generated: boolean | null
@@ -563,6 +604,66 @@ export type Database = {
           },
         ]
       }
+      screenshot_analyses: {
+        Row: {
+          analysis_results: Json | null
+          analyzed_at: string | null
+          created_at: string | null
+          id: string
+          image_storage_path: string | null
+          image_url: string
+          project_id: string | null
+          score: number | null
+          strengths: Json | null
+          updated_at: string | null
+          user_id: string
+          violations: Json | null
+        }
+        Insert: {
+          analysis_results?: Json | null
+          analyzed_at?: string | null
+          created_at?: string | null
+          id?: string
+          image_storage_path?: string | null
+          image_url: string
+          project_id?: string | null
+          score?: number | null
+          strengths?: Json | null
+          updated_at?: string | null
+          user_id: string
+          violations?: Json | null
+        }
+        Update: {
+          analysis_results?: Json | null
+          analyzed_at?: string | null
+          created_at?: string | null
+          id?: string
+          image_storage_path?: string | null
+          image_url?: string
+          project_id?: string | null
+          score?: number | null
+          strengths?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          violations?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screenshot_analyses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screenshot_analyses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       step_notes: {
         Row: {
           attachments: Json | null
@@ -739,6 +840,7 @@ export type Database = {
           default_framework: string | null
           default_heuristics: Json | null
           email_notifications: boolean | null
+          figma_access_token: string | null
           id: string
           theme: string | null
           updated_at: string | null
@@ -750,6 +852,7 @@ export type Database = {
           default_framework?: string | null
           default_heuristics?: Json | null
           email_notifications?: boolean | null
+          figma_access_token?: string | null
           id?: string
           theme?: string | null
           updated_at?: string | null
@@ -761,6 +864,7 @@ export type Database = {
           default_framework?: string | null
           default_heuristics?: Json | null
           email_notifications?: boolean | null
+          figma_access_token?: string | null
           id?: string
           theme?: string | null
           updated_at?: string | null
