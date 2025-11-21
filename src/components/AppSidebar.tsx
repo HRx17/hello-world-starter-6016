@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, LogOut, GitCompare, Settings, TrendingUp, Microscope } from "lucide-react";
+import { LayoutDashboard, FileText, LogOut, GitCompare, Settings, TrendingUp, Microscope, ImageIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -23,6 +23,7 @@ interface AppSidebarProps {
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "New Analysis", url: "/analyze", icon: FileText },
+  { title: "Screenshot Analysis", url: "/screenshot-analysis", icon: ImageIcon },
   { title: "Compare", url: "/compare", icon: GitCompare },
   { title: "UX Research", url: "/research", icon: Microscope },
   { title: "Settings", url: "/settings", icon: Settings },
