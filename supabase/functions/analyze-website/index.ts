@@ -83,16 +83,7 @@ serve(async (req) => {
         formats: ['html', 'markdown', 'screenshot@fullPage'],
         onlyMainContent: false,
         includeTags: ['a', 'button', 'input', 'form', 'nav', 'header', 'footer'],
-        waitFor: 2000,
-        // FREE browser automation - capture interaction states!
-        actions: [
-          // Wait for page to fully load
-          { type: 'wait', milliseconds: 2000 },
-          // Try to submit any forms (reveals validation errors)
-          { type: 'click', selector: 'form button[type="submit"], form input[type="submit"]' },
-          // Wait for error messages to appear
-          { type: 'wait', milliseconds: 1000 },
-        ],
+        waitFor: 3000,
       }),
     });
 
