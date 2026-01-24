@@ -26,6 +26,7 @@ import UserJourneyMapping from "./pages/UserJourneyMapping";
 import ScreenshotAnalysis from "./pages/ScreenshotAnalysis";
 import ScreenshotResults from "./pages/ScreenshotResults";
 import DesignAudits from "./pages/DesignAudits";
+import PluginSync from "./pages/PluginSync";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -187,6 +188,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <ScreenshotResults />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/plugin-sync" 
+            element={
+              <ProtectedRoute>
+                <PluginSync />
               </ProtectedRoute>
             } 
           />
