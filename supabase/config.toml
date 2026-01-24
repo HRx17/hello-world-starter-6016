@@ -1,1 +1,4 @@
 project_id = "vaeyjsqalzcdejwsvoql"
+
+[functions.simulate-persona-audit]
+verify_jwt = false
