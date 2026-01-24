@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.figma-bridge]
 verify_jwt = false
+
+[functions.generate-audit-report]
+verify_jwt = false
