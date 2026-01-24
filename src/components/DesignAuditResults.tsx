@@ -3,7 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, User, AlertCircle, Target } from "lucide-react";
+import { ArrowLeft, User, AlertCircle, Target, FileDown, FileText, Download, Loader2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  generateBasicMarkdownReport, 
+  downloadMarkdownReport, 
+  downloadPDFReport 
+} from "@/lib/auditReportExport";
 
 interface FrictionPoint {
   id: number;
@@ -12,6 +25,15 @@ interface FrictionPoint {
   title: string;
   description: string;
   severity: "high" | "medium" | "low";
+}
+
+interface Persona {
+  id: string;
+  name: string;
+  description?: string | null;
+  pain_points?: string[] | null;
+  goals?: string[] | null;
+  demographics?: Record<string, any> | null;
 }
 
 interface SimulationResult {
@@ -23,12 +45,21 @@ interface SimulationResult {
 interface DesignAuditResultsProps {
   imageUrl: string;
   result: SimulationResult;
+  persona?: {
+    id: string;
+    name: string;
+    description?: string | null;
+    pain_points?: string[] | null;
+    goals?: string[] | null;
+    demographics?: unknown;
+  };
   onReset: () => void;
 }
 
-export function DesignAuditResults({ imageUrl, result, onReset }: DesignAuditResultsProps) {
+export function DesignAuditResults({ imageUrl, result, persona, onReset }: DesignAuditResultsProps) {
   const [selectedPoint, setSelectedPoint] = useState<FrictionPoint | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -56,17 +87,134 @@ export function DesignAuditResults({ imageUrl, result, onReset }: DesignAuditRes
     }
   };
 
+  const handleExportReport = async (format: "markdown" | "pdf") => {
+    setIsGeneratingReport(true);
+    
+    try {
+      // Prepare persona data for the API
+      const personaPayload = persona ? {
+        name: persona.name,
+        description: persona.description,
+        painPoints: persona.pain_points,
+        goals: persona.goals,
+        demographics: persona.demographics,
+      } : {
+        name: result.personaName,
+        description: "Persona used for usability simulation",
+        painPoints: [],
+        goals: [],
+      };
+
+      // Call the edge function to generate AI-enhanced report
+      const { data, error } = await supabase.functions.invoke("generate-audit-report", {
+        body: {
+          frictionPoints: result.frictionPoints,
+          monologue: result.monologue,
+          persona: personaPayload,
+          imageUrl,
+        },
+      });
+
+      if (error) {
+        console.error("Report generation error:", error);
+        // Fallback to basic client-side report
+        toast.info("Using basic report format (AI enhancement unavailable)");
+        
+        const basicReport = generateBasicMarkdownReport({
+          frictionPoints: result.frictionPoints,
+          monologue: result.monologue,
+          personaName: result.personaName,
+          persona,
+          imageUrl,
+        });
+
+        if (format === "markdown") {
+          downloadMarkdownReport(basicReport, result.personaName);
+        } else {
+          downloadPDFReport(basicReport, result.personaName, imageUrl);
+        }
+        
+        toast.success(`Report downloaded as ${format.toUpperCase()}`);
+        return;
+      }
+
+      // Use AI-generated report
+      const reportContent = data.report;
+
+      if (format === "markdown") {
+        downloadMarkdownReport(reportContent, result.personaName);
+      } else {
+        downloadPDFReport(reportContent, result.personaName, imageUrl);
+      }
+
+      toast.success(`Report downloaded as ${format.toUpperCase()}`);
+    } catch (err) {
+      console.error("Export error:", err);
+      
+      // Fallback to basic report
+      const basicReport = generateBasicMarkdownReport({
+        frictionPoints: result.frictionPoints,
+        monologue: result.monologue,
+        personaName: result.personaName,
+        persona,
+        imageUrl,
+      });
+
+      if (format === "markdown") {
+        downloadMarkdownReport(basicReport, result.personaName);
+      } else {
+        downloadPDFReport(basicReport, result.personaName, imageUrl);
+      }
+      
+      toast.success(`Report downloaded as ${format.toUpperCase()}`);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <Button variant="ghost" onClick={onReset} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           New Simulation
         </Button>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <User className="h-4 w-4" />
-          Simulated as: <span className="font-medium text-foreground">{result.personaName}</span>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" />
+            Simulated as: <span className="font-medium text-foreground">{result.personaName}</span>
+          </div>
+          
+          {/* Export Report Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={isGeneratingReport} className="gap-2">
+                {isGeneratingReport ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="h-4 w-4" />
+                    Export Report
+                  </>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExportReport("markdown")} className="gap-2">
+                <FileText className="h-4 w-4" />
+                Download as Markdown
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportReport("pdf")} className="gap-2">
+                <Download className="h-4 w-4" />
+                Download as PDF (HTML)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

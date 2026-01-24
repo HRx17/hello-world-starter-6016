@@ -190,6 +190,7 @@ export default function DesignAudits() {
           <DesignAuditResults
             imageUrl={imagePreview!}
             result={simulationResult}
+            persona={selectedPersona}
             onReset={resetSimulation}
           />
         ) : (
