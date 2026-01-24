@@ -91,6 +91,39 @@ export type Database = {
           },
         ]
       }
+      figma_connections: {
+        Row: {
+          connect_key: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          name: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          connect_key?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          name?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          connect_key?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          name?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       figma_exports: {
         Row: {
           created_at: string | null
@@ -120,6 +153,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      figma_flows: {
+        Row: {
+          connection_id: string | null
+          created_at: string | null
+          description: string | null
+          figma_file_key: string | null
+          figma_file_name: string | null
+          id: string
+          name: string
+          screenshots: Json | null
+          status: string | null
+          steps: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          connection_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          figma_file_key?: string | null
+          figma_file_name?: string | null
+          id?: string
+          name: string
+          screenshots?: Json | null
+          status?: string | null
+          steps?: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          connection_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          figma_file_key?: string | null
+          figma_file_name?: string | null
+          id?: string
+          name?: string
+          screenshots?: Json | null
+          status?: string | null
+          steps?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "figma_flows_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "figma_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       heuristic_sets: {
         Row: {
@@ -984,6 +1070,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_from_connect_key: { Args: { key: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

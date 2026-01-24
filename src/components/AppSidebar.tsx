@@ -1,4 +1,4 @@
-import { LayoutDashboard, FileText, LogOut, GitCompare, Settings, Microscope, ImageIcon, Target } from "lucide-react";
+import { LayoutDashboard, LogOut, GitCompare, Settings, Microscope, ImageIcon, Target, Link2 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -26,6 +26,7 @@ const navItems = [
   { title: "Screenshot Analysis", url: "/screenshot-analysis", icon: ImageIcon },
   { title: "Compare", url: "/compare", icon: GitCompare },
   { title: "UX Research", url: "/research", icon: Microscope },
+  { title: "Plugin Sync", url: "/plugin-sync", icon: Link2 },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

@@ -2,3 +2,6 @@ project_id = "vaeyjsqalzcdejwsvoql"
 
 [functions.simulate-persona-audit]
 verify_jwt = false
+
+[functions.figma-bridge]
+verify_jwt = false
