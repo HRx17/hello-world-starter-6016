@@ -25,6 +25,7 @@ import InformationArchitecture from "./pages/InformationArchitecture";
 import UserJourneyMapping from "./pages/UserJourneyMapping";
 import ScreenshotAnalysis from "./pages/ScreenshotAnalysis";
 import ScreenshotResults from "./pages/ScreenshotResults";
+import DesignAudits from "./pages/DesignAudits";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -41,6 +42,14 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/analyze" element={<Index />} />
           <Route path="/results" element={<Results />} />
+          <Route 
+            path="/design-audits" 
+            element={
+              <ProtectedRoute>
+                <DesignAudits />
+              </ProtectedRoute>
+            } 
+          />
           <Route 
             path="/dashboard" 
             element={
