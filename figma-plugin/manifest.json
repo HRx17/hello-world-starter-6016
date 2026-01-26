@@ -1,18 +1,22 @@
 {
-  "name": "UX Probe - Research Importer",
+  "name": "UX Probe - Research & Audit",
   "id": "1568368912191242307",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
   "menu": [
     {
-      "name": "UX Probe - Research Importer",
+      "name": "Open UX Probe",
       "command": "open"
     }
   ],
   "editorType": ["figma", "figjam"],
+  "capabilities": ["inspect"],
   "networkAccess": {
-    "allowedDomains": ["https://vaeyjsqalzcdejwsvoql.supabase.co"],
-    "reasoning": "Required to fetch user's research data from authenticated backend"
+    "allowedDomains": [
+      "https://vaeyjsqalzcdejwsvoql.supabase.co",
+      "https://ai.gateway.lovable.dev"
+    ],
+    "reasoning": "Required to fetch user's research data and run AI-powered audits"
   }
 }

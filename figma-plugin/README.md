@@ -1,93 +1,140 @@
 # UX Probe - Figma Plugin
 
-A Figma plugin that lets you browse and import your UX research data (User Journey Maps, Mind Maps, and Information Architecture) directly from your UX Probe account into Figma.
+A comprehensive Figma plugin that connects UX research data from your UX Probe account directly to Figma, enabling research-driven design validation.
 
 ## Features
 
-✅ **Direct Account Integration** - Sign in with your UX Probe credentials
-✅ **Browse Your Research** - View all your saved research data in tabs
-✅ **One-Click Import** - Import any research item directly into Figma
-✅ **Beautiful Visualizations** - Professional layouts with proper formatting
-✅ **Works in Figma & FigJam** - Compatible with both platforms
+### 📥 Bridge Module (Research Importer)
+- **Personas**: Import user personas with goals, pain points, and demographics
+- **User Journey Maps**: Import journey stages with actions, touchpoints, and emotions
+- **Mind Maps**: Import hierarchical mind maps with branches and sub-branches
+- **Site Maps (IA)**: Import information architecture structures
+
+### 🎨 Theme System
+Choose from three visual themes for your imports:
+- **Blueprint** - Clean wireframe style with blue accents
+- **Corporate** - Professional high-fidelity with dark accents  
+- **Minimal** - Simple, understated design
+
+### 🔍 Pre-Usability Audit Engine
+Run automated usability audits on your designs:
+
+**Layer 1: Lint Checks (Rule-Based)**
+- Poor layer naming detection
+- Missing interactions on buttons
+- Small touch targets (<44px)
+
+**Layer 2: AI Visual Heuristics**
+- Accessibility issues (contrast, touch targets)
+- Usability problems (unclear CTAs, navigation)
+- Persona-specific friction points
+
+**Layer 3: Contextual Validation**
+- Tests designs against selected persona context
+- Identifies barriers to user goals
+- Flags elements that conflict with known pain points
+
+### 📋 Report Generation
+- Export findings as Markdown (.md)
+- Export as printable HTML/PDF
+- Includes persona context and severity ratings
 
 ## Installation
 
 ### From Web App (Recommended):
 
-1. **In UX Probe web app**, go to User Journey Mapping, Mind Mapping, or Information Architecture
+1. In **UX Probe web app**, go to any research tool page
 2. Click **"Download Figma Plugin"** button
 3. Extract the downloaded ZIP file
-4. **In Figma**, go to Menu → Plugins → Development → Import plugin from manifest
-5. **Select** the `manifest.json` file from the extracted folder
-6. The plugin is now installed!
+4. In **Figma**: Menu → Plugins → Development → Import plugin from manifest
+5. Select the `manifest.json` file from the extracted folder
 
 ### For Development:
 
-1. Clone/download the plugin files from the `figma-plugin` directory
-2. Compile TypeScript: `npx tsc code.ts --target es6`
+1. Clone the plugin files from the `figma-plugin` directory
+2. Compile TypeScript: `npx tsc code.ts --target es6 --lib es6,dom`
 3. In Figma: Menu → Plugins → Development → Import plugin from manifest
 4. Select the manifest.json file
 
 ## How to Use
 
-### Sign In & Browse
+### Authentication
+1. Open Figma and run the plugin
+2. Sign in with your UX Probe email and password
+3. Your session is saved for future use
 
-1. Open Figma or FigJam
-2. Run the plugin: Menu → Plugins → Development → UX Probe - Research Importer
-3. **Sign in** with your UX Probe email and password
-4. Browse your research data in three tabs:
-   - **User Journeys** - All your user journey maps
-   - **Mind Maps** - All your mind maps
-   - **Info Architecture** - All your information architecture diagrams
+### Importing Research Data
+1. Select a **Theme** from the dropdown
+2. Browse tabs: **Personas**, **Journeys**, **Mind Maps**, **Site Maps**
+3. Click any item to import it to the canvas
 
-### Import to Figma
+### Running Audits
+1. Go to the **Audit** tab
+2. Select a **Persona** for context (optional but recommended)
+3. Choose **Scope**: Current Selection, Entire Page, or Linked Flow
+4. Click **Lint** for quick rule checks or **Full Audit** for AI analysis
 
-1. Click on any research item you want to import
-2. The plugin will automatically create a beautifully formatted visualization in Figma
-3. Continue importing as many items as you need!
+### Viewing Results
+- Issues appear with High/Medium/Low severity badges
+- Click **"Go to"** to jump to the problematic layer
+- Click **"Ignore"** to dismiss false positives
 
-## Supported Research Types
+### Exporting Reports
+1. Go to the **Report** tab
+2. Click **Markdown** or **PDF** to download
 
-- **User Journey Maps**: Full journey stages with actions, touchpoints, thoughts, pain points, opportunities, and emotions
-- **Mind Maps**: Central topic with branching ideas and sub-branches
-- **Information Architecture**: Hierarchical site/app structure with multiple levels
+## Technical Requirements
 
-## Supported Export Types
+- Figma Desktop App or Browser (latest version)
+- UX Probe account with saved research data
+- Internet connection for API access
 
-- **User Journey Maps**: Full journey stages with actions, touchpoints, thoughts, pain points, opportunities, and emotions
-- **Mind Maps**: Central topic with branching ideas and sub-branches
-- **Information Architecture**: Hierarchical site/app structure with multiple levels
+## Supported Data Types
 
-## Features
-
-- ✅ One-click import after initial setup
-- ✅ Maintains formatting and structure
-- ✅ Automatic layout and spacing
-- ✅ Professional visual design
-- ✅ Works in both Figma and FigJam
-- ✅ No API tokens required
-
-## Building the Plugin
-
-To compile the TypeScript code:
-
-```bash
-npx tsc code.ts --target es6
-```
-
-This will generate a `code.js` file that Figma will use.
+| Type | Import | Audit Context |
+|------|--------|---------------|
+| Personas | ✅ | ✅ |
+| User Journey Maps | ✅ | ❌ |
+| Mind Maps | ✅ | ❌ |
+| Information Architecture | ✅ | ❌ |
 
 ## Troubleshooting
 
 **Plugin doesn't appear:**
-- Make sure you imported the manifest.json file
-- Check that all three files (manifest.json, code.js, ui.html) are in the same folder
+- Ensure you imported the manifest.json file correctly
+- Check all files (manifest.json, code.js, ui.html) are in the same folder
 
-**Import fails:**
-- Verify the JSON data is correctly formatted
-- Make sure you copied the complete export data
-- Check the browser console for any errors
+**Login fails:**
+- Verify your UX Probe account credentials
+- Check your internet connection
+
+**Audit returns no results:**
+- Make sure frames are selected
+- For AI audits, select a persona for context
+
+**Import looks wrong:**
+- Try a different theme
+- Ensure your research data has proper structure
+
+## API Endpoints Used
+
+- `POST /auth/v1/token` - Authentication
+- `GET /functions/v1/figma-bridge/personas` - Fetch personas
+- `GET /functions/v1/get-figma-user-journey-maps` - Fetch journeys
+- `GET /functions/v1/get-figma-mind-maps` - Fetch mind maps
+- `GET /functions/v1/get-figma-information-architectures` - Fetch IA
+- `POST /functions/v1/figma-audit-ai` - AI-powered design audit
+
+## Building
+
+```bash
+# Compile TypeScript
+npx tsc code.ts --target es6 --lib es6,dom
+
+# Or with watch mode for development
+npx tsc code.ts --target es6 --lib es6,dom --watch
+```
 
 ## Support
 
-For issues or questions, please contact support or check the documentation in the web app.
+For issues or questions, contact support@uxprobe.com or check the documentation in the web app.
