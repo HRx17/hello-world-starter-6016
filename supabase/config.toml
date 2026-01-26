@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.generate-audit-report]
 verify_jwt = false
+
+[functions.figma-audit-ai]
+verify_jwt = false
