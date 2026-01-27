@@ -137,14 +137,52 @@ Be thorough but realistic. Look for actual usability issues, not just nitpicks.`
 
     // Parse AI response (OpenAI format)
     const aiText = aiData.choices?.[0]?.message?.content || '';
+    console.log('Raw AI response length:', aiText.length);
     
-    // Extract JSON from response
-    const jsonMatch = aiText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to parse AI response');
+    // Extract JSON from response - find the outermost balanced braces
+    let braceCount = 0;
+    let startIndex = -1;
+    let endIndex = -1;
+    
+    for (let i = 0; i < aiText.length; i++) {
+      if (aiText[i] === '{') {
+        if (startIndex === -1) startIndex = i;
+        braceCount++;
+      } else if (aiText[i] === '}') {
+        braceCount--;
+        if (braceCount === 0 && startIndex !== -1) {
+          endIndex = i + 1;
+          break;
+        }
+      }
+    }
+    
+    if (startIndex === -1 || endIndex === -1) {
+      console.error('No valid JSON found in AI response');
+      throw new Error('Failed to parse AI response - no JSON object found');
     }
 
-    const analysis = JSON.parse(jsonMatch[0]);
+    const jsonString = aiText.substring(startIndex, endIndex);
+    console.log('Extracted JSON length:', jsonString.length);
+    
+    let analysis;
+    try {
+      analysis = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('JSON string preview:', jsonString.substring(0, 500));
+      
+      // Try to sanitize common issues
+      const sanitized = jsonString
+        .replace(/[\x00-\x1F\x7F]/g, ' ') // Remove control characters
+        .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
+      
+      try {
+        analysis = JSON.parse(sanitized);
+      } catch (e) {
+        throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
+    }
 
     // Calculate score based on violations
     const violationWeights = {
