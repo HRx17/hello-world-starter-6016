@@ -143,7 +143,7 @@ async function createPersonaCard(persona, themeName) {
     frame.appendChild(avatar);
     const avatarText = figma.createText();
     avatarText.fontName = { family: "Inter", style: "Bold" };
-    avatarText.characters = (persona.name?.charAt(0)?.toUpperCase()) || 'P';
+    avatarText.characters = (persona.name && persona.name.charAt(0)) ? persona.name.charAt(0).toUpperCase() : 'P';
     avatarText.fontSize = 32;
     avatarText.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
     avatarText.x = 168;
@@ -185,11 +185,11 @@ async function createPersonaCard(persona, themeName) {
     frame.appendChild(divider);
     yPos += 20;
     // Goals
-    if (persona.goals?.length > 0) {
+    if (persona.goals && persona.goals.length > 0) {
         yPos = await addPersonaSection(frame, '🎯 Goals', persona.goals, yPos, theme);
     }
     // Pain Points
-    if (persona.pain_points?.length > 0) {
+    if (persona.pain_points && persona.pain_points.length > 0) {
         yPos = await addPersonaSection(frame, '😟 Pain Points', persona.pain_points, yPos, theme);
     }
     // Resize frame to fit content
@@ -287,19 +287,19 @@ async function createUserJourneyMap(data, themeName) {
         stageFrame.appendChild(stageName);
         yPos = 68;
         // Sections
-        if (stage.actions?.length > 0) {
+        if (stage.actions && stage.actions.length > 0) {
             yPos = await addJourneySection(stageFrame, '📋 Actions', stage.actions, yPos, stageWidth, theme);
         }
-        if (stage.touchpoints?.length > 0) {
+        if (stage.touchpoints && stage.touchpoints.length > 0) {
             yPos = await addJourneySection(stageFrame, '📱 Touchpoints', stage.touchpoints, yPos, stageWidth, theme);
         }
-        if (stage.thoughts?.length > 0) {
+        if (stage.thoughts && stage.thoughts.length > 0) {
             yPos = await addJourneySection(stageFrame, '💭 Thoughts', stage.thoughts, yPos, stageWidth, theme);
         }
-        if (stage.painPoints?.length > 0) {
+        if (stage.painPoints && stage.painPoints.length > 0) {
             yPos = await addJourneySection(stageFrame, '😟 Pain Points', stage.painPoints, yPos, stageWidth, theme);
         }
-        if (stage.opportunities?.length > 0) {
+        if (stage.opportunities && stage.opportunities.length > 0) {
             yPos = await addJourneySection(stageFrame, '💡 Opportunities', stage.opportunities, yPos, stageWidth, theme);
         }
         // Emotion indicator
@@ -486,7 +486,7 @@ async function createIALevel(parent, items, x, y, level, theme) {
         box.appendChild(text);
         parent.appendChild(box);
         // Draw connector to children
-        if (item.children?.length > 0) {
+        if (item.children && item.children.length > 0) {
             const connectorX = x + indent + 220;
             const connectorY = currentY + itemHeight / 2;
             const hLine = figma.createLine();
@@ -523,7 +523,8 @@ async function runLintAudit(scope) {
         }
         // Check for broken interactions (frames without links)
         if (node.type === 'FRAME' && 'reactions' in node) {
-            const hasReaction = node.reactions?.length > 0;
+            var reactions = node.reactions;
+            var hasReaction = reactions && reactions.length > 0;
             if (!hasReaction && node.name.toLowerCase().includes('button')) {
                 issues.push({
                     nodeId: node.id,
@@ -678,10 +679,10 @@ function generateMarkdownReport(issues, persona) {
         md += `|-----------|-------|\n`;
         md += `| Name | ${persona.name} |\n`;
         md += `| Description | ${persona.description || 'N/A'} |\n`;
-        if (persona.goals?.length) {
+        if (persona.goals && persona.goals.length) {
             md += `| Goals | ${persona.goals.join(', ')} |\n`;
         }
-        if (persona.pain_points?.length) {
+        if (persona.pain_points && persona.pain_points.length) {
             md += `| Pain Points | ${persona.pain_points.join(', ')} |\n`;
         }
         md += '\n';
