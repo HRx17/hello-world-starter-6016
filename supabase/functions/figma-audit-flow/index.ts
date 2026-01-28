@@ -108,9 +108,9 @@ serve(async (req) => {
       throw new Error("Product context is required");
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("Lovable AI API key not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not configured");
     }
 
     // Build persona context
@@ -257,15 +257,15 @@ Identify 3-6 issues. Prioritize issues that:
     }
 
     const aiResponse = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "gpt-4o",
           messages: [
             {
               role: "user",
@@ -280,7 +280,7 @@ Identify 3-6 issues. Prioritize issues that:
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("Lovable AI Error:", errorText);
+      console.error("OpenAI Error:", errorText);
 
       if (aiResponse.status === 429) {
         return new Response(
@@ -296,7 +296,7 @@ Identify 3-6 issues. Prioritize issues that:
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: "Payment required. Please add credits to your Lovable workspace.",
+            error: "Payment required. Please check your OpenAI billing.",
             issues: []
           }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
