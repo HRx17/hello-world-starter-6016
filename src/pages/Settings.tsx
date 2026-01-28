@@ -1,18 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Save, Trash2, Download, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Save, Trash2, Download, AlertTriangle, Link2, Copy, Check, Plus, Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { HeuristicsSelector } from "@/components/HeuristicsSelector";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
 
 interface UserSettings {
   default_heuristics?: {
@@ -24,9 +28,21 @@ interface UserSettings {
   theme: string;
 }
 
+interface FigmaConnection {
+  id: string;
+  connect_key: string;
+  name: string;
+  is_active: boolean;
+  last_sync_at: string | null;
+  created_at: string;
+}
+
 export default function Settings() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -35,6 +51,9 @@ export default function Settings() {
   const [fullName, setFullName] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [newConnectionName, setNewConnectionName] = useState("");
+  const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [settings, setSettings] = useState<UserSettings>({
     default_heuristics: {
       set: "nn_10",
@@ -44,6 +63,64 @@ export default function Settings() {
     weekly_reports: false,
     theme: "system",
   });
+
+  // Fetch Figma connections
+  const { data: connections, isLoading: connectionsLoading } = useQuery({
+    queryKey: ["figma-connections", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("figma_connections")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as FigmaConnection[];
+    },
+    enabled: !!user,
+  });
+
+  // Create connection mutation
+  const createConnection = useMutation({
+    mutationFn: async (name: string) => {
+      if (!user) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("figma_connections")
+        .insert({ user_id: user.id, name: name || "My Figma Connection" })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["figma-connections"] });
+      setNewConnectionName("");
+      setIsCreatingKey(false);
+      toast({ title: "Connect key created", description: "Your new key is ready to use in the Figma plugin." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create key", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Delete connection mutation
+  const deleteConnection = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("figma_connections").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["figma-connections"] });
+      toast({ title: "Connect key deleted" });
+    },
+  });
+
+  const copyToClipboard = async (key: string) => {
+    await navigator.clipboard.writeText(key);
+    setCopiedKey(key);
+    toast({ title: "Copied to clipboard" });
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
 
   useEffect(() => {
     loadUserSettings();
@@ -59,7 +136,6 @@ export default function Settings() {
 
       setEmail(user.email || "");
 
-      // Load profile
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name")
@@ -70,7 +146,6 @@ export default function Settings() {
         setFullName(profile.full_name || "");
       }
 
-      // Load user settings
       const { data: userSettings } = await supabase
         .from("user_settings")
         .select("*")
@@ -80,10 +155,7 @@ export default function Settings() {
       if (userSettings) {
         const heuristics = userSettings.default_heuristics as { set: string; custom?: string[] } | null;
         setSettings({
-          default_heuristics: heuristics || {
-            set: "nn_10",
-            custom: [],
-          },
+          default_heuristics: heuristics || { set: "nn_10", custom: [] },
           email_notifications: userSettings.email_notifications ?? true,
           weekly_reports: userSettings.weekly_reports ?? false,
           theme: userSettings.theme || "system",
@@ -102,7 +174,6 @@ export default function Settings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Update profile
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ full_name: fullName })
@@ -110,7 +181,6 @@ export default function Settings() {
 
       if (profileError) throw profileError;
 
-      // Upsert settings
       const { error: settingsError } = await supabase
         .from("user_settings")
         .upsert({
@@ -141,42 +211,24 @@ export default function Settings() {
 
   const changePassword = async () => {
     if (newPassword !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords don't match",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Passwords don't match", variant: "destructive" });
       return;
     }
 
     if (newPassword.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
       return;
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
       setNewPassword("");
       setConfirmPassword("");
-      toast({
-        title: "Password Updated",
-        description: "Your password has been changed successfully",
-      });
+      toast({ title: "Password Updated", description: "Your password has been changed successfully" });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update password",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to update password", variant: "destructive" });
     }
   };
 
@@ -186,7 +238,6 @@ export default function Settings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch all user data
       const [projects, studyPlans, observations, personas, interviews] = await Promise.all([
         supabase.from("projects").select("*").eq("user_id", user.id),
         supabase.from("study_plans").select("*").eq("user_id", user.id),
@@ -209,22 +260,15 @@ export default function Settings() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `heuristic-hub-data-${Date.now()}.json`;
+      a.download = `ux-probe-data-${Date.now()}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast({
-        title: "Data Exported",
-        description: "Your data has been downloaded successfully",
-      });
+      toast({ title: "Data Exported", description: "Your data has been downloaded successfully" });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to export data",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to export data", variant: "destructive" });
     } finally {
       setExporting(false);
     }
@@ -236,7 +280,6 @@ export default function Settings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Delete all user data
       await Promise.all([
         supabase.from("projects").delete().eq("user_id", user.id),
         supabase.from("study_plans").delete().eq("user_id", user.id),
@@ -247,21 +290,11 @@ export default function Settings() {
         supabase.from("profiles").delete().eq("id", user.id),
       ]);
 
-      // Sign out (account deletion happens via admin, this removes access)
       await supabase.auth.signOut();
-      
-      toast({
-        title: "Account Deleted",
-        description: "Your account and all data have been removed",
-      });
-      
+      toast({ title: "Account Deleted", description: "Your account and all data have been removed" });
       navigate("/");
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to delete account",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete account", variant: "destructive" });
     } finally {
       setDeleting(false);
     }
@@ -315,13 +348,122 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* Figma Plugin Integration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5" />
+                Figma Plugin
+              </CardTitle>
+              <CardDescription>
+                Connect keys for authenticating the UX Probe Figma plugin
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isCreatingKey && (
+                <div className="flex gap-2 mb-4 p-3 bg-muted/50 rounded-lg">
+                  <Input
+                    placeholder="Key name (optional)"
+                    value={newConnectionName}
+                    onChange={(e) => setNewConnectionName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={() => createConnection.mutate(newConnectionName)}
+                    disabled={createConnection.isPending}
+                    size="sm"
+                  >
+                    {createConnection.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setIsCreatingKey(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
+
+              {connectionsLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : connections?.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Link2 className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">No connect keys yet</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setIsCreatingKey(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Create Connect Key
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {connections?.map((conn) => (
+                    <div
+                      key={conn.id}
+                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm truncate">{conn.name}</span>
+                          <Badge variant={conn.is_active ? "default" : "secondary"} className="text-xs">
+                            {conn.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <code className="text-xs bg-background px-2 py-0.5 rounded font-mono">
+                            {conn.connect_key.slice(0, 8)}...{conn.connect_key.slice(-4)}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2"
+                            onClick={() => copyToClipboard(conn.connect_key)}
+                          >
+                            {copiedKey === conn.connect_key ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                        onClick={() => deleteConnection.mutate(conn.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {!isCreatingKey && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => setIsCreatingKey(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Another Key
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Analysis Preferences */}
           <Card>
             <CardHeader>
               <CardTitle>Analysis Preferences</CardTitle>
               <CardDescription>Choose which heuristics to use for website analysis</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <HeuristicsSelector
                 value={settings.default_heuristics || { set: "nn_10" }}
                 onChange={(value) => setSettings({ ...settings, default_heuristics: value })}
@@ -329,7 +471,7 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Notification Preferences */}
+          {/* Notifications */}
           <Card>
             <CardHeader>
               <CardTitle>Notifications</CardTitle>
@@ -375,7 +517,7 @@ export default function Settings() {
               <CardTitle>Appearance</CardTitle>
               <CardDescription>Customize the look and feel</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="space-y-2">
                 <Label htmlFor="theme">Theme</Label>
                 <Select
@@ -438,7 +580,7 @@ export default function Settings() {
               <CardTitle>Data Management</CardTitle>
               <CardDescription>Export or manage your data</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="space-y-2">
                 <Label>Export Your Data</Label>
                 <p className="text-sm text-muted-foreground">
@@ -448,30 +590,6 @@ export default function Settings() {
                   <Download className="mr-2 h-4 w-4" />
                   {exporting ? "Exporting..." : "Export Data"}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Subscription (Placeholder) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscription</CardTitle>
-              <CardDescription>Manage your subscription and billing</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">Free Plan</p>
-                    <p className="text-sm text-muted-foreground">Currently active</p>
-                  </div>
-                  <Button variant="outline" disabled>
-                    Upgrade
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Subscription management coming soon
-                </p>
               </div>
             </CardContent>
           </Card>
@@ -489,11 +607,11 @@ export default function Settings() {
                 Irreversible actions that will permanently affect your account
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="space-y-2">
                 <Label>Delete Account</Label>
                 <p className="text-sm text-muted-foreground">
-                  Permanently delete your account and all associated data. This action cannot be undone.
+                  Permanently delete your account and all associated data.
                 </p>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -506,24 +624,17 @@ export default function Settings() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete your account
-                        and remove all your data from our servers, including:
-                        <ul className="list-disc list-inside mt-2 space-y-1">
-                          <li>All your projects and analyses</li>
-                          <li>All study plans and research data</li>
-                          <li>All personas and interview sessions</li>
-                          <li>Your profile and settings</li>
-                        </ul>
+                        This action cannot be undone. This will permanently delete your
+                        account and remove all your data from our servers.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={deleteAccount}
-                        disabled={deleting}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
-                        {deleting ? "Deleting..." : "Yes, delete my account"}
+                        {deleting ? "Deleting..." : "Delete Account"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
