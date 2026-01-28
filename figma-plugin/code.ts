@@ -185,7 +185,7 @@ figma.ui.onmessage = async (msg) => {
       selectedNodeName: hasSelection ? selection[0].name : null
     });
   } else if (msg.type === 'run-audit') {
-    await runAudit(msg.mode, msg.persona, msg.apiUrl, msg.accessToken);
+    await runAudit(msg.mode, msg.persona, msg.productContext, msg.apiUrl, msg.accessToken);
   } else if (msg.type === 'navigate-to-node') {
     const node = figma.getNodeById(msg.nodeId);
     if (node && 'x' in node) {
@@ -746,7 +746,7 @@ function findPrototypeDestinations(node: SceneNode): FrameNode[] {
   return destinations;
 }
 
-async function runAudit(mode: string, persona: any, apiUrl: string, accessToken: string) {
+async function runAudit(mode: string, persona: any, productContext: string, apiUrl: string, accessToken: string) {
   const selection = figma.currentPage.selection;
   
   // Validate selection
@@ -833,6 +833,7 @@ async function runAudit(mode: string, persona: any, apiUrl: string, accessToken:
             painPoints: persona.pain_points,
             goals: persona.goals
           },
+          productContext: productContext,
           auditMode: mode
         })
       });

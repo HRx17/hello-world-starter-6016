@@ -25,7 +25,63 @@ interface AuditIssue {
   description: string;
   severity: 'high' | 'medium' | 'low';
   category: string;
+  heuristic: string;
 }
+
+// Nielsen's 10 Usability Heuristics
+const NIELSENS_HEURISTICS = `
+NIELSEN'S 10 USABILITY HEURISTICS - Evaluate each screen against ALL of these:
+
+1. VISIBILITY OF SYSTEM STATUS
+   - Does the system keep users informed about what's going on?
+   - Are there appropriate feedback mechanisms (loading states, progress indicators, confirmations)?
+   - Can users tell what state they're in (logged in, what screen, what mode)?
+
+2. MATCH BETWEEN SYSTEM AND REAL WORLD
+   - Does the interface use language familiar to the user (not technical jargon)?
+   - Are icons and symbols intuitive and match real-world conventions?
+   - Does the information flow in a natural, logical order?
+
+3. USER CONTROL AND FREEDOM
+   - Can users easily undo/redo actions?
+   - Are there clear "emergency exits" (cancel, back, close)?
+   - Can users freely navigate without getting trapped?
+
+4. CONSISTENCY AND STANDARDS
+   - Are similar elements styled consistently throughout?
+   - Does the interface follow platform conventions?
+   - Are the same actions named the same way across the app?
+
+5. ERROR PREVENTION
+   - Does the design prevent errors before they occur?
+   - Are dangerous actions confirmed before execution?
+   - Are constraints and guardrails in place for user inputs?
+
+6. RECOGNITION RATHER THAN RECALL
+   - Are options visible rather than hidden?
+   - Is context provided so users don't have to remember information?
+   - Are instructions visible when needed?
+
+7. FLEXIBILITY AND EFFICIENCY OF USE
+   - Are there shortcuts for experienced users?
+   - Can frequent actions be performed quickly?
+   - Can the interface be customized/personalized?
+
+8. AESTHETIC AND MINIMALIST DESIGN
+   - Is the interface free of irrelevant information?
+   - Is visual hierarchy clear?
+   - Does every element serve a purpose?
+
+9. HELP USERS RECOGNIZE, DIAGNOSE, AND RECOVER FROM ERRORS
+   - Are error messages clear and in plain language?
+   - Do they precisely indicate the problem?
+   - Do they suggest a solution?
+
+10. HELP AND DOCUMENTATION
+    - Is help available when needed?
+    - Is documentation searchable and task-focused?
+    - Are instructions concise and clear?
+`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -33,9 +89,10 @@ serve(async (req) => {
   }
 
   try {
-    const { frames, persona, auditMode } = await req.json() as { 
+    const { frames, persona, productContext, auditMode } = await req.json() as { 
       frames: FrameData[]; 
       persona: Persona;
+      productContext: string;
       auditMode: 'current' | 'flow';
     };
 
@@ -45,6 +102,10 @@ serve(async (req) => {
 
     if (!persona || !persona.name) {
       throw new Error("Persona is required");
+    }
+
+    if (!productContext) {
+      throw new Error("Product context is required");
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -58,32 +119,61 @@ serve(async (req) => {
     const description = persona.description || "a typical user";
     const personaName = persona.name;
 
-    console.log(`Running flow audit for persona: ${personaName}, frames: ${frames.length}, mode: ${auditMode}`);
+    console.log(`Running smart audit for persona: ${personaName}, frames: ${frames.length}, mode: ${auditMode}, product: ${productContext.substring(0, 50)}...`);
 
     let systemPrompt: string;
     let contentPayload: any[];
 
+    // Core contextual understanding instructions
+    const contextualUnderstandingPrompt = `
+PRODUCT CONTEXT (CRITICAL - Use this to understand ALL UI elements):
+"${productContext}"
+
+CONTEXTUAL UNDERSTANDING RULES:
+You must interpret UI elements IN CONTEXT of what this product is. Examples of contextual interpretation:
+
+- If this is a "shift management app" and you see "10/20 hr", understand this means "10 hours worked out of 20 hours scheduled for the week"
+- If this is an "e-commerce app" and you see "$0.00", understand if this is a cart total, savings, or an error
+- If this is a "fitness app" and you see "3/7", understand this likely means "3 out of 7 days completed"
+- If this is a "task management app" and you see "12%", understand this likely means completion progress
+
+DO NOT flag things as issues if they make sense in context. Instead:
+1. First understand what the product does
+2. Then interpret each UI element through that lens
+3. Only flag issues that would genuinely confuse the TARGET PERSONA
+
+${NIELSENS_HEURISTICS}
+`;
+
     if (auditMode === 'flow' && frames.length > 1) {
-      // Multi-frame flow analysis - persona walks through the prototype
+      // Multi-frame flow analysis
       const frameList = frames.map((f, i) => `Screen ${i + 1}: "${f.name}"`).join(", ");
       
-      systemPrompt = `You are a UX Researcher performing a walkthrough as "${personaName}" - ${description}.
+      systemPrompt = `You are a UX Expert conducting a HEURISTIC EVALUATION walkthrough as the persona "${personaName}".
 
-Your frustrations: ${frustrations}
-Your goals: ${goals}
+PERSONA PROFILE:
+- Description: ${description}
+- Goals: ${goals}
+- Frustrations/Pain Points: ${frustrations}
 
+${contextualUnderstandingPrompt}
+
+FLOW ANALYSIS:
 You are walking through a prototype flow with ${frames.length} screens: ${frameList}
 
-For each screen in order, analyze it AS IF YOU ARE THIS PERSONA navigating through the app:
-1. What would confuse or frustrate this persona on each screen?
-2. What barriers prevent them from achieving their goals?
-3. Are there usability issues (touch targets, contrast, navigation clarity)?
-4. Is the flow logical for this persona's mental model?
+For EACH screen in the flow, evaluate against Nielsen's 10 Heuristics while ROLE-PLAYING as this persona:
 
-IMPORTANT:
-- Focus on visual affordances, not technical implementation
-- Consider the persona's frustrations when identifying issues
-- Note issues that span multiple screens (consistency, navigation flow)
+WHAT TO LOOK FOR:
+1. Does each screen help the persona achieve their goals?
+2. Are there friction points that would frustrate THIS specific persona given their pain points?
+3. Is the flow logical for this persona's mental model of ${productContext}?
+4. Are there consistency issues between screens?
+5. Would this persona understand the information displayed based on context?
+
+CONTEXTUAL INTERPRETATION EXAMPLES for "${productContext}":
+- Numbers and metrics should be interpreted in product context (hours, money, progress, etc.)
+- Status indicators should make sense for the domain
+- Navigation should follow expected patterns for this type of app
 
 Respond with a JSON object:
 {
@@ -91,16 +181,20 @@ Respond with a JSON object:
     {
       "frameId": "<nodeId of the problematic frame>",
       "frameName": "<name of the frame>",
-      "title": "<short issue title>",
-      "description": "<detailed explanation including which screen and why it's problematic for this persona>",
+      "title": "<short issue title referencing the heuristic>",
+      "description": "<detailed explanation: what the issue is, why it matters for this persona, and the contextual interpretation>",
       "severity": "<high|medium|low>",
-      "category": "<accessibility|usability|flow|persona-specific>"
+      "category": "<accessibility|usability|flow|persona-specific>",
+      "heuristic": "<which of Nielsen's 10 heuristics this violates>"
     }
   ],
-  "journeyNarrative": "<A first-person narrative (3-5 sentences) of the persona describing their experience walking through this flow, expressing frustrations and confusion naturally>"
+  "journeyNarrative": "<A first-person narrative (4-6 sentences) of ${personaName} describing their experience walking through this ${productContext}. Express their specific frustrations based on their pain points: ${frustrations}. Show understanding of the product context.>"
 }
 
-Identify 4-8 issues total across all screens. Prioritize issues that most impact the target persona's journey.`;
+Find 5-10 issues across all screens. Prioritize issues that:
+1. Violate Nielsen's heuristics in ways that impact THIS persona
+2. Create friction given the persona's specific pain points
+3. Would confuse users about the contextual meaning of displayed information`;
 
       contentPayload = [
         { type: "text", text: systemPrompt },
@@ -111,29 +205,29 @@ Identify 4-8 issues total across all screens. Prioritize issues that most impact
       ];
     } else {
       // Single frame analysis
-      systemPrompt = `You are a UX accessibility and usability expert analyzing a UI design.
+      systemPrompt = `You are a UX Expert conducting a HEURISTIC EVALUATION of a single screen from a ${productContext}.
 
-Context: You are evaluating this interface for "${personaName}" - ${description}.
-Their frustrations: ${frustrations}
-Their goals: ${goals}
+PERSONA PROFILE (Evaluate from their perspective):
+- Name: ${personaName}
+- Description: ${description}
+- Goals: ${goals}
+- Frustrations/Pain Points: ${frustrations}
 
-Analyze this UI image and identify usability issues. Focus on:
+${contextualUnderstandingPrompt}
 
-1. **Accessibility Issues**:
-   - Touch targets smaller than 44x44px
-   - Low contrast text (less than 4.5:1 ratio)
-   - Missing labels or alt text indicators
-   - Color-only information conveyance
+SINGLE SCREEN ANALYSIS:
+Frame: "${frames[0].name}"
 
-2. **Usability Issues**:
-   - Unclear call-to-action buttons
-   - Confusing navigation patterns
-   - Information overload
-   - Inconsistent visual hierarchy
+Evaluate this screen against ALL 10 of Nielsen's Usability Heuristics while considering:
+1. The product context (${productContext})
+2. The persona's specific goals and frustrations
+3. How UI elements should be interpreted in context
 
-3. **Persona-Specific Issues**:
-   - Elements that conflict with the persona's frustrations
-   - Barriers to achieving the persona's goals
+ANALYSIS APPROACH:
+1. First, identify what this screen's PURPOSE is within the ${productContext}
+2. Interpret all numbers, labels, and indicators in product context
+3. Evaluate each heuristic from the persona's perspective
+4. Only flag genuine issues, not contextually appropriate design choices
 
 Respond with a JSON object:
 {
@@ -141,16 +235,20 @@ Respond with a JSON object:
     {
       "frameId": "${frames[0].nodeId}",
       "frameName": "${frames[0].name}",
-      "title": "<Short issue title>",
-      "description": "<Detailed explanation including location and why it's problematic for this persona>",
+      "title": "<Short issue title with heuristic name>",
+      "description": "<Detailed explanation: the issue, why it violates the heuristic, and how it affects ${personaName} specifically. Include contextual interpretation.>",
       "severity": "<high|medium|low>",
-      "category": "<accessibility|usability|persona-specific>"
+      "category": "<accessibility|usability|persona-specific>",
+      "heuristic": "<which of Nielsen's 10 heuristics this violates>"
     }
   ],
-  "journeyNarrative": "<A first-person sentence of the persona describing their first impression of this screen>"
+  "journeyNarrative": "<A first-person sentence from ${personaName} describing their reaction to this screen in the context of ${productContext}, referencing their specific frustrations: ${frustrations}>"
 }
 
-Identify 3-6 issues. Prioritize issues that would most impact the target persona.`;
+Identify 3-6 issues. Prioritize issues that:
+1. Violate Nielsen's heuristics
+2. Would specifically frustrate ${personaName} given their pain points
+3. Create confusion about contextual meaning`;
 
       contentPayload = [
         { type: "text", text: systemPrompt },
@@ -174,8 +272,8 @@ Identify 3-6 issues. Prioritize issues that would most impact the target persona
               content: contentPayload,
             },
           ],
-          max_tokens: 4096,
-          temperature: 0.5,
+          max_tokens: 6000,
+          temperature: 0.4,
         }),
       }
     );
@@ -226,7 +324,8 @@ Identify 3-6 issues. Prioritize issues that would most impact the target persona
             title: "Analysis Complete",
             description: "AI analysis completed but returned unexpected format. Manual review recommended.",
             severity: "low",
-            category: "system"
+            category: "system",
+            heuristic: "N/A"
           }],
           journeyNarrative: null
         }),
@@ -237,16 +336,17 @@ Identify 3-6 issues. Prioritize issues that would most impact the target persona
     const result = JSON.parse(jsonMatch[0]);
 
     // Validate and normalize the response
-    const issues: AuditIssue[] = (result.issues || []).slice(0, 10).map((issue: any) => ({
+    const issues: AuditIssue[] = (result.issues || []).slice(0, 12).map((issue: any) => ({
       frameId: issue.frameId || frames[0].nodeId,
       frameName: issue.frameName || frames[0].name,
       title: issue.title || "Unnamed Issue",
       description: issue.description || "No description provided",
       severity: ["high", "medium", "low"].includes(issue.severity) ? issue.severity : "medium",
-      category: issue.category || "usability"
+      category: issue.category || "usability",
+      heuristic: issue.heuristic || "General"
     }));
 
-    console.log(`Audit complete: ${issues.length} issues found`);
+    console.log(`Smart audit complete: ${issues.length} issues found`);
 
     return new Response(
       JSON.stringify({

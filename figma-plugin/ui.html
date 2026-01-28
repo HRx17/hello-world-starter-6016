@@ -678,6 +678,12 @@
             </select>
           </div>
           
+          <div class="input-group">
+            <label>What is this product/app about? <span style="color: #6b7280; font-weight: normal;">(required)</span></label>
+            <textarea id="productContext" rows="3" placeholder="e.g., A shift management app for retail employees to view schedules, track hours worked, request time off, and check payroll information..." style="width: 100%; padding: 10px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical;"></textarea>
+            <p style="font-size: 10px; color: #9ca3af; margin-top: 4px;">This helps the AI understand UI context (e.g., "10/20 hr" means hours worked vs target)</p>
+          </div>
+          
           <div class="audit-mode-options">
             <label style="font-size: 12px; font-weight: 500; margin-bottom: 4px;">Audit Mode</label>
             
@@ -927,12 +933,19 @@
       }
       
       // Enable/disable audit button
-      runAuditBtn.disabled = !hasValidSelection || !auditPersonaSelect.value;
+      var productContextInput = document.getElementById('productContext');
+      runAuditBtn.disabled = !hasValidSelection || !auditPersonaSelect.value || !productContextInput.value.trim();
     }
     
-    // Enable audit button when persona is selected
+    // Enable audit button when persona and product context are filled
     auditPersonaSelect.addEventListener('change', function() {
-      runAuditBtn.disabled = !hasValidSelection || !auditPersonaSelect.value;
+      var productContextInput = document.getElementById('productContext');
+      runAuditBtn.disabled = !hasValidSelection || !auditPersonaSelect.value || !productContextInput.value.trim();
+    });
+    
+    // Also check when product context changes
+    document.getElementById('productContext').addEventListener('input', function() {
+      runAuditBtn.disabled = !hasValidSelection || !auditPersonaSelect.value || !this.value.trim();
     });
 
     function switchSection(sectionName) {
@@ -1222,8 +1235,15 @@
 
     function runAudit() {
       var personaId = auditPersonaSelect.value;
+      var productContext = document.getElementById('productContext').value.trim();
+      
       if (!personaId) {
         showStatus('Please select a persona first', 'error');
+        return;
+      }
+      
+      if (!productContext) {
+        showStatus('Please describe what this product/app is about', 'error');
         return;
       }
       
@@ -1246,6 +1266,7 @@
           type: 'run-audit',
           mode: selectedAuditMode,
           persona: persona,
+          productContext: productContext,
           apiUrl: API_URL,
           accessToken: accessToken
         }
