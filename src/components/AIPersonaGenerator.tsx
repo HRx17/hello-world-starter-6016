@@ -159,12 +159,12 @@ export function AIPersonaGenerator({ onPersonaGenerated, initialStudyId }: AIPer
             {loadingStudies ? (
               <Skeleton className="h-10 w-full" />
             ) : (
-              <Select value={selectedStudyId} onValueChange={setSelectedStudyId}>
+              <Select value={selectedStudyId || "none"} onValueChange={(val) => setSelectedStudyId(val === "none" ? "" : val)}>
                 <SelectTrigger id="study">
                   <SelectValue placeholder="Select a study for context..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No study selected</SelectItem>
+                  <SelectItem value="none">No study selected</SelectItem>
                   {studyPlans?.map((study) => (
                     <SelectItem key={study.id} value={study.id}>
                       {study.title}
