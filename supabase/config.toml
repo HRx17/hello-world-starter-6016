@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.figma-audit-ai]
 verify_jwt = false
+
+[functions.figma-audit-flow]
+verify_jwt = false
