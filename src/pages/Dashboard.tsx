@@ -1,420 +1,485 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Trash2, Eye, Sparkles, BarChart3, Calendar, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { 
+  Plus, 
+  FileText, 
+  UserCircle, 
+  Target, 
+  ArrowRight,
+  Lightbulb,
+  Clock,
+  Sparkles,
+  Users,
+  ImageIcon,
+  TrendingUp
+} from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 
-interface AnalysisResult {
+interface StudyPlan {
   id: string;
-  score: number;
-  analyzed_at: string;
-  violations: any;
-  screenshot: string;
-}
-
-interface WebsiteCrawl {
-  id: string;
-  overall_score: number;
-  completed_at: string;
-  aggregate_violations: any;
+  title: string;
+  problem_statement: string;
   status: string;
-  total_pages: number;
-  analyzed_pages: number;
+  created_at: string;
+  updated_at: string;
 }
 
-interface Project {
+interface Persona {
   id: string;
   name: string;
-  url: string;
+  description: string | null;
   created_at: string;
-  framework: string | null;
-  analysis_results: AnalysisResult[];
-  website_crawls: WebsiteCrawl[];
+}
+
+interface Interview {
+  id: string;
+  participant_name: string;
+  status: string;
+  created_at: string;
+}
+
+interface ScreenshotAnalysis {
+  id: string;
+  image_url: string;
+  score: number | null;
+  violations: any;
+  analyzed_at: string;
+}
+
+interface ActivityItem {
+  id: string;
+  type: 'study' | 'persona' | 'interview' | 'audit';
+  title: string;
+  date: Date;
+  meta?: string;
 }
 
 const Dashboard = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [studies, setStudies] = useState<StudyPlan[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [audits, setAudits] = useState<ScreenshotAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const location = useLocation();
-
-  // Protected route - handled by ProtectedRoute wrapper in App.tsx
-  // No need for manual redirect here
 
   useEffect(() => {
     if (user) {
-      console.log('[Dashboard] Initial load');
-      loadProjects();
+      loadDashboardData();
     }
   }, [user]);
 
-  // Reload when returning from results page with refresh state
-  useEffect(() => {
-    if (location.state?.refresh && user) {
-      console.log('[Dashboard] Refresh triggered from navigation state');
-      loadProjects();
-      // Clear the state to prevent refresh loops
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state?.refresh]);
-
-  // Reload projects when window gains focus (after returning from results)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (user && document.visibilityState === 'visible') {
-        console.log('[Dashboard] Window focused, refreshing...');
-        loadProjects();
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (user && document.visibilityState === 'visible') {
-        console.log('[Dashboard] Visibility changed to visible, refreshing...');
-        loadProjects();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [user]);
-
-  const loadProjects = async () => {
-    console.log('[Dashboard] Loading projects...');
+  const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select(`
-          *,
-          analysis_results (
-            id,
-            score,
-            analyzed_at,
-            violations,
-            screenshot
-          ),
-          website_crawls (
-            id,
-            overall_score,
-            completed_at,
-            aggregate_violations,
-            status,
-            total_pages,
-            analyzed_pages
-          )
-        `)
-        .order("created_at", { ascending: false });
+      const [studiesRes, personasRes, interviewsRes, auditsRes] = await Promise.all([
+        supabase
+          .from("study_plans")
+          .select("*")
+          .is("archived_at", null)
+          .order("updated_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("personas")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("interview_sessions")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("screenshot_analyses")
+          .select("*")
+          .order("analyzed_at", { ascending: false })
+          .limit(3),
+      ]);
 
-      if (error) throw error;
-
-      console.log('[Dashboard] Projects loaded:', data?.length || 0);
-      setProjects((data as Project[]) || []);
+      if (studiesRes.data) setStudies(studiesRes.data);
+      if (personasRes.data) setPersonas(personasRes.data);
+      if (interviewsRes.data) setInterviews(interviewsRes.data);
+      if (auditsRes.data) setAudits(auditsRes.data);
     } catch (error) {
-      console.error("Error loading projects:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load projects. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error loading dashboard data:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteProject = async (projectId: string) => {
-    try {
-      const { error } = await supabase
-        .from("projects")
-        .delete()
-        .eq("id", projectId);
+  // Build activity feed
+  const buildActivityFeed = (): ActivityItem[] => {
+    const items: ActivityItem[] = [];
+    
+    studies.forEach(s => items.push({
+      id: s.id,
+      type: 'study',
+      title: s.title,
+      date: new Date(s.updated_at),
+      meta: s.status
+    }));
+    
+    personas.forEach(p => items.push({
+      id: p.id,
+      type: 'persona',
+      title: p.name,
+      date: new Date(p.created_at),
+    }));
+    
+    interviews.forEach(i => items.push({
+      id: i.id,
+      type: 'interview',
+      title: i.participant_name,
+      date: new Date(i.created_at),
+      meta: i.status
+    }));
 
-      if (error) throw error;
+    audits.forEach(a => items.push({
+      id: a.id,
+      type: 'audit',
+      title: `Design Audit`,
+      date: new Date(a.analyzed_at),
+      meta: a.score ? `Score: ${a.score}` : undefined
+    }));
 
-      toast({
-        title: "Project Deleted",
-        description: "The project and its analyses have been removed.",
-      });
+    return items.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8);
+  };
 
-      loadProjects();
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete project. Please try again.",
-        variant: "destructive",
-      });
+  const activityFeed = buildActivityFeed();
+  const latestStudy = studies[0];
+  const hasAnyData = studies.length > 0 || personas.length > 0 || interviews.length > 0 || audits.length > 0;
+
+  const getActivityIcon = (type: ActivityItem['type']) => {
+    switch (type) {
+      case 'study': return <FileText className="h-4 w-4" />;
+      case 'persona': return <UserCircle className="h-4 w-4" />;
+      case 'interview': return <Users className="h-4 w-4" />;
+      case 'audit': return <Target className="h-4 w-4" />;
     }
   };
 
-  const handleViewAnalysis = (project: Project, analysisId: string, type: 'single' | 'crawl') => {
-    if (type === 'single') {
-      const analysis = project.analysis_results.find((a) => a.id === analysisId);
-      if (!analysis) return;
-
-      navigate("/results", {
-        state: {
-          analysis: {
-            url: project.url,
-            websiteName: project.name,
-            overallScore: analysis.score,
-            violations: analysis.violations,
-            strengths: [],
-            screenshot: analysis.screenshot,
-            framework: project.framework || undefined,
-          },
-        },
-      });
-    } else {
-      // Multi-page crawl
-      navigate("/results", {
-        state: {
-          crawlId: analysisId,
-          analysisType: 'full',
-          url: project.url,
-        },
-      });
+  const getActivityColor = (type: ActivityItem['type']) => {
+    switch (type) {
+      case 'study': return 'bg-blue-500/10 text-blue-600';
+      case 'persona': return 'bg-purple-500/10 text-purple-600';
+      case 'interview': return 'bg-green-500/10 text-green-600';
+      case 'audit': return 'bg-orange-500/10 text-orange-600';
     }
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-green-600 bg-green-50";
-    if (score >= 60) return "text-yellow-600 bg-yellow-50";
-    return "text-red-600 bg-red-50";
   };
 
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <Skeleton className="h-12 w-64 mb-8" />
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-64" />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
+        <Skeleton className="h-48 mt-8" />
       </div>
     );
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 max-w-7xl mx-auto">
-      <div className="mb-8 sm:mb-12 space-y-2 sm:space-y-3 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
-              Dashboard
-            </h1>
-            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground">
-              View and manage your analyzed websites
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              console.log('[Dashboard] Manual refresh clicked');
-              loadProjects();
-            }}
-            disabled={isLoading}
-          >
-            <BarChart3 className="h-4 w-4 mr-2" />
-            {isLoading ? 'Refreshing...' : 'Refresh'}
-          </Button>
-        </div>
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          Welcome back
+        </h1>
+        <p className="text-muted-foreground">
+          Your UX research command center
+        </p>
       </div>
 
-      {projects.length === 0 ? (
-        <Card className="bg-card/50 backdrop-blur border-2 shadow-2xl animate-fade-in animation-delay-200">
-          <CardContent className="flex flex-col items-center justify-center py-12 sm:py-20 px-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center mb-4 sm:mb-6">
-              <Sparkles className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Button 
+          variant="outline" 
+          className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/50"
+          onClick={() => navigate('/research/new-study')}
+        >
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <Plus className="h-5 w-5 text-primary" />
+          </div>
+          <span className="text-sm font-medium">New Study</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-purple-500/5 hover:border-purple-500/50"
+          onClick={() => navigate('/research/persona/new')}
+        >
+          <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+            <UserCircle className="h-5 w-5 text-purple-600" />
+          </div>
+          <span className="text-sm font-medium">New Persona</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-orange-500/5 hover:border-orange-500/50"
+          onClick={() => navigate('/design-audits')}
+        >
+          <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
+            <Target className="h-5 w-5 text-orange-600" />
+          </div>
+          <span className="text-sm font-medium">Design Audit</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-green-500/5 hover:border-green-500/50"
+          onClick={() => navigate('/screenshot-analysis')}
+        >
+          <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
+            <ImageIcon className="h-5 w-5 text-green-600" />
+          </div>
+          <span className="text-sm font-medium">Screenshot</span>
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card className="bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{studies.length}</p>
+                <p className="text-sm text-muted-foreground">Studies</p>
+              </div>
+              <FileText className="h-8 w-8 text-muted-foreground/30" />
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3 text-center">No projects yet</h3>
-            <p className="text-muted-foreground text-center mb-6 sm:mb-8 max-w-md text-sm sm:text-base lg:text-lg px-4">
-              Start analyzing websites to unlock powerful UX insights and track improvements over time
-            </p>
-            <Button 
-              size="lg" 
-              onClick={() => navigate("/analyze")}
-              className="hover-scale text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6"
-            >
-              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-              Analyze Your First Website
-            </Button>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-4 sm:gap-6 lg:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 animate-fade-in animation-delay-400">
-          {projects.map((project) => {
-            // Combine and sort all analyses (both single-page and crawls)
-            const singlePageAnalyses = project.analysis_results.map(a => ({
-              id: a.id,
-              type: 'single' as const,
-              score: a.score,
-              date: new Date(a.analyzed_at),
-            }));
+        <Card className="bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{personas.length}</p>
+                <p className="text-sm text-muted-foreground">Personas</p>
+              </div>
+              <UserCircle className="h-8 w-8 text-muted-foreground/30" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{interviews.length}</p>
+                <p className="text-sm text-muted-foreground">Interviews</p>
+              </div>
+              <Users className="h-8 w-8 text-muted-foreground/30" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{audits.length}</p>
+                <p className="text-sm text-muted-foreground">Audits</p>
+              </div>
+              <Target className="h-8 w-8 text-muted-foreground/30" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-            const crawlAnalyses = (project.website_crawls || [])
-              .filter(c => c.status === 'completed')
-              .map(c => ({
-                id: c.id,
-                type: 'crawl' as const,
-                score: c.overall_score,
-                date: new Date(c.completed_at),
-                pages: c.analyzed_pages,
-              }));
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Main Content Area */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Latest Study */}
+          {latestStudy ? (
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/research/study/${latestStudy.id}`)}>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Continue Research</p>
+                    <CardTitle className="text-xl">{latestStudy.title}</CardTitle>
+                  </div>
+                  <Badge variant={latestStudy.status === 'active' ? 'default' : 'secondary'}>
+                    {latestStudy.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                  {latestStudy.problem_statement}
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    Updated {formatDistanceToNow(new Date(latestStudy.updated_at), { addSuffix: true })}
+                  </span>
+                  <Button variant="ghost" size="sm" className="gap-1">
+                    Open <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="py-12 text-center">
+                <Sparkles className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                <h3 className="text-lg font-semibold mb-2">Start Your First Study</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create a research study to organize your UX research
+                </p>
+                <Button onClick={() => navigate('/research/new-study')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Study
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-            const allAnalyses = [...singlePageAnalyses, ...crawlAnalyses].sort(
-              (a, b) => b.date.getTime() - a.date.getTime()
-            );
-
-            const latestAnalysis = allAnalyses[0];
-            const analysisCount = allAnalyses.length;
-
-            return (
-              <Card 
-                key={project.id} 
-                className="bg-card/50 backdrop-blur border-2 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group flex flex-col"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg sm:text-xl truncate group-hover:text-primary transition-colors">
-                        {project.name}
-                      </CardTitle>
-                      <CardDescription className="truncate text-sm sm:text-base mt-1">
-                        {new URL(project.url).hostname}
-                      </CardDescription>
+          {/* Recent Audits */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Recent Design Audits</h2>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/design-audits')}>
+                View All
+              </Button>
+            </div>
+            {audits.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {audits.slice(0, 3).map((audit) => (
+                  <Card 
+                    key={audit.id} 
+                    className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/screenshot-results/${audit.id}`)}
+                  >
+                    <div className="aspect-video bg-muted relative">
+                      <img 
+                        src={audit.image_url} 
+                        alt="Audit screenshot"
+                        className="w-full h-full object-cover"
+                      />
+                      {audit.score && (
+                        <Badge 
+                          className={`absolute top-2 right-2 ${
+                            audit.score >= 80 ? 'bg-green-500' : 
+                            audit.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                          } text-white`}
+                        >
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          {audit.score}
+                        </Badge>
+                      )}
                     </div>
-                    {latestAnalysis && (
-                      <Badge className={`${getScoreColor(latestAnalysis.score)} shrink-0 text-sm sm:text-base px-2 sm:px-3 py-1`}>
-                        <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                        {latestAnalysis.score}
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 flex-1 flex flex-col">
-                  <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                    <p>
-                      {analysisCount} {analysisCount === 1 ? "analysis" : "analyses"}
-                    </p>
-                    {latestAnalysis && (
-                      <>
-                        <p>
-                          Last analyzed:{" "}
-                          {latestAnalysis.date.toLocaleDateString()}
+                    <CardContent className="p-3">
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(audit.analyzed_at), 'MMM d, yyyy')}
+                      </p>
+                      {audit.violations && Array.isArray(audit.violations) && (
+                        <p className="text-sm mt-1">
+                          {audit.violations.length} issues found
                         </p>
-                        {latestAnalysis.type === 'crawl' && 'pages' in latestAnalysis && (
-                          <p className="text-primary font-medium">
-                            Full site ({latestAnalysis.pages} pages)
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 mt-auto">
-                    {latestAnalysis && (
-                      <>
-                        {analysisCount === 1 ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 hover-scale"
-                            onClick={() => handleViewAnalysis(project, latestAnalysis.id, latestAnalysis.type)}
-                          >
-                            <Eye className="h-4 w-4 mr-1 sm:mr-2" />
-                            <span className="hidden sm:inline">View Report</span>
-                            <span className="sm:hidden">View</span>
-                          </Button>
-                        ) : (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-1 hover-scale"
-                              >
-                                <Eye className="h-4 w-4 mr-1 sm:mr-2" />
-                                <span className="hidden sm:inline">View Report</span>
-                                <span className="sm:hidden">View</span>
-                                <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 ml-1 sm:ml-2" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56 sm:w-64 bg-popover z-50">
-                              <DropdownMenuLabel className="text-xs sm:text-sm">Select Report Date</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {allAnalyses.map((analysis, index) => (
-                                <DropdownMenuItem
-                                  key={analysis.id}
-                                  onClick={() => handleViewAnalysis(project, analysis.id, analysis.type)}
-                                  className="flex items-center justify-between gap-2 cursor-pointer"
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                                    <span className="text-xs sm:text-sm truncate">
-                                      {analysis.date.toLocaleDateString('en-US', { 
-                                        month: 'short', 
-                                        day: 'numeric', 
-                                        year: 'numeric' 
-                                      })}
-                                    </span>
-                                    {index === 0 && (
-                                      <Badge variant="secondary" className="text-xs shrink-0">Latest</Badge>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                                    {analysis.type === 'crawl' && 'pages' in analysis && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {analysis.pages}p
-                                      </Badge>
-                                    )}
-                                    <Badge className={`${getScoreColor(analysis.score)} text-xs`}>
-                                      {analysis.score}
-                                    </Badge>
-                                  </div>
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="hover:bg-destructive hover:text-destructive-foreground transition-colors shrink-0 px-3"
-                      onClick={() => handleDeleteProject(project.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <Target className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">No audits yet</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/design-audits')}>
+                    Run Your First Audit
+                  </Button>
                 </CardContent>
               </Card>
-            );
-          })}
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Activity Feed */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activityFeed.length > 0 ? (
+                <div className="space-y-3">
+                  {activityFeed.slice(0, 6).map((item) => (
+                    <div key={`${item.type}-${item.id}`} className="flex items-start gap-3">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${getActivityColor(item.type)}`}>
+                        {getActivityIcon(item.type)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{item.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(item.date, { addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No recent activity
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Tips */}
+          {!hasAnyData && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-primary" />
+                  Getting Started
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-2">
+                  <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    1
+                  </div>
+                  <p className="text-sm">Create a Study Plan to organize your research goals</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    2
+                  </div>
+                  <p className="text-sm">Build Personas based on user research</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    3
+                  </div>
+                  <p className="text-sm">Run Design Audits to find UX issues</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* All Studies Link */}
+          {studies.length > 1 && (
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/research')}>
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-medium">All Studies</p>
+                  <p className="text-sm text-muted-foreground">{studies.length} active studies</p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
