@@ -10,35 +10,94 @@ figma.clientStorage.getAsync('uxprobe_session').then((session) => {
   // No stored session, user will need to login
 });
 
-// Theme color definitions
+// ============= THEME DEFINITIONS =============
+// Wireframe: Pure monochrome for early design validation
+// Hi-Fi: Context-aware colors based on study/product type
+
 const THEMES = {
-  blueprint: {
-    primary: { r: 0.23, g: 0.51, b: 0.84 },       // #3b82f6
-    secondary: { r: 0.93, g: 0.95, b: 0.98 },     // #edf2fb
-    accent: { r: 0.06, g: 0.09, b: 0.16 },        // #101828
-    background: { r: 0.97, g: 0.98, b: 1 },       // #f8faff
-    text: { r: 0.07, g: 0.07, b: 0.07 },          // #121212
-    border: { r: 0.78, g: 0.85, b: 0.95 },        // #c7d9f2
+  wireframe: {
+    // Pure monochrome - black, white, grays only
+    primary: { r: 0.1, g: 0.1, b: 0.1 },          // #1a1a1a (near black)
+    secondary: { r: 0.95, g: 0.95, b: 0.95 },     // #f2f2f2 (light gray)
+    accent: { r: 0.4, g: 0.4, b: 0.4 },           // #666666 (medium gray)
+    background: { r: 1, g: 1, b: 1 },             // #ffffff (white)
+    text: { r: 0.1, g: 0.1, b: 0.1 },             // #1a1a1a (near black)
+    border: { r: 0.8, g: 0.8, b: 0.8 },           // #cccccc (light gray)
+    muted: { r: 0.6, g: 0.6, b: 0.6 },            // #999999 (muted gray)
+    // Semantic colors for wireframe (all grayscale)
+    decision: { r: 0.5, g: 0.5, b: 0.5 },         // Gray for decisions
+    action: { r: 0.2, g: 0.2, b: 0.2 },           // Dark gray for actions
+    warning: { r: 0.3, g: 0.3, b: 0.3 },          // Gray for warnings
+    success: { r: 0.4, g: 0.4, b: 0.4 },          // Gray for success
+    hierarchy: [
+      { r: 0.1, g: 0.1, b: 0.1 },   // Level 1 (darkest)
+      { r: 0.3, g: 0.3, b: 0.3 },   // Level 2
+      { r: 0.5, g: 0.5, b: 0.5 },   // Level 3
+      { r: 0.7, g: 0.7, b: 0.7 },   // Level 4 (lightest)
+    ]
   },
-  corporate: {
-    primary: { r: 0.09, g: 0.09, b: 0.09 },       // #171717
-    secondary: { r: 0.96, g: 0.96, b: 0.96 },     // #f5f5f5
-    accent: { r: 0.0, g: 0.47, b: 0.42 },         // #007868
+  hifi: {
+    // High-fidelity - vibrant, semantic colors
+    primary: { r: 0.23, g: 0.51, b: 0.84 },       // #3b82f6 (blue)
+    secondary: { r: 0.96, g: 0.97, b: 0.99 },     // #f5f7fc (soft blue-gray)
+    accent: { r: 0.56, g: 0.27, b: 0.89 },        // #8f44e3 (purple)
     background: { r: 1, g: 1, b: 1 },             // #ffffff
-    text: { r: 0.07, g: 0.07, b: 0.07 },          // #121212
-    border: { r: 0.9, g: 0.9, b: 0.9 },           // #e5e5e5
-  },
-  minimal: {
-    primary: { r: 0.4, g: 0.4, b: 0.4 },          // #666666
-    secondary: { r: 0.98, g: 0.98, b: 0.98 },     // #fafafa
-    accent: { r: 0.2, g: 0.2, b: 0.2 },           // #333333
-    background: { r: 1, g: 1, b: 1 },             // #ffffff
-    text: { r: 0.13, g: 0.13, b: 0.13 },          // #222222
-    border: { r: 0.93, g: 0.93, b: 0.93 },        // #ededed
+    text: { r: 0.07, g: 0.09, b: 0.15 },          // #121726 (dark blue-gray)
+    border: { r: 0.89, g: 0.91, b: 0.94 },        // #e3e8f0
+    muted: { r: 0.45, g: 0.51, b: 0.6 },          // #738299
+    // Semantic colors for hi-fi
+    decision: { r: 0.96, g: 0.62, b: 0.04 },      // #f59e0a (amber - decisions)
+    action: { r: 0.23, g: 0.51, b: 0.84 },        // #3b82f6 (blue - CTAs)
+    warning: { r: 0.94, g: 0.27, b: 0.27 },       // #ef4444 (red - warnings)
+    success: { r: 0.13, g: 0.77, b: 0.45 },       // #22c473 (green - success)
+    hierarchy: [
+      { r: 0.23, g: 0.51, b: 0.84 },   // Level 1 (primary blue)
+      { r: 0.38, g: 0.63, b: 0.92 },   // Level 2 (lighter blue)
+      { r: 0.56, g: 0.75, b: 0.96 },   // Level 3
+      { r: 0.79, g: 0.88, b: 0.98 },   // Level 4 (lightest)
+    ]
   }
 };
 
-type ThemeName = keyof typeof THEMES;
+// Product-specific color palettes for hi-fi mode
+const PRODUCT_PALETTES = {
+  finance: {
+    primary: { r: 0.0, g: 0.31, b: 0.53 },        // #004f87 (trust blue)
+    accent: { r: 0.0, g: 0.47, b: 0.42 },         // #00786b (teal)
+    success: { r: 0.13, g: 0.55, b: 0.33 },       // #228c54 (money green)
+  },
+  health: {
+    primary: { r: 0.0, g: 0.55, b: 0.65 },        // #008ca6 (calm teal)
+    accent: { r: 0.36, g: 0.72, b: 0.36 },        // #5cb85c (health green)
+    success: { r: 0.24, g: 0.73, b: 0.6 },        // #3dba99
+  },
+  ecommerce: {
+    primary: { r: 0.94, g: 0.27, b: 0.27 },       // #ef4444 (sale red)
+    accent: { r: 1.0, g: 0.6, b: 0.0 },           // #ff9900 (amazon orange)
+    success: { r: 0.13, g: 0.77, b: 0.45 },       // #22c473
+  },
+  social: {
+    primary: { r: 0.23, g: 0.51, b: 0.84 },       // #3b82f6 (friendly blue)
+    accent: { r: 0.91, g: 0.3, b: 0.62 },         // #e84d9e (engagement pink)
+    success: { r: 0.13, g: 0.77, b: 0.45 },       // #22c473
+  },
+  productivity: {
+    primary: { r: 0.09, g: 0.09, b: 0.09 },       // #171717 (professional)
+    accent: { r: 0.23, g: 0.51, b: 0.84 },        // #3b82f6 (action blue)
+    success: { r: 0.13, g: 0.77, b: 0.45 },       // #22c473
+  }
+};
+
+type ThemeName = 'wireframe' | 'hifi';
+type ProductCategory = keyof typeof PRODUCT_PALETTES;
+
+interface AuditIssue {
+  nodeId: string;
+  title: string;
+  description: string;
+  severity: 'high' | 'medium' | 'low';
+  category: string;
+}
 
 // Load all required fonts upfront
 async function loadRequiredFonts() {
@@ -50,6 +109,24 @@ async function loadRequiredFonts() {
   ]);
 }
 
+// Get theme with optional product context for hi-fi
+function getTheme(themeName: ThemeName, productCategory?: ProductCategory) {
+  const baseTheme = THEMES[themeName];
+  
+  if (themeName === 'hifi' && productCategory && PRODUCT_PALETTES[productCategory]) {
+    const palette = PRODUCT_PALETTES[productCategory];
+    return {
+      ...baseTheme,
+      primary: palette.primary,
+      accent: palette.accent,
+      success: palette.success,
+      action: palette.primary,
+    };
+  }
+  
+  return baseTheme;
+}
+
 // Handle messages from the UI
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'store-session') {
@@ -59,8 +136,10 @@ figma.ui.onmessage = async (msg) => {
   } else if (msg.type === 'import-persona') {
     try {
       await loadRequiredFonts();
-      const theme = msg.theme || 'blueprint';
-      await createPersonaCard(msg.data, theme);
+      const themeName = msg.theme || 'wireframe';
+      const productCategory = msg.productCategory;
+      const theme = getTheme(themeName, productCategory);
+      await createPersonaCard(msg.data, theme, themeName);
       figma.notify('✓ Persona imported!');
       figma.ui.postMessage({ type: 'import-success' });
     } catch (error) {
@@ -71,15 +150,17 @@ figma.ui.onmessage = async (msg) => {
   } else if (msg.type === 'import-data') {
     try {
       const data = JSON.parse(msg.data);
-      const theme = msg.theme || 'blueprint';
+      const themeName = msg.theme || 'wireframe';
+      const productCategory = msg.productCategory;
+      const theme = getTheme(themeName, productCategory);
       await loadRequiredFonts();
       
       if (data.exportType === 'user_journey_map') {
-        await createUserJourneyMap(data.data, theme);
+        await createUserJourneyMap(data.data, theme, themeName);
       } else if (data.exportType === 'mind_map') {
-        await createMindMap(data.data, theme);
+        await createMindMap(data.data, theme, themeName);
       } else if (data.exportType === 'information_architecture') {
-        await createInformationArchitecture(data.data, theme);
+        await createInformationArchitecture(data.data, theme, themeName);
       }
       
       figma.notify('✓ Successfully imported into Figma!');
@@ -89,10 +170,22 @@ figma.ui.onmessage = async (msg) => {
       figma.notify('✗ Import failed: ' + errorMessage);
       figma.ui.postMessage({ type: 'import-error', error: errorMessage });
     }
-  } else if (msg.type === 'run-lint') {
-    await runLintAudit(msg.scope);
-  } else if (msg.type === 'run-full-audit') {
-    await runFullAudit(msg.scope, msg.persona, msg.apiUrl, msg.accessToken);
+  } else if (msg.type === 'check-selection') {
+    // Return current selection info for audit validation
+    const selection = figma.currentPage.selection;
+    const hasSelection = selection.length > 0;
+    const hasFrame = selection.some(n => n.type === 'FRAME');
+    const hasPrototypeLinks = hasFrame && checkForPrototypeLinks(selection);
+    
+    figma.ui.postMessage({ 
+      type: 'selection-info', 
+      hasSelection,
+      hasFrame,
+      hasPrototypeLinks,
+      selectedNodeName: hasSelection ? selection[0].name : null
+    });
+  } else if (msg.type === 'run-audit') {
+    await runAudit(msg.mode, msg.persona, msg.apiUrl, msg.accessToken);
   } else if (msg.type === 'navigate-to-node') {
     const node = figma.getNodeById(msg.nodeId);
     if (node && 'x' in node) {
@@ -106,25 +199,46 @@ figma.ui.onmessage = async (msg) => {
   }
 };
 
+// Check if selected frames have prototype links
+function checkForPrototypeLinks(nodes: readonly SceneNode[]): boolean {
+  for (const node of nodes) {
+    if ('reactions' in node && node.reactions && node.reactions.length > 0) {
+      return true;
+    }
+    if ('children' in node) {
+      const children = (node as FrameNode).children;
+      for (const child of children) {
+        if ('reactions' in child && child.reactions && child.reactions.length > 0) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 // ============= PERSONA CARD GENERATOR =============
-async function createPersonaCard(persona: any, themeName: ThemeName) {
-  const theme = THEMES[themeName];
+async function createPersonaCard(persona: any, theme: any, themeName: ThemeName) {
+  const isWireframe = themeName === 'wireframe';
   
   const frame = figma.createFrame();
-  frame.name = `Persona - ${persona.name}`;
+  frame.name = `Persona - ${persona.name}${isWireframe ? ' (Wireframe)' : ''}`;
   frame.resize(360, 480);
-  frame.cornerRadius = 16;
+  frame.cornerRadius = isWireframe ? 0 : 16;
   frame.fills = [{ type: 'SOLID', color: theme.background }];
   frame.strokes = [{ type: 'SOLID', color: theme.border }];
-  frame.strokeWeight = 1;
-  frame.effects = [{
-    type: 'DROP_SHADOW',
-    color: { r: 0, g: 0, b: 0, a: 0.08 },
-    offset: { x: 0, y: 8 },
-    radius: 24,
-    visible: true,
-    blendMode: 'NORMAL'
-  }];
+  frame.strokeWeight = isWireframe ? 2 : 1;
+  
+  if (!isWireframe) {
+    frame.effects = [{
+      type: 'DROP_SHADOW',
+      color: { r: 0, g: 0, b: 0, a: 0.08 },
+      offset: { x: 0, y: 8 },
+      radius: 24,
+      visible: true,
+      blendMode: 'NORMAL'
+    }];
+  }
   
   let yPos = 24;
   
@@ -134,13 +248,17 @@ async function createPersonaCard(persona: any, themeName: ThemeName) {
   avatar.x = 140;
   avatar.y = yPos;
   avatar.fills = [{ type: 'SOLID', color: theme.primary }];
+  if (isWireframe) {
+    avatar.strokes = [{ type: 'SOLID', color: theme.text }];
+    avatar.strokeWeight = 2;
+  }
   frame.appendChild(avatar);
   
   const avatarText = figma.createText();
   avatarText.fontName = { family: "Inter", style: "Bold" };
   avatarText.characters = (persona.name && persona.name.charAt(0)) ? persona.name.charAt(0).toUpperCase() : 'P';
   avatarText.fontSize = 32;
-  avatarText.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+  avatarText.fills = [{ type: 'SOLID', color: isWireframe ? theme.background : { r: 1, g: 1, b: 1 } }];
   avatarText.x = 168;
   avatarText.y = yPos + 22;
   frame.appendChild(avatarText);
@@ -165,7 +283,7 @@ async function createPersonaCard(persona: any, themeName: ThemeName) {
     descText.fontName = { family: "Inter", style: "Regular" };
     descText.characters = persona.description;
     descText.fontSize = 13;
-    descText.fills = [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }];
+    descText.fills = [{ type: 'SOLID', color: theme.muted || { r: 0.4, g: 0.4, b: 0.4 } }];
     descText.textAlignHorizontal = 'CENTER';
     descText.resize(320, descText.height);
     descText.x = 20;
@@ -176,7 +294,7 @@ async function createPersonaCard(persona: any, themeName: ThemeName) {
   
   // Divider
   const divider = figma.createRectangle();
-  divider.resize(320, 1);
+  divider.resize(320, isWireframe ? 2 : 1);
   divider.x = 20;
   divider.y = yPos;
   divider.fills = [{ type: 'SOLID', color: theme.border }];
@@ -185,12 +303,12 @@ async function createPersonaCard(persona: any, themeName: ThemeName) {
   
   // Goals
   if (persona.goals && persona.goals.length > 0) {
-    yPos = await addPersonaSection(frame, '🎯 Goals', persona.goals, yPos, theme);
+    yPos = await addPersonaSection(frame, '🎯 Goals', persona.goals, yPos, theme, isWireframe);
   }
   
   // Pain Points
   if (persona.pain_points && persona.pain_points.length > 0) {
-    yPos = await addPersonaSection(frame, '😟 Pain Points', persona.pain_points, yPos, theme);
+    yPos = await addPersonaSection(frame, '😟 Pain Points', persona.pain_points, yPos, theme, isWireframe);
   }
   
   // Resize frame to fit content
@@ -199,12 +317,12 @@ async function createPersonaCard(persona: any, themeName: ThemeName) {
   figma.viewport.scrollAndZoomIntoView([frame]);
 }
 
-async function addPersonaSection(parent: FrameNode, title: string, items: string[], yPos: number, theme: any): Promise<number> {
+async function addPersonaSection(parent: FrameNode, title: string, items: string[], yPos: number, theme: any, isWireframe: boolean): Promise<number> {
   const titleText = figma.createText();
   titleText.fontName = { family: "Inter", style: "Semi Bold" };
   titleText.characters = title;
   titleText.fontSize = 12;
-  titleText.fills = [{ type: 'SOLID', color: theme.primary }];
+  titleText.fills = [{ type: 'SOLID', color: isWireframe ? theme.text : theme.primary }];
   titleText.x = 24;
   titleText.y = yPos;
   parent.appendChild(titleText);
@@ -213,7 +331,7 @@ async function addPersonaSection(parent: FrameNode, title: string, items: string
   for (const item of items.slice(0, 3)) {
     const itemText = figma.createText();
     itemText.fontName = { family: "Inter", style: "Regular" };
-    itemText.characters = `• ${item}`;
+    itemText.characters = "• " + item;
     itemText.fontSize = 12;
     itemText.fills = [{ type: 'SOLID', color: theme.text }];
     itemText.resize(312, itemText.height);
@@ -227,11 +345,11 @@ async function addPersonaSection(parent: FrameNode, title: string, items: string
 }
 
 // ============= USER JOURNEY MAP GENERATOR =============
-async function createUserJourneyMap(data: any, themeName: ThemeName) {
-  const theme = THEMES[themeName];
+async function createUserJourneyMap(data: any, theme: any, themeName: ThemeName) {
+  const isWireframe = themeName === 'wireframe';
   
   const frame = figma.createFrame();
-  frame.name = data.title || 'User Journey Map';
+  frame.name = (data.title || 'User Journey Map') + (isWireframe ? ' (Wireframe)' : '');
   frame.resize(2400, 1200);
   frame.fills = [{ type: 'SOLID', color: theme.background }];
   
@@ -250,34 +368,43 @@ async function createUserJourneyMap(data: any, themeName: ThemeName) {
   frame.appendChild(title);
   
   // Stages
-  for (const stage of data.stages || []) {
+  const stages = data.stages || [];
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i];
     const stageFrame = figma.createFrame();
     stageFrame.name = stage.name;
     stageFrame.resize(stageWidth, 900);
     stageFrame.x = xOffset;
     stageFrame.y = 120;
     stageFrame.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-    stageFrame.cornerRadius = 12;
+    stageFrame.cornerRadius = isWireframe ? 0 : 12;
     stageFrame.strokes = [{ type: 'SOLID', color: theme.border }];
-    stageFrame.strokeWeight = 1;
-    stageFrame.effects = [{
-      type: 'DROP_SHADOW',
-      color: { r: 0, g: 0, b: 0, a: 0.06 },
-      offset: { x: 0, y: 4 },
-      radius: 12,
-      visible: true,
-      blendMode: 'NORMAL'
-    }];
+    stageFrame.strokeWeight = isWireframe ? 2 : 1;
+    
+    if (!isWireframe) {
+      stageFrame.effects = [{
+        type: 'DROP_SHADOW',
+        color: { r: 0, g: 0, b: 0, a: 0.06 },
+        offset: { x: 0, y: 4 },
+        radius: 12,
+        visible: true,
+        blendMode: 'NORMAL'
+      }];
+    }
     
     let yPos = 24;
     
-    // Stage header
+    // Stage header - use hierarchy colors for hi-fi
+    const headerColor = isWireframe 
+      ? theme.primary 
+      : (theme.hierarchy && theme.hierarchy[i % theme.hierarchy.length]) || theme.primary;
+    
     const headerBg = figma.createRectangle();
     headerBg.resize(stageWidth, 48);
     headerBg.x = 0;
     headerBg.y = 0;
-    headerBg.fills = [{ type: 'SOLID', color: theme.primary }];
-    headerBg.cornerRadius = 12;
+    headerBg.fills = [{ type: 'SOLID', color: headerColor }];
+    headerBg.cornerRadius = isWireframe ? 0 : 12;
     stageFrame.appendChild(headerBg);
     
     // Fix corner radius for header (only top corners)
@@ -285,7 +412,7 @@ async function createUserJourneyMap(data: any, themeName: ThemeName) {
     headerMask.resize(stageWidth, 24);
     headerMask.x = 0;
     headerMask.y = 24;
-    headerMask.fills = [{ type: 'SOLID', color: theme.primary }];
+    headerMask.fills = [{ type: 'SOLID', color: headerColor }];
     stageFrame.appendChild(headerMask);
     
     const stageName = figma.createText();
@@ -301,25 +428,25 @@ async function createUserJourneyMap(data: any, themeName: ThemeName) {
     
     // Sections
     if (stage.actions && stage.actions.length > 0) {
-      yPos = await addJourneySection(stageFrame, '📋 Actions', stage.actions, yPos, stageWidth, theme);
+      yPos = await addJourneySection(stageFrame, '📋 Actions', stage.actions, yPos, stageWidth, theme, isWireframe);
     }
     if (stage.touchpoints && stage.touchpoints.length > 0) {
-      yPos = await addJourneySection(stageFrame, '📱 Touchpoints', stage.touchpoints, yPos, stageWidth, theme);
+      yPos = await addJourneySection(stageFrame, '📱 Touchpoints', stage.touchpoints, yPos, stageWidth, theme, isWireframe);
     }
     if (stage.thoughts && stage.thoughts.length > 0) {
-      yPos = await addJourneySection(stageFrame, '💭 Thoughts', stage.thoughts, yPos, stageWidth, theme);
+      yPos = await addJourneySection(stageFrame, '💭 Thoughts', stage.thoughts, yPos, stageWidth, theme, isWireframe);
     }
     if (stage.painPoints && stage.painPoints.length > 0) {
-      yPos = await addJourneySection(stageFrame, '😟 Pain Points', stage.painPoints, yPos, stageWidth, theme);
+      yPos = await addJourneySection(stageFrame, '😟 Pain Points', stage.painPoints, yPos, stageWidth, theme, isWireframe, theme.warning);
     }
     if (stage.opportunities && stage.opportunities.length > 0) {
-      yPos = await addJourneySection(stageFrame, '💡 Opportunities', stage.opportunities, yPos, stageWidth, theme);
+      yPos = await addJourneySection(stageFrame, '💡 Opportunities', stage.opportunities, yPos, stageWidth, theme, isWireframe, theme.success);
     }
     
     // Emotion indicator
     const emotionText = figma.createText();
     emotionText.fontName = { family: "Inter", style: "Medium" };
-    emotionText.characters = `Emotion: ${getEmotionEmoji(stage.emotionLevel)}`;
+    emotionText.characters = "Emotion: " + getEmotionEmoji(stage.emotionLevel);
     emotionText.fontSize = 14;
     emotionText.x = 20;
     emotionText.y = yPos;
@@ -336,21 +463,21 @@ async function createUserJourneyMap(data: any, themeName: ThemeName) {
   figma.viewport.scrollAndZoomIntoView([frame]);
 }
 
-async function addJourneySection(parent: FrameNode, title: string, items: string[], yPos: number, width: number, theme: any): Promise<number> {
+async function addJourneySection(parent: FrameNode, title: string, items: string[], yPos: number, width: number, theme: any, isWireframe: boolean, accentColor?: any): Promise<number> {
   const sectionTitle = figma.createText();
   sectionTitle.fontName = { family: "Inter", style: "Semi Bold" };
   sectionTitle.characters = title;
   sectionTitle.fontSize = 12;
   sectionTitle.x = 20;
   sectionTitle.y = yPos;
-  sectionTitle.fills = [{ type: 'SOLID', color: { r: 0.4, g: 0.4, b: 0.4 } }];
+  sectionTitle.fills = [{ type: 'SOLID', color: accentColor || (isWireframe ? theme.accent : { r: 0.4, g: 0.4, b: 0.4 }) }];
   parent.appendChild(sectionTitle);
   yPos += 24;
   
   for (const item of items) {
     const bullet = figma.createText();
     bullet.fontName = { family: "Inter", style: "Regular" };
-    bullet.characters = `• ${item}`;
+    bullet.characters = "• " + item;
     bullet.fontSize = 12;
     bullet.x = 20;
     bullet.y = yPos;
@@ -364,11 +491,11 @@ async function addJourneySection(parent: FrameNode, title: string, items: string
 }
 
 // ============= MIND MAP GENERATOR =============
-async function createMindMap(data: any, themeName: ThemeName) {
-  const theme = THEMES[themeName];
+async function createMindMap(data: any, theme: any, themeName: ThemeName) {
+  const isWireframe = themeName === 'wireframe';
   
   const frame = figma.createFrame();
-  frame.name = data.title || 'Mind Map';
+  frame.name = (data.title || 'Mind Map') + (isWireframe ? ' (Wireframe)' : '');
   frame.resize(3000, 2000);
   frame.fills = [{ type: 'SOLID', color: theme.background }];
   
@@ -376,7 +503,7 @@ async function createMindMap(data: any, themeName: ThemeName) {
   const centerY = 1000;
   
   // Central node
-  const centralNode = await createMindMapNode(data.centralTopic, centerX, centerY, 220, 110, true, theme);
+  const centralNode = await createMindMapNode(data.centralTopic, centerX, centerY, 220, 110, true, theme, isWireframe, 0);
   frame.appendChild(centralNode);
   
   // Branch nodes
@@ -397,10 +524,10 @@ async function createMindMap(data: any, themeName: ThemeName) {
     line.x = centerX + Math.cos(angle) * 110;
     line.y = centerY + Math.sin(angle) * 55;
     line.strokes = [{ type: 'SOLID', color: theme.border }];
-    line.strokeWeight = 2;
+    line.strokeWeight = isWireframe ? 2 : 2;
     frame.appendChild(line);
     
-    const branchNode = await createMindMapNode(branches[i].topic, x, y, 180, 80, false, theme);
+    const branchNode = await createMindMapNode(branches[i].topic, x, y, 180, 80, false, theme, isWireframe, 1);
     frame.appendChild(branchNode);
     
     // Sub-branches
@@ -420,7 +547,7 @@ async function createMindMap(data: any, themeName: ThemeName) {
       subLine.strokeWeight = 1.5;
       frame.appendChild(subLine);
       
-      const subNode = await createMindMapNode(subBranches[j], subX, subY, 140, 60, false, theme);
+      const subNode = await createMindMapNode(subBranches[j], subX, subY, 140, 60, false, theme, isWireframe, 2);
       frame.appendChild(subNode);
     }
   }
@@ -428,23 +555,37 @@ async function createMindMap(data: any, themeName: ThemeName) {
   figma.viewport.scrollAndZoomIntoView([frame]);
 }
 
-async function createMindMapNode(text: string, x: number, y: number, width: number, height: number, isCentral: boolean, theme: any): Promise<FrameNode> {
+async function createMindMapNode(text: string, x: number, y: number, width: number, height: number, isCentral: boolean, theme: any, isWireframe: boolean, level: number): Promise<FrameNode> {
   const node = figma.createFrame();
   node.resize(width, height);
   node.x = x - width / 2;
   node.y = y - height / 2;
-  node.cornerRadius = height / 2;
-  node.fills = [{ type: 'SOLID', color: isCentral ? theme.primary : { r: 1, g: 1, b: 1 } }];
+  node.cornerRadius = isWireframe ? 0 : height / 2;
+  
+  // Use hierarchy colors for hi-fi mode
+  let fillColor;
+  if (isCentral) {
+    fillColor = theme.primary;
+  } else if (isWireframe) {
+    fillColor = { r: 1, g: 1, b: 1 };
+  } else {
+    fillColor = (theme.hierarchy && theme.hierarchy[Math.min(level, theme.hierarchy.length - 1)]) || { r: 1, g: 1, b: 1 };
+  }
+  
+  node.fills = [{ type: 'SOLID', color: isCentral ? theme.primary : (isWireframe ? { r: 1, g: 1, b: 1 } : fillColor) }];
   node.strokes = [{ type: 'SOLID', color: isCentral ? theme.primary : theme.border }];
-  node.strokeWeight = isCentral ? 0 : 1.5;
-  node.effects = [{
-    type: 'DROP_SHADOW',
-    color: { r: 0, g: 0, b: 0, a: 0.1 },
-    offset: { x: 0, y: 4 },
-    radius: 12,
-    visible: true,
-    blendMode: 'NORMAL'
-  }];
+  node.strokeWeight = isWireframe ? 2 : 1.5;
+  
+  if (!isWireframe) {
+    node.effects = [{
+      type: 'DROP_SHADOW',
+      color: { r: 0, g: 0, b: 0, a: 0.1 },
+      offset: { x: 0, y: 4 },
+      radius: 12,
+      visible: true,
+      blendMode: 'NORMAL'
+    }];
+  }
   
   const textNode = figma.createText();
   textNode.fontName = { family: "Inter", style: isCentral ? "Semi Bold" : "Medium" };
@@ -455,18 +596,21 @@ async function createMindMapNode(text: string, x: number, y: number, width: numb
   textNode.resize(width - 24, height);
   textNode.x = 12;
   textNode.y = 0;
-  textNode.fills = [{ type: 'SOLID', color: isCentral ? { r: 1, g: 1, b: 1 } : theme.text }];
+  
+  // Determine text color based on background
+  const needsWhiteText = isCentral || (!isWireframe && level < 2);
+  textNode.fills = [{ type: 'SOLID', color: needsWhiteText ? { r: 1, g: 1, b: 1 } : theme.text }];
   node.appendChild(textNode);
   
   return node;
 }
 
 // ============= INFORMATION ARCHITECTURE GENERATOR =============
-async function createInformationArchitecture(data: any, themeName: ThemeName) {
-  const theme = THEMES[themeName];
+async function createInformationArchitecture(data: any, theme: any, themeName: ThemeName) {
+  const isWireframe = themeName === 'wireframe';
   
   const frame = figma.createFrame();
-  frame.name = data.name || 'Information Architecture';
+  frame.name = (data.name || 'Information Architecture') + (isWireframe ? ' (Wireframe)' : '');
   frame.resize(3000, 2000);
   frame.fills = [{ type: 'SOLID', color: theme.background }];
   
@@ -481,246 +625,318 @@ async function createInformationArchitecture(data: any, themeName: ThemeName) {
   frame.appendChild(title);
   
   // Create hierarchy
-  await createIALevel(frame, data.sections || [], 80, 120, 0, theme);
+  await createIALevel(frame, data.sections || [], 80, 120, 0, theme, isWireframe);
   
   figma.viewport.scrollAndZoomIntoView([frame]);
 }
 
-async function createIALevel(parent: FrameNode, items: any[], x: number, y: number, level: number, theme: any): Promise<number> {
+async function createIALevel(parent: FrameNode, items: any[], x: number, y: number, level: number, theme: any, isWireframe: boolean): Promise<number> {
   const indent = level * 280;
   const itemHeight = 56;
   const spacing = 24;
+  
   let currentY = y;
   
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  for (const item of items) {
+    // Use hierarchy colors for different levels in hi-fi mode
+    const levelColor = isWireframe 
+      ? theme.primary 
+      : (theme.hierarchy && theme.hierarchy[Math.min(level, theme.hierarchy.length - 1)]) || theme.primary;
     
-    const box = figma.createFrame();
-    box.name = item.name;
-    box.resize(220, itemHeight);
-    box.x = x + indent;
-    box.y = currentY;
-    box.fills = [{ type: 'SOLID', color: level === 0 ? theme.primary : { r: 1, g: 1, b: 1 } }];
-    box.cornerRadius = 8;
-    box.strokes = [{ type: 'SOLID', color: level === 0 ? theme.primary : theme.border }];
-    box.strokeWeight = level === 0 ? 0 : 1;
-    box.effects = [{
-      type: 'DROP_SHADOW',
-      color: { r: 0, g: 0, b: 0, a: 0.06 },
-      offset: { x: 0, y: 2 },
-      radius: 8,
-      visible: true,
-      blendMode: 'NORMAL'
-    }];
+    const node = figma.createFrame();
+    node.name = item.name;
+    node.resize(240, itemHeight);
+    node.x = x + indent;
+    node.y = currentY;
+    node.cornerRadius = isWireframe ? 0 : 8;
+    node.fills = [{ type: 'SOLID', color: level === 0 ? levelColor : theme.secondary }];
+    node.strokes = [{ type: 'SOLID', color: level === 0 ? levelColor : theme.border }];
+    node.strokeWeight = isWireframe ? 2 : 1;
     
-    const text = figma.createText();
-    text.fontName = { family: "Inter", style: level === 0 ? "Semi Bold" : "Medium" };
-    text.characters = item.name;
-    text.fontSize = level === 0 ? 14 : 13;
-    text.fills = [{ type: 'SOLID', color: level === 0 ? { r: 1, g: 1, b: 1 } : theme.text }];
-    text.textAlignVertical = 'CENTER';
-    text.resize(200, itemHeight);
-    text.x = 12;
-    text.y = 0;
-    box.appendChild(text);
+    if (!isWireframe) {
+      node.effects = [{
+        type: 'DROP_SHADOW',
+        color: { r: 0, g: 0, b: 0, a: 0.06 },
+        offset: { x: 0, y: 2 },
+        radius: 8,
+        visible: true,
+        blendMode: 'NORMAL'
+      }];
+    }
     
-    parent.appendChild(box);
+    const textNode = figma.createText();
+    textNode.fontName = { family: "Inter", style: level === 0 ? "Semi Bold" : "Medium" };
+    textNode.characters = item.name;
+    textNode.fontSize = level === 0 ? 14 : 12;
+    textNode.x = 16;
+    textNode.y = (itemHeight - 20) / 2;
+    textNode.fills = [{ type: 'SOLID', color: level === 0 && !isWireframe ? { r: 1, g: 1, b: 1 } : theme.text }];
+    node.appendChild(textNode);
     
-    // Draw connector to children
+    parent.appendChild(node);
+    currentY += itemHeight + spacing;
+    
+    // Recursively create children
     if (item.children && item.children.length > 0) {
-      const connectorX = x + indent + 220;
-      const connectorY = currentY + itemHeight / 2;
+      // Draw connector line
+      const line = figma.createLine();
+      line.resize(20, 0);
+      line.x = x + indent + 240;
+      line.y = currentY - spacing / 2 - itemHeight / 2;
+      line.strokes = [{ type: 'SOLID', color: theme.border }];
+      line.strokeWeight = isWireframe ? 2 : 1.5;
+      parent.appendChild(line);
       
-      const hLine = figma.createLine();
-      hLine.resize(30, 0);
-      hLine.x = connectorX;
-      hLine.y = connectorY;
-      hLine.strokes = [{ type: 'SOLID', color: theme.border }];
-      hLine.strokeWeight = 2;
-      parent.appendChild(hLine);
-      
-      currentY = await createIALevel(parent, item.children, x, currentY, level + 1, theme);
-    } else {
-      currentY += itemHeight + spacing;
+      currentY = await createIALevel(parent, item.children, x, currentY, level + 1, theme, isWireframe);
     }
   }
   
   return currentY;
 }
 
-// ============= AUDIT ENGINE =============
-interface AuditIssue {
-  nodeId: string;
-  title: string;
-  description: string;
-  severity: 'high' | 'medium' | 'low';
-  category: string;
-}
+// ============= AUDIT SYSTEM =============
 
-async function runLintAudit(scope: string) {
-  const issues: AuditIssue[] = [];
-  const nodes = await getNodesForScope(scope);
+// Get all frames connected via prototype links starting from a frame
+async function traversePrototypeFlow(startFrame: FrameNode): Promise<FrameNode[]> {
+  const visited = new Set<string>();
+  const frames: FrameNode[] = [];
+  const queue: FrameNode[] = [startFrame];
   
-  figma.ui.postMessage({ type: 'audit-progress', progress: 20 });
-  
-  for (const node of nodes) {
-    // Check for poor naming
-    if (node.name.match(/^(Frame|Group|Rectangle|Ellipse|Text)\s*\d*$/i)) {
-      issues.push({
-        nodeId: node.id,
-        title: 'Poor Layer Naming',
-        description: `Layer "${node.name}" has a generic name. Use semantic naming for better organization.`,
-        severity: 'low',
-        category: 'naming'
-      });
-    }
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || visited.has(current.id)) continue;
     
-    // Check for broken interactions (frames without links)
-    if (node.type === 'FRAME' && 'reactions' in node) {
-      const reactions = (node as FrameNode).reactions;
-      const hasReaction = reactions && reactions.length > 0;
-      if (!hasReaction && node.name.toLowerCase().includes('button')) {
-        issues.push({
-          nodeId: node.id,
-          title: 'Missing Interaction',
-          description: `Button "${node.name}" has no interaction defined.`,
-          severity: 'medium',
-          category: 'interaction'
-        });
+    visited.add(current.id);
+    frames.push(current);
+    
+    // Find all prototype links in this frame
+    const linkedFrames = findPrototypeDestinations(current);
+    for (const linkedFrame of linkedFrames) {
+      if (!visited.has(linkedFrame.id)) {
+        queue.push(linkedFrame);
       }
     }
-    
-    // Check for small touch targets
-    if ('width' in node && 'height' in node) {
-      const minSize = 44;
-      if (node.width < minSize || node.height < minSize) {
-        if (node.name.toLowerCase().includes('button') || node.name.toLowerCase().includes('link') || node.name.toLowerCase().includes('tap')) {
-          issues.push({
-            nodeId: node.id,
-            title: 'Small Touch Target',
-            description: `Element "${node.name}" is ${Math.round(node.width)}x${Math.round(node.height)}px. Minimum recommended is 44x44px.`,
-            severity: 'high',
-            category: 'accessibility'
-          });
+  }
+  
+  return frames;
+}
+
+function findPrototypeDestinations(node: SceneNode): FrameNode[] {
+  const destinations: FrameNode[] = [];
+  
+  // Check the node itself
+  if ('reactions' in node && node.reactions) {
+    for (const reaction of node.reactions) {
+      if (reaction.action && reaction.action.type === 'NODE' && reaction.action.destinationId) {
+        const dest = figma.getNodeById(reaction.action.destinationId);
+        if (dest && dest.type === 'FRAME') {
+          destinations.push(dest as FrameNode);
         }
       }
     }
   }
   
-  figma.ui.postMessage({ type: 'audit-progress', progress: 100 });
-  figma.ui.postMessage({ type: 'lint-results', issues });
-}
-
-async function runFullAudit(scope: string, persona: any, apiUrl: string, accessToken: string) {
-  const issues: AuditIssue[] = [];
-  const nodes = await getNodesForScope(scope);
-  
-  figma.ui.postMessage({ type: 'audit-progress', progress: 10 });
-  
-  // Run lint checks first
-  for (const node of nodes) {
-    if (node.name.match(/^(Frame|Group|Rectangle|Ellipse|Text)\s*\d*$/i)) {
-      issues.push({
-        nodeId: node.id,
-        title: 'Poor Layer Naming',
-        description: `Layer "${node.name}" has a generic name.`,
-        severity: 'low',
-        category: 'naming'
-      });
-    }
-    
-    if ('width' in node && 'height' in node && (node.width < 44 || node.height < 44)) {
-      if (node.name.toLowerCase().match(/button|link|tap|click/)) {
-        issues.push({
-          nodeId: node.id,
-          title: 'Small Touch Target',
-          description: `"${node.name}" is only ${Math.round(node.width)}x${Math.round(node.height)}px.`,
-          severity: 'high',
-          category: 'accessibility'
-        });
-      }
+  // Check children recursively
+  if ('children' in node) {
+    for (const child of (node as FrameNode).children) {
+      destinations.push(...findPrototypeDestinations(child));
     }
   }
   
-  figma.ui.postMessage({ type: 'audit-progress', progress: 40 });
+  return destinations;
+}
+
+async function runAudit(mode: string, persona: any, apiUrl: string, accessToken: string) {
+  const selection = figma.currentPage.selection;
   
-  // Export selection as image for AI analysis
-  if (nodes.length > 0 && persona) {
-    try {
-      const exportNode = nodes.find(n => n.type === 'FRAME') || nodes[0];
-      if ('exportAsync' in exportNode) {
-        const imageData = await (exportNode as FrameNode).exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+  // Validate selection
+  if (selection.length === 0) {
+    figma.ui.postMessage({ type: 'audit-error', error: 'Please select a frame first' });
+    return;
+  }
+  
+  const startFrame = selection.find(n => n.type === 'FRAME') as FrameNode;
+  if (!startFrame) {
+    figma.ui.postMessage({ type: 'audit-error', error: 'Please select a frame (not a group or other element)' });
+    return;
+  }
+  
+  figma.ui.postMessage({ type: 'audit-progress', progress: 5 });
+  
+  let framesToAudit: FrameNode[] = [];
+  
+  if (mode === 'current') {
+    framesToAudit = [startFrame];
+  } else if (mode === 'flow') {
+    // Traverse prototype links
+    figma.ui.postMessage({ type: 'audit-status', message: 'Discovering prototype flow...' });
+    framesToAudit = await traversePrototypeFlow(startFrame);
+    
+    if (framesToAudit.length === 1) {
+      figma.ui.postMessage({ type: 'audit-warning', warning: 'No prototype links found. Auditing single frame.' });
+    } else {
+      figma.ui.postMessage({ type: 'audit-status', message: 'Found ' + framesToAudit.length + ' connected frames' });
+    }
+  }
+  
+  figma.ui.postMessage({ type: 'audit-progress', progress: 15 });
+  
+  const issues: AuditIssue[] = [];
+  const frameImages: Array<{ nodeId: string; name: string; imageData: string }> = [];
+  
+  // Run lint checks on all frames
+  for (const frame of framesToAudit) {
+    await runLintChecks(frame, issues);
+  }
+  
+  figma.ui.postMessage({ type: 'audit-progress', progress: 30 });
+  
+  // Export all frames as images
+  if (persona) {
+    figma.ui.postMessage({ type: 'audit-status', message: 'Capturing screenshots...' });
+    
+    for (let i = 0; i < framesToAudit.length; i++) {
+      const frame = framesToAudit[i];
+      try {
+        const imageData = await frame.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
         const base64 = figma.base64Encode(imageData);
-        const imageUrl = `data:image/png;base64,${base64}`;
-        
-        figma.ui.postMessage({ type: 'audit-progress', progress: 60 });
-        
-        // Call AI endpoint
-        const response = await fetch(`${apiUrl}/functions/v1/figma-audit-ai`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZXlqc3FhbHpjZGVqd3N2b3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2MDYwMDIsImV4cCI6MjA3NjE4MjAwMn0.jThP8cy8deaDkQZlTz6Bb0C1DU6praULawIej2vBghA'
-          },
-          body: JSON.stringify({
-            imageData: imageUrl,
-            persona: {
-              name: persona.name,
-              description: persona.description,
-              painPoints: persona.pain_points,
-              goals: persona.goals
-            }
-          })
+        frameImages.push({
+          nodeId: frame.id,
+          name: frame.name,
+          imageData: 'data:image/png;base64,' + base64
         });
-        
-        figma.ui.postMessage({ type: 'audit-progress', progress: 80 });
-        
-        if (response.ok) {
-          const aiResult = await response.json();
-          if (aiResult.issues) {
-            for (const aiIssue of aiResult.issues) {
-              issues.push({
-                nodeId: exportNode.id,
-                title: aiIssue.title,
-                description: aiIssue.description,
-                severity: aiIssue.severity || 'medium',
-                category: 'ai-heuristic'
-              });
-            }
+      } catch (e) {
+        console.error('Failed to export frame:', frame.name, e);
+      }
+      
+      const progress = 30 + ((i + 1) / framesToAudit.length) * 20;
+      figma.ui.postMessage({ type: 'audit-progress', progress });
+    }
+    
+    figma.ui.postMessage({ type: 'audit-progress', progress: 50 });
+    figma.ui.postMessage({ type: 'audit-status', message: 'Running AI analysis...' });
+    
+    // Send to AI for analysis
+    try {
+      const response = await fetch(apiUrl + '/functions/v1/figma-audit-flow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + accessToken,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZXlqc3FhbHpjZGVqd3N2b3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2MDYwMDIsImV4cCI6MjA3NjE4MjAwMn0.jThP8cy8deaDkQZlTz6Bb0C1DU6praULawIej2vBghA'
+        },
+        body: JSON.stringify({
+          frames: frameImages,
+          persona: {
+            name: persona.name,
+            description: persona.description,
+            painPoints: persona.pain_points,
+            goals: persona.goals
+          },
+          auditMode: mode
+        })
+      });
+      
+      figma.ui.postMessage({ type: 'audit-progress', progress: 80 });
+      
+      if (response.ok) {
+        const aiResult = await response.json();
+        if (aiResult.issues) {
+          for (const aiIssue of aiResult.issues) {
+            issues.push({
+              nodeId: aiIssue.frameId || startFrame.id,
+              title: aiIssue.title,
+              description: aiIssue.description,
+              severity: aiIssue.severity || 'medium',
+              category: aiIssue.category || 'ai-heuristic'
+            });
           }
+        }
+        
+        // Include persona journey narrative if available
+        if (aiResult.journeyNarrative) {
+          figma.ui.postMessage({ type: 'journey-narrative', narrative: aiResult.journeyNarrative });
         }
       }
     } catch (error) {
       console.error('AI audit error:', error);
+      // Fallback to single-frame AI analysis
+      if (frameImages.length > 0) {
+        try {
+          const fallbackResponse = await fetch(apiUrl + '/functions/v1/figma-audit-ai', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + accessToken,
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZXlqc3FhbHpjZGVqd3N2b3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2MDYwMDIsImV4cCI6MjA3NjE4MjAwMn0.jThP8cy8deaDkQZlTz6Bb0C1DU6praULawIej2vBghA'
+            },
+            body: JSON.stringify({
+              imageData: frameImages[0].imageData,
+              persona: {
+                name: persona.name,
+                description: persona.description,
+                painPoints: persona.pain_points,
+                goals: persona.goals
+              }
+            })
+          });
+          
+          if (fallbackResponse.ok) {
+            const fallbackResult = await fallbackResponse.json();
+            if (fallbackResult.issues) {
+              for (const aiIssue of fallbackResult.issues) {
+                issues.push({
+                  nodeId: startFrame.id,
+                  title: aiIssue.title,
+                  description: aiIssue.description,
+                  severity: aiIssue.severity || 'medium',
+                  category: 'ai-heuristic'
+                });
+              }
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Fallback AI audit error:', fallbackError);
+        }
+      }
     }
   }
   
   figma.ui.postMessage({ type: 'audit-progress', progress: 100 });
-  figma.ui.postMessage({ type: 'audit-complete', issues });
+  figma.ui.postMessage({ type: 'audit-complete', issues, frameCount: framesToAudit.length });
 }
 
-async function getNodesForScope(scope: string): Promise<SceneNode[]> {
-  if (scope === 'selection') {
-    return [...figma.currentPage.selection];
-  } else if (scope === 'page') {
-    return [...figma.currentPage.children];
-  } else if (scope === 'flow') {
-    // Get nodes connected via prototype links
-    const flowNodes: SceneNode[] = [];
-    const startPoints = figma.currentPage.flowStartingPoints;
-    
-    for (const startPoint of startPoints) {
-      const node = figma.getNodeById(startPoint.nodeId);
-      if (node && 'type' in node) {
-        flowNodes.push(node as SceneNode);
-      }
-    }
-    
-    return flowNodes.length > 0 ? flowNodes : [...figma.currentPage.selection];
+async function runLintChecks(node: SceneNode, issues: AuditIssue[]) {
+  // Check the node
+  if (node.name.match(/^(Frame|Group|Rectangle|Ellipse|Text)\s*\d*$/i)) {
+    issues.push({
+      nodeId: node.id,
+      title: 'Poor Layer Naming',
+      description: 'Layer "' + node.name + '" has a generic name. Use descriptive names for better organization.',
+      severity: 'low',
+      category: 'naming'
+    });
   }
   
-  return [];
+  // Check touch targets
+  if ('width' in node && 'height' in node) {
+    if ((node.width < 44 || node.height < 44) && node.name.toLowerCase().match(/button|btn|link|tap|click|cta/)) {
+      issues.push({
+        nodeId: node.id,
+        title: 'Small Touch Target',
+        description: '"' + node.name + '" is ' + Math.round(node.width) + 'x' + Math.round(node.height) + 'px. Minimum recommended size is 44x44px for accessibility.',
+        severity: 'high',
+        category: 'accessibility'
+      });
+    }
+  }
+  
+  // Check children recursively
+  if ('children' in node) {
+    for (const child of (node as FrameNode).children) {
+      await runLintChecks(child, issues);
+    }
+  }
 }
 
 // ============= REPORT GENERATOR =============
@@ -739,106 +955,106 @@ function generateReport(format: string, data: any) {
 }
 
 function generateMarkdownReport(issues: AuditIssue[], persona: any): string {
-  let md = `# Pre-Usability Audit Report\n\n`;
-  md += `**Generated:** ${new Date().toLocaleString()}\n\n`;
+  let md = '# Pre-Usability Audit Report\n\n';
+  md += '**Generated:** ' + new Date().toLocaleString() + '\n\n';
   
   if (persona) {
-    md += `## Persona Context\n\n`;
-    md += `| Attribute | Value |\n`;
-    md += `|-----------|-------|\n`;
-    md += `| Name | ${persona.name} |\n`;
-    md += `| Description | ${persona.description || 'N/A'} |\n`;
+    md += '## Persona Context\n\n';
+    md += '| Attribute | Value |\n';
+    md += '|-----------|-------|\n';
+    md += '| Name | ' + persona.name + ' |\n';
+    md += '| Description | ' + (persona.description || 'N/A') + ' |\n';
     if (persona.goals && persona.goals.length) {
-      md += `| Goals | ${persona.goals.join(', ')} |\n`;
+      md += '| Goals | ' + persona.goals.join(', ') + ' |\n';
     }
     if (persona.pain_points && persona.pain_points.length) {
-      md += `| Pain Points | ${persona.pain_points.join(', ')} |\n`;
+      md += '| Pain Points | ' + persona.pain_points.join(', ') + ' |\n';
     }
     md += '\n';
   }
   
-  md += `## Executive Summary\n\n`;
-  md += `- **Total Issues:** ${issues.length}\n`;
-  md += `- **High Severity:** ${issues.filter(i => i.severity === 'high').length}\n`;
-  md += `- **Medium Severity:** ${issues.filter(i => i.severity === 'medium').length}\n`;
-  md += `- **Low Severity:** ${issues.filter(i => i.severity === 'low').length}\n\n`;
+  md += '## Executive Summary\n\n';
+  md += '- **Total Issues:** ' + issues.length + '\n';
+  md += '- **High Severity:** ' + issues.filter(function(i) { return i.severity === 'high'; }).length + '\n';
+  md += '- **Medium Severity:** ' + issues.filter(function(i) { return i.severity === 'medium'; }).length + '\n';
+  md += '- **Low Severity:** ' + issues.filter(function(i) { return i.severity === 'low'; }).length + '\n\n';
   
-  md += `## Detailed Findings\n\n`;
+  md += '## Detailed Findings\n\n';
   
-  issues.forEach((issue, i) => {
-    md += `### ${i + 1}. ${issue.title}\n\n`;
-    md += `**Severity:** ${issue.severity.toUpperCase()}\n\n`;
-    md += `**Category:** ${issue.category}\n\n`;
-    md += `${issue.description}\n\n`;
-    md += `---\n\n`;
+  issues.forEach(function(issue, i) {
+    md += '### ' + (i + 1) + '. ' + issue.title + '\n\n';
+    md += '**Severity:** ' + issue.severity.toUpperCase() + '\n\n';
+    md += '**Category:** ' + issue.category + '\n\n';
+    md += issue.description + '\n\n';
+    md += '---\n\n';
   });
   
   return md;
 }
 
 function generateHtmlReport(issues: AuditIssue[], persona: any): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <title>Pre-Usability Audit Report</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1f2937; }
-    h1 { color: #111827; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; }
-    h2 { color: #374151; margin-top: 32px; }
-    .meta { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
-    .summary { background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 24px 0; }
-    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; text-align: center; }
-    .stat { background: white; padding: 16px; border-radius: 8px; }
-    .stat .value { font-size: 28px; font-weight: 700; }
-    .stat .label { font-size: 12px; color: #6b7280; }
-    .high .value { color: #dc2626; }
-    .medium .value { color: #d97706; }
-    .low .value { color: #2563eb; }
-    .issue { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0; border-left: 4px solid #e5e7eb; }
-    .issue.high { border-left-color: #dc2626; }
-    .issue.medium { border-left-color: #d97706; }
-    .issue.low { border-left-color: #2563eb; }
-    .issue h3 { margin: 0 0 8px; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; margin-right: 8px; }
-    .badge.high { background: #fef2f2; color: #dc2626; }
-    .badge.medium { background: #fffbeb; color: #d97706; }
-    .badge.low { background: #eff6ff; color: #2563eb; }
-    @media print { body { padding: 20px; } }
-  </style>
-</head>
-<body>
-  <h1>🔍 Pre-Usability Audit Report</h1>
-  <p class="meta">Generated: ${new Date().toLocaleString()}</p>
+  var highCount = issues.filter(function(i) { return i.severity === 'high'; }).length;
+  var mediumCount = issues.filter(function(i) { return i.severity === 'medium'; }).length;
+  var lowCount = issues.filter(function(i) { return i.severity === 'low'; }).length;
   
-  ${persona ? `
-  <h2>Persona Context</h2>
-  <p><strong>${persona.name}</strong></p>
-  <p>${persona.description || ''}</p>
-  ` : ''}
+  var issuesHtml = issues.map(function(issue, i) {
+    return '<div class="issue ' + issue.severity + '">' +
+      '<span class="badge ' + issue.severity + '">' + issue.severity.toUpperCase() + '</span>' +
+      '<span class="badge" style="background:#f3f4f6;color:#374151;">' + issue.category + '</span>' +
+      '<h3>' + (i + 1) + '. ' + issue.title + '</h3>' +
+      '<p>' + issue.description + '</p>' +
+    '</div>';
+  }).join('');
   
-  <div class="summary">
-    <div class="summary-grid">
-      <div class="stat"><div class="value">${issues.length}</div><div class="label">Total</div></div>
-      <div class="stat high"><div class="value">${issues.filter(i => i.severity === 'high').length}</div><div class="label">High</div></div>
-      <div class="stat medium"><div class="value">${issues.filter(i => i.severity === 'medium').length}</div><div class="label">Medium</div></div>
-      <div class="stat low"><div class="value">${issues.filter(i => i.severity === 'low').length}</div><div class="label">Low</div></div>
-    </div>
-  </div>
-  
-  <h2>Detailed Findings</h2>
-  ${issues.map((issue, i) => `
-    <div class="issue ${issue.severity}">
-      <span class="badge ${issue.severity}">${issue.severity.toUpperCase()}</span>
-      <span class="badge" style="background:#f3f4f6;color:#374151;">${issue.category}</span>
-      <h3>${i + 1}. ${issue.title}</h3>
-      <p>${issue.description}</p>
-    </div>
-  `).join('')}
-</body>
-</html>`;
+  return '<!DOCTYPE html>' +
+'<html>' +
+'<head>' +
+'  <title>Pre-Usability Audit Report</title>' +
+'  <style>' +
+'    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #1f2937; }' +
+'    h1 { color: #111827; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; }' +
+'    h2 { color: #374151; margin-top: 32px; }' +
+'    .meta { color: #6b7280; font-size: 14px; margin-bottom: 24px; }' +
+'    .summary { background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 24px 0; }' +
+'    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; text-align: center; }' +
+'    .stat { background: white; padding: 16px; border-radius: 8px; }' +
+'    .stat .value { font-size: 28px; font-weight: 700; }' +
+'    .stat .label { font-size: 12px; color: #6b7280; }' +
+'    .high .value { color: #dc2626; }' +
+'    .medium .value { color: #d97706; }' +
+'    .low .value { color: #2563eb; }' +
+'    .issue { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0; border-left: 4px solid #e5e7eb; }' +
+'    .issue.high { border-left-color: #dc2626; }' +
+'    .issue.medium { border-left-color: #d97706; }' +
+'    .issue.low { border-left-color: #2563eb; }' +
+'    .issue h3 { margin: 0 0 8px; }' +
+'    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; margin-right: 8px; }' +
+'    .badge.high { background: #fef2f2; color: #dc2626; }' +
+'    .badge.medium { background: #fffbeb; color: #d97706; }' +
+'    .badge.low { background: #eff6ff; color: #2563eb; }' +
+'    @media print { body { padding: 20px; } }' +
+'  </style>' +
+'</head>' +
+'<body>' +
+'  <h1>🔍 Pre-Usability Audit Report</h1>' +
+'  <p class="meta">Generated: ' + new Date().toLocaleString() + '</p>' +
+(persona ? '<h2>Persona Context</h2><p><strong>' + persona.name + '</strong></p><p>' + (persona.description || '') + '</p>' : '') +
+'  <div class="summary">' +
+'    <div class="summary-grid">' +
+'      <div class="stat"><div class="value">' + issues.length + '</div><div class="label">Total</div></div>' +
+'      <div class="stat high"><div class="value">' + highCount + '</div><div class="label">High</div></div>' +
+'      <div class="stat medium"><div class="value">' + mediumCount + '</div><div class="label">Medium</div></div>' +
+'      <div class="stat low"><div class="value">' + lowCount + '</div><div class="label">Low</div></div>' +
+'    </div>' +
+'  </div>' +
+'  <h2>Detailed Findings</h2>' +
+issuesHtml +
+'</body>' +
+'</html>';
 }
 
 function getEmotionEmoji(level: number): string {
-  const emojis = ['😞', '😟', '😐', '🙂', '😊'];
-  return emojis[Math.max(0, Math.min(4, level - 1))] || '😐';
+  var emojis = ['😞', '😟', '😐', '🙂', '😊'];
+  var idx = Math.max(0, Math.min(4, level - 1));
+  return emojis[idx] || '😐';
 }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UX Probe - Research Importer</title>
+  <title>UX Probe - Research & Audit</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -299,6 +299,11 @@
       color: #991b1b;
       border: 1px solid #fca5a5;
     }
+    .status.warning {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
     
     .hidden {
       display: none !important;
@@ -315,6 +320,42 @@
     .theme-selector label {
       margin-bottom: 8px;
     }
+    .theme-options {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .theme-option {
+      flex: 1;
+      padding: 12px 8px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .theme-option:hover {
+      border-color: #3b82f6;
+    }
+    .theme-option.active {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    .theme-option .icon {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+    .theme-option .label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #374151;
+    }
+    .theme-option .desc {
+      font-size: 9px;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
     
     /* Audit Section */
     .audit-config {
@@ -329,6 +370,65 @@
       font-weight: 600;
       color: #111827;
       margin-bottom: 10px;
+    }
+    .audit-mode-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .audit-mode-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .audit-mode-option:hover {
+      border-color: #3b82f6;
+    }
+    .audit-mode-option.active {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    .audit-mode-option.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .audit-mode-option input[type="radio"] {
+      width: auto;
+      margin-top: 2px;
+    }
+    .audit-mode-option .mode-content {
+      flex: 1;
+    }
+    .audit-mode-option .mode-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .audit-mode-option .mode-desc {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .selection-status {
+      padding: 8px 12px;
+      background: #f3f4f6;
+      border-radius: 6px;
+      font-size: 11px;
+      margin-bottom: 12px;
+    }
+    .selection-status.valid {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .selection-status.invalid {
+      background: #fee2e2;
+      color: #991b1b;
     }
     .audit-actions {
       display: flex;
@@ -408,6 +508,27 @@
       border-radius: 4px;
     }
     
+    /* Journey Narrative */
+    .journey-narrative {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .journey-narrative h5 {
+      font-size: 12px;
+      font-weight: 600;
+      color: #166534;
+      margin-bottom: 8px;
+    }
+    .journey-narrative p {
+      font-size: 12px;
+      color: #15803d;
+      line-height: 1.5;
+      font-style: italic;
+    }
+    
     /* Progress */
     .progress-bar {
       width: 100%;
@@ -422,6 +543,11 @@
       background: #3b82f6;
       border-radius: 3px;
       transition: width 0.3s;
+    }
+    .progress-status {
+      font-size: 11px;
+      color: #6b7280;
+      margin-bottom: 8px;
     }
     
     /* Stats */
@@ -497,12 +623,19 @@
       <div class="section active" id="bridgeSection">
         <!-- Theme Selector -->
         <div class="theme-selector">
-          <label>Import Theme</label>
-          <select id="themeSelect">
-            <option value="blueprint">Blueprint (Wireframe)</option>
-            <option value="corporate">Corporate (High-Fi)</option>
-            <option value="minimal">Minimal (Clean)</option>
-          </select>
+          <label>Import Style</label>
+          <div class="theme-options">
+            <div class="theme-option active" data-theme="wireframe">
+              <div class="icon">⬜</div>
+              <div class="label">Wireframe</div>
+              <div class="desc">Monochrome</div>
+            </div>
+            <div class="theme-option" data-theme="hifi">
+              <div class="icon">🎨</div>
+              <div class="label">Hi-Fidelity</div>
+              <div class="desc">Smart colors</div>
+            </div>
+          </div>
         </div>
         
         <!-- Asset Sub Tabs -->
@@ -534,6 +667,10 @@
         <div class="audit-config">
           <h4>Pre-Usability Audit</h4>
           
+          <div class="selection-status" id="selectionStatus">
+            Select a frame in Figma to begin
+          </div>
+          
           <div class="input-group">
             <label>Persona Context</label>
             <select id="auditPersonaSelect">
@@ -541,25 +678,40 @@
             </select>
           </div>
           
-          <div class="input-group">
-            <label>Audit Scope</label>
-            <select id="auditScopeSelect">
-              <option value="selection">Current Selection</option>
-              <option value="page">Entire Page</option>
-              <option value="flow">Linked Flow</option>
-            </select>
+          <div class="audit-mode-options">
+            <label style="font-size: 12px; font-weight: 500; margin-bottom: 4px;">Audit Mode</label>
+            
+            <div class="audit-mode-option active" data-mode="current" id="currentModeOption">
+              <input type="radio" name="auditMode" value="current" checked />
+              <div class="mode-content">
+                <div class="mode-title">Current Selected Frame</div>
+                <div class="mode-desc">Audit the single frame you have selected</div>
+              </div>
+            </div>
+            
+            <div class="audit-mode-option disabled" data-mode="flow" id="flowModeOption">
+              <input type="radio" name="auditMode" value="flow" disabled />
+              <div class="mode-content">
+                <div class="mode-title">Linked Prototype Flow</div>
+                <div class="mode-desc">Walk through all connected screens via prototype links</div>
+              </div>
+            </div>
           </div>
           
-          <div class="audit-actions">
-            <button class="btn-secondary btn-small" id="runLintBtn">🔧 Lint</button>
-            <button class="btn-primary btn-small" id="runFullAuditBtn">🚀 Full Audit</button>
-          </div>
+          <button class="btn-primary" id="runAuditBtn" disabled>🚀 Run Audit</button>
         </div>
         
         <div id="auditProgress" class="hidden">
-          <p style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">Running audit...</p>
+          <p class="progress-status" id="auditStatusText">Running audit...</p>
           <div class="progress-bar">
             <div class="progress-fill" id="auditProgressFill" style="width: 0%"></div>
+          </div>
+        </div>
+        
+        <div id="journeyNarrativeContainer" class="hidden">
+          <div class="journey-narrative">
+            <h5>🎭 Persona Journey Experience</h5>
+            <p id="journeyNarrativeText"></p>
           </div>
         </div>
         
@@ -584,7 +736,7 @@
         
         <div id="auditEmpty" class="empty-state">
           <div class="empty-state-icon">🔍</div>
-          <p>Select a scope and run an audit to find issues</p>
+          <p>Select a frame and persona, then run an audit</p>
         </div>
       </div>
       
@@ -619,101 +771,189 @@
   <div class="status" id="status"></div>
 
   <script>
-    const API_URL = 'https://vaeyjsqalzcdejwsvoql.supabase.co';
-    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZXlqc3FhbHpjZGVqd3N2b3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2MDYwMDIsImV4cCI6MjA3NjE4MjAwMn0.jThP8cy8deaDkQZlTz6Bb0C1DU6praULawIej2vBghA';
+    var API_URL = 'https://vaeyjsqalzcdejwsvoql.supabase.co';
+    var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZXlqc3FhbHpjZGVqd3N2b3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2MDYwMDIsImV4cCI6MjA3NjE4MjAwMn0.jThP8cy8deaDkQZlTz6Bb0C1DU6praULawIej2vBghA';
     
-    let accessToken = null;
-    let userEmail = null;
-    let cachedPersonas = [];
-    let cachedJourneys = [];
-    let auditResults = [];
-    let selectedTheme = 'blueprint';
+    var accessToken = null;
+    var userEmail = null;
+    var cachedPersonas = [];
+    var cachedJourneys = [];
+    var auditResults = [];
+    var selectedTheme = 'wireframe';
+    var selectedAuditMode = 'current';
+    var hasValidSelection = false;
+    var hasPrototypeLinks = false;
 
     // DOM Elements
-    const authScreen = document.getElementById('authScreen');
-    const mainScreen = document.getElementById('mainScreen');
-    const loginBtn = document.getElementById('loginBtn');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const userEmailSpan = document.getElementById('userEmail');
-    const status = document.getElementById('status');
-    const themeSelect = document.getElementById('themeSelect');
-    const auditPersonaSelect = document.getElementById('auditPersonaSelect');
+    var authScreen = document.getElementById('authScreen');
+    var mainScreen = document.getElementById('mainScreen');
+    var loginBtn = document.getElementById('loginBtn');
+    var cancelBtn = document.getElementById('cancelBtn');
+    var logoutBtn = document.getElementById('logoutBtn');
+    var emailInput = document.getElementById('email');
+    var passwordInput = document.getElementById('password');
+    var userEmailSpan = document.getElementById('userEmail');
+    var status = document.getElementById('status');
+    var auditPersonaSelect = document.getElementById('auditPersonaSelect');
+    var selectionStatus = document.getElementById('selectionStatus');
+    var runAuditBtn = document.getElementById('runAuditBtn');
     
     // Navigation
-    const navTabs = document.querySelectorAll('.nav-tab');
-    const subTabs = document.querySelectorAll('.sub-tab');
-    const sections = document.querySelectorAll('.section');
-    const tabPanels = document.querySelectorAll('.tab-panel');
+    var navTabs = document.querySelectorAll('.nav-tab');
+    var subTabs = document.querySelectorAll('.sub-tab');
+    var sections = document.querySelectorAll('.section');
+    var tabPanels = document.querySelectorAll('.tab-panel');
+    var themeOptions = document.querySelectorAll('.theme-option');
+    var auditModeOptions = document.querySelectorAll('.audit-mode-option');
 
     // Event Listeners
     loginBtn.addEventListener('click', handleLogin);
-    cancelBtn.addEventListener('click', () => parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*'));
+    cancelBtn.addEventListener('click', function() { parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*'); });
     logoutBtn.addEventListener('click', handleLogout);
     
-    themeSelect.addEventListener('change', (e) => {
-      selectedTheme = e.target.value;
+    // Theme selection
+    themeOptions.forEach(function(option) {
+      option.addEventListener('click', function() {
+        themeOptions.forEach(function(o) { o.classList.remove('active'); });
+        option.classList.add('active');
+        selectedTheme = option.dataset.theme;
+      });
     });
     
-    navTabs.forEach(tab => {
-      tab.addEventListener('click', () => switchSection(tab.dataset.section));
+    // Audit mode selection
+    auditModeOptions.forEach(function(option) {
+      option.addEventListener('click', function() {
+        if (option.classList.contains('disabled')) return;
+        auditModeOptions.forEach(function(o) { o.classList.remove('active'); });
+        option.classList.add('active');
+        option.querySelector('input[type="radio"]').checked = true;
+        selectedAuditMode = option.dataset.mode;
+      });
     });
     
-    subTabs.forEach(tab => {
-      tab.addEventListener('click', () => switchSubTab(tab.dataset.tab));
+    navTabs.forEach(function(tab) {
+      tab.addEventListener('click', function() { switchSection(tab.dataset.section); });
+    });
+    
+    subTabs.forEach(function(tab) {
+      tab.addEventListener('click', function() { switchSubTab(tab.dataset.tab); });
     });
 
-    emailInput.addEventListener('keypress', (e) => {
+    emailInput.addEventListener('keypress', function(e) {
       if (e.key === 'Enter') passwordInput.focus();
     });
     
-    passwordInput.addEventListener('keypress', (e) => {
+    passwordInput.addEventListener('keypress', function(e) {
       if (e.key === 'Enter') handleLogin();
     });
     
-    // Audit buttons
-    document.getElementById('runLintBtn').addEventListener('click', runLintAudit);
-    document.getElementById('runFullAuditBtn').addEventListener('click', runFullAudit);
+    // Audit button
+    runAuditBtn.addEventListener('click', runAudit);
     document.getElementById('exportMarkdownBtn').addEventListener('click', exportMarkdown);
     document.getElementById('exportPdfBtn').addEventListener('click', exportPdf);
+    
+    // Check selection periodically
+    setInterval(checkSelection, 1000);
 
     // Listen for messages from plugin code
-    window.onmessage = (event) => {
-      const msg = event.data.pluginMessage;
+    window.onmessage = function(event) {
+      var msg = event.data.pluginMessage;
       
       if (msg.type === 'restore-session') {
         restoreSession(msg.session);
       } else if (msg.type === 'import-success') {
         showStatus('✓ Successfully imported into Figma!', 'success');
       } else if (msg.type === 'import-error') {
-        showStatus(`✗ Import failed: ${msg.error}`, 'error');
-      } else if (msg.type === 'lint-results') {
-        handleLintResults(msg.issues);
+        showStatus('✗ Import failed: ' + msg.error, 'error');
+      } else if (msg.type === 'selection-info') {
+        updateSelectionStatus(msg);
       } else if (msg.type === 'audit-progress') {
         updateAuditProgress(msg.progress);
+      } else if (msg.type === 'audit-status') {
+        document.getElementById('auditStatusText').textContent = msg.message;
+      } else if (msg.type === 'audit-warning') {
+        showStatus(msg.warning, 'warning');
+      } else if (msg.type === 'audit-error') {
+        showStatus(msg.error, 'error');
+        hideAuditProgress();
       } else if (msg.type === 'audit-complete') {
-        handleAuditComplete(msg.issues);
+        handleAuditComplete(msg.issues, msg.frameCount);
+      } else if (msg.type === 'journey-narrative') {
+        showJourneyNarrative(msg.narrative);
       } else if (msg.type === 'export-ready') {
         downloadExport(msg.format, msg.content);
       }
     };
+    
+    function checkSelection() {
+      parent.postMessage({ pluginMessage: { type: 'check-selection' } }, '*');
+    }
+    
+    function updateSelectionStatus(info) {
+      hasValidSelection = info.hasFrame;
+      hasPrototypeLinks = info.hasPrototypeLinks;
+      
+      var flowOption = document.getElementById('flowModeOption');
+      var flowRadio = flowOption.querySelector('input[type="radio"]');
+      
+      if (info.hasFrame) {
+        selectionStatus.textContent = '✓ Selected: ' + info.selectedNodeName;
+        selectionStatus.className = 'selection-status valid';
+        
+        // Enable flow mode only if prototype links exist
+        if (info.hasPrototypeLinks) {
+          flowOption.classList.remove('disabled');
+          flowRadio.disabled = false;
+          flowOption.querySelector('.mode-desc').textContent = 'Walk through all connected screens via prototype links';
+        } else {
+          flowOption.classList.add('disabled');
+          flowRadio.disabled = true;
+          flowOption.querySelector('.mode-desc').textContent = 'No prototype links found on this frame';
+          // If flow was selected, switch to current
+          if (selectedAuditMode === 'flow') {
+            document.getElementById('currentModeOption').click();
+          }
+        }
+      } else if (info.hasSelection) {
+        selectionStatus.textContent = '⚠ Please select a Frame (not ' + info.selectedNodeName + ')';
+        selectionStatus.className = 'selection-status invalid';
+        flowOption.classList.add('disabled');
+        flowRadio.disabled = true;
+      } else {
+        selectionStatus.textContent = 'Select a frame in Figma to begin';
+        selectionStatus.className = 'selection-status';
+        flowOption.classList.add('disabled');
+        flowRadio.disabled = true;
+      }
+      
+      // Enable/disable audit button
+      runAuditBtn.disabled = !hasValidSelection || !auditPersonaSelect.value;
+    }
+    
+    // Enable audit button when persona is selected
+    auditPersonaSelect.addEventListener('change', function() {
+      runAuditBtn.disabled = !hasValidSelection || !auditPersonaSelect.value;
+    });
 
     function switchSection(sectionName) {
-      navTabs.forEach(t => t.classList.remove('active'));
-      document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+      navTabs.forEach(function(t) { t.classList.remove('active'); });
+      document.querySelector('[data-section="' + sectionName + '"]').classList.add('active');
       
-      sections.forEach(s => s.classList.remove('active'));
-      document.getElementById(`${sectionName}Section`).classList.add('active');
+      sections.forEach(function(s) { s.classList.remove('active'); });
+      document.getElementById(sectionName + 'Section').classList.add('active');
+      
+      // Check selection when switching to audit
+      if (sectionName === 'audit') {
+        checkSelection();
+      }
     }
     
     function switchSubTab(tabName) {
-      subTabs.forEach(t => t.classList.remove('active'));
-      document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+      subTabs.forEach(function(t) { t.classList.remove('active'); });
+      document.querySelector('[data-tab="' + tabName + '"]').classList.add('active');
       
-      tabPanels.forEach(p => p.classList.remove('active'));
-      document.getElementById(`${tabName}Panel`).classList.add('active');
+      tabPanels.forEach(function(p) { p.classList.remove('active'); });
+      document.getElementById(tabName + 'Panel').classList.add('active');
     }
 
     function restoreSession(session) {
@@ -725,9 +965,9 @@
       }
     }
 
-    async function handleLogin() {
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
+    function handleLogin() {
+      var email = emailInput.value.trim();
+      var password = passwordInput.value;
 
       if (!email || !password) {
         showStatus('Please enter email and password', 'error');
@@ -737,22 +977,23 @@
       loginBtn.disabled = true;
       loginBtn.textContent = 'Signing in...';
 
-      try {
-        const response = await fetch(`${API_URL}/auth/v1/token?grant_type=password`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': ANON_KEY
-          },
-          body: JSON.stringify({ email, password })
+      fetch(API_URL + '/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': ANON_KEY
+        },
+        body: JSON.stringify({ email: email, password: password })
+      })
+      .then(function(response) {
+        return response.json().then(function(data) {
+          if (!response.ok) {
+            throw new Error(data.error_description || 'Login failed');
+          }
+          return data;
         });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error_description || 'Login failed');
-        }
-
+      })
+      .then(function(data) {
         accessToken = data.access_token;
         userEmail = email;
         
@@ -764,12 +1005,13 @@
         }, '*');
         
         showMainScreen();
-        await loadAllData();
-      } catch (error) {
+        loadAllData();
+      })
+      .catch(function(error) {
         showStatus('Login failed: ' + error.message, 'error');
         loginBtn.disabled = false;
         loginBtn.textContent = 'Sign In';
-      }
+      });
     }
 
     function handleLogout() {
@@ -792,57 +1034,41 @@
       authScreen.classList.add('hidden');
       mainScreen.style.display = 'flex';
       userEmailSpan.textContent = userEmail;
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Sign In';
     }
 
-    async function loadAllData() {
-      await Promise.all([
-        loadPersonas(),
-        loadJourneys(),
-        loadMindMaps(),
-        loadIA()
-      ]);
+    function loadAllData() {
+      loadPersonas();
+      loadJourneys();
+      loadMindMaps();
+      loadIA();
     }
 
-    async function loadPersonas() {
-      const panel = document.getElementById('personasPanel');
-      try {
-        const response = await fetch(`${API_URL}/functions/v1/figma-bridge/personas`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': ANON_KEY
-          }
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.error || 'Failed to load');
-
-        cachedPersonas = result.data || [];
+    function loadPersonas() {
+      var panel = document.getElementById('personasPanel');
+      
+      fetch(API_URL + '/rest/v1/personas?select=*', {
+        headers: {
+          'Authorization': 'Bearer ' + accessToken,
+          'apikey': ANON_KEY
+        }
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        cachedPersonas = data || [];
         renderPersonas(panel, cachedPersonas);
         populatePersonaDropdown();
-      } catch (error) {
-        // Fallback to direct query
-        try {
-          const response = await fetch(`${API_URL}/rest/v1/personas?select=*`, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'apikey': ANON_KEY
-            }
-          });
-          const data = await response.json();
-          cachedPersonas = data || [];
-          renderPersonas(panel, cachedPersonas);
-          populatePersonaDropdown();
-        } catch (fallbackError) {
-          panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error loading personas</p></div>`;
-        }
-      }
+      })
+      .catch(function(error) {
+        panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error loading personas</p></div>';
+      });
     }
 
     function populatePersonaDropdown() {
       auditPersonaSelect.innerHTML = '<option value="">Select a persona...</option>';
-      cachedPersonas.forEach(persona => {
-        const option = document.createElement('option');
+      cachedPersonas.forEach(function(persona) {
+        var option = document.createElement('option');
         option.value = persona.id;
         option.textContent = persona.name;
         auditPersonaSelect.appendChild(option);
@@ -851,26 +1077,25 @@
 
     function renderPersonas(panel, items) {
       if (!items || items.length === 0) {
-        panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👤</div><p>No personas found</p></div>`;
+        panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👤</div><p>No personas found</p></div>';
         return;
       }
 
-      const itemList = document.createElement('div');
+      var itemList = document.createElement('div');
       itemList.className = 'item-list';
 
-      items.forEach(item => {
-        const card = document.createElement('div');
+      items.forEach(function(item) {
+        var card = document.createElement('div');
         card.className = 'item-card';
-        card.innerHTML = `
-          <h3>${escapeHtml(item.name)}</h3>
-          <p>${escapeHtml(item.description || 'No description')}</p>
-          <div class="meta">
-            ${item.goals?.length ? `<span class="badge">${item.goals.length} goals</span>` : ''}
-            ${item.pain_points?.length ? `<span class="badge">${item.pain_points.length} pain points</span>` : ''}
-          </div>
-        `;
+        card.innerHTML = 
+          '<h3>' + escapeHtml(item.name) + '</h3>' +
+          '<p>' + escapeHtml(item.description || 'No description') + '</p>' +
+          '<div class="meta">' +
+            (item.goals && item.goals.length ? '<span class="badge">' + item.goals.length + ' goals</span>' : '') +
+            (item.pain_points && item.pain_points.length ? '<span class="badge">' + item.pain_points.length + ' pain points</span>' : '') +
+          '</div>';
         
-        card.addEventListener('click', () => importPersona(item));
+        card.addEventListener('click', function() { importPersona(item); });
         itemList.appendChild(card);
       });
 
@@ -878,85 +1103,79 @@
       panel.appendChild(itemList);
     }
 
-    async function loadJourneys() {
-      const panel = document.getElementById('journeysPanel');
-      try {
-        const response = await fetch(`${API_URL}/functions/v1/get-figma-user-journey-maps`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': ANON_KEY
-          }
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.error || 'Failed to load');
-
+    function loadJourneys() {
+      var panel = document.getElementById('journeysPanel');
+      
+      fetch(API_URL + '/functions/v1/get-figma-user-journey-maps', {
+        headers: {
+          'Authorization': 'Bearer ' + accessToken,
+          'apikey': ANON_KEY
+        }
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(result) {
         cachedJourneys = result.data || [];
         renderItems(panel, cachedJourneys, 'user_journey_map');
-      } catch (error) {
-        panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error: ${error.message}</p></div>`;
-      }
+      })
+      .catch(function(error) {
+        panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error loading journeys</p></div>';
+      });
     }
 
-    async function loadMindMaps() {
-      const panel = document.getElementById('mindmapsPanel');
-      try {
-        const response = await fetch(`${API_URL}/functions/v1/get-figma-mind-maps`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': ANON_KEY
-          }
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.error || 'Failed to load');
-
-        renderItems(panel, result.data, 'mind_map');
-      } catch (error) {
-        panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error: ${error.message}</p></div>`;
-      }
+    function loadMindMaps() {
+      var panel = document.getElementById('mindmapsPanel');
+      
+      fetch(API_URL + '/functions/v1/get-figma-mind-maps', {
+        headers: {
+          'Authorization': 'Bearer ' + accessToken,
+          'apikey': ANON_KEY
+        }
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(result) {
+        renderItems(panel, result.data || [], 'mind_map');
+      })
+      .catch(function(error) {
+        panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error loading mind maps</p></div>';
+      });
     }
 
-    async function loadIA() {
-      const panel = document.getElementById('iaPanel');
-      try {
-        const response = await fetch(`${API_URL}/functions/v1/get-figma-information-architectures`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': ANON_KEY
-          }
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.error || 'Failed to load');
-
-        renderItems(panel, result.data, 'information_architecture');
-      } catch (error) {
-        panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error: ${error.message}</p></div>`;
-      }
+    function loadIA() {
+      var panel = document.getElementById('iaPanel');
+      
+      fetch(API_URL + '/functions/v1/get-figma-information-architectures', {
+        headers: {
+          'Authorization': 'Bearer ' + accessToken,
+          'apikey': ANON_KEY
+        }
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(result) {
+        renderItems(panel, result.data || [], 'information_architecture');
+      })
+      .catch(function(error) {
+        panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error loading site maps</p></div>';
+      });
     }
 
     function renderItems(panel, items, type) {
       if (!items || items.length === 0) {
-        panel.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><p>No ${type.replace(/_/g, ' ')}s found</p></div>`;
+        var icons = { user_journey_map: '🗺️', mind_map: '🧠', information_architecture: '🏗️' };
+        panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">' + (icons[type] || '📄') + '</div><p>No items found</p></div>';
         return;
       }
 
-      const itemList = document.createElement('div');
+      var itemList = document.createElement('div');
       itemList.className = 'item-list';
 
-      items.forEach(item => {
-        const card = document.createElement('div');
+      items.forEach(function(item) {
+        var card = document.createElement('div');
         card.className = 'item-card';
-        card.innerHTML = `
-          <h3>${escapeHtml(item.title)}</h3>
-          <p>${new Date(item.created_at).toLocaleDateString()}</p>
-        `;
+        card.innerHTML = 
+          '<h3>' + escapeHtml(item.title || item.name || 'Untitled') + '</h3>' +
+          '<p>' + escapeHtml(item.description || 'Click to import') + '</p>';
         
-        card.addEventListener('click', () => importItem(item, type));
+        card.addEventListener('click', function() { importData(item, type); });
         itemList.appendChild(card);
       });
 
@@ -965,253 +1184,215 @@
     }
 
     function importPersona(persona) {
-      parent.postMessage({ 
-        pluginMessage: { 
-          type: 'import-persona', 
+      parent.postMessage({
+        pluginMessage: {
+          type: 'import-persona',
           data: persona,
           theme: selectedTheme
-        } 
-      }, '*');
-    }
-
-    function importItem(item, type) {
-      try {
-        let exportData = null;
-
-        if (type === 'user_journey_map') {
-          const journeyData = typeof item.journey_data === 'string' 
-            ? JSON.parse(item.journey_data) 
-            : item.journey_data;
-          
-          if (!journeyData.title) journeyData.title = item.title || 'User Journey Map';
-          if (!journeyData.stages) journeyData.stages = [];
-          
-          exportData = { exportType: 'user_journey_map', data: journeyData };
-        } else if (type === 'mind_map') {
-          exportData = { exportType: 'mind_map', data: transformMindMapData(item.content) };
-        } else if (type === 'information_architecture') {
-          exportData = { exportType: 'information_architecture', data: transformIAData(item.structure) };
         }
-
-        if (!exportData) throw new Error('Unknown data type');
-
-        parent.postMessage({ 
-          pluginMessage: { 
-            type: 'import-data', 
-            data: JSON.stringify(exportData),
-            theme: selectedTheme
-          } 
-        }, '*');
-      } catch (error) {
-        showStatus('Import failed: ' + error.message, 'error');
-      }
-    }
-
-    function transformMindMapData(content) {
-      if (!content?.nodes) return { title: 'Mind Map', centralTopic: 'Main Topic', branches: [] };
-      
-      const branches = [];
-      const rootNode = content.nodes.find(n => n.id === 'root');
-      if (!rootNode) return { title: content.title || 'Mind Map', centralTopic: 'Main Topic', branches: [] };
-      
-      const rootChildren = content.nodes.filter(n => n.parentId === 'root');
-      rootChildren.forEach(child => {
-        const subBranches = content.nodes
-          .filter(n => n.parentId === child.id)
-          .map(n => n.label || n.name || 'Untitled');
-        branches.push({ topic: child.label || 'Branch', subBranches });
-      });
-
-      return { title: content.title || rootNode.label || 'Mind Map', centralTopic: rootNode.label || 'Main Topic', branches };
-    }
-
-    function transformIAData(structure) {
-      if (!structure?.nodes) return { name: 'Information Architecture', sections: [] };
-      
-      function buildHierarchy(nodes, parentId = null) {
-        return nodes
-          .filter(n => n.parentId === parentId)
-          .map(node => ({ name: node.label || 'Untitled', children: buildHierarchy(nodes, node.id) }));
-      }
-
-      return { name: structure.title || 'Information Architecture', sections: buildHierarchy(structure.nodes, null) };
-    }
-
-    // Audit Functions
-    function runLintAudit() {
-      const scope = document.getElementById('auditScopeSelect').value;
-      document.getElementById('auditEmpty').classList.add('hidden');
-      document.getElementById('auditProgress').classList.remove('hidden');
-      document.getElementById('auditResults').classList.add('hidden');
-      updateAuditProgress(10);
-      
-      parent.postMessage({ 
-        pluginMessage: { type: 'run-lint', scope } 
       }, '*');
     }
 
-    function runFullAudit() {
-      const scope = document.getElementById('auditScopeSelect').value;
-      const personaId = auditPersonaSelect.value;
-      const persona = cachedPersonas.find(p => p.id === personaId);
+    function importData(item, type) {
+      var exportData = {
+        exportType: type,
+        data: type === 'information_architecture' ? item.structure : 
+              type === 'mind_map' ? item.content : 
+              item.journey_data || item
+      };
       
-      document.getElementById('auditEmpty').classList.add('hidden');
+      // Add title for display
+      if (type === 'user_journey_map') {
+        exportData.data.title = item.title;
+        exportData.data.stages = item.journey_data ? item.journey_data.stages : [];
+      } else if (type === 'mind_map') {
+        exportData.data.title = item.title;
+      } else if (type === 'information_architecture') {
+        exportData.data.name = item.title;
+      }
+      
+      parent.postMessage({
+        pluginMessage: {
+          type: 'import-data',
+          data: JSON.stringify(exportData),
+          theme: selectedTheme
+        }
+      }, '*');
+    }
+
+    function runAudit() {
+      var personaId = auditPersonaSelect.value;
+      if (!personaId) {
+        showStatus('Please select a persona first', 'error');
+        return;
+      }
+      
+      var persona = cachedPersonas.find(function(p) { return p.id === personaId; });
+      if (!persona) {
+        showStatus('Persona not found', 'error');
+        return;
+      }
+      
+      // Show progress
       document.getElementById('auditProgress').classList.remove('hidden');
+      document.getElementById('auditEmpty').classList.add('hidden');
       document.getElementById('auditResults').classList.add('hidden');
-      updateAuditProgress(10);
+      document.getElementById('journeyNarrativeContainer').classList.add('hidden');
+      document.getElementById('auditProgressFill').style.width = '0%';
+      document.getElementById('auditStatusText').textContent = 'Starting audit...';
       
-      parent.postMessage({ 
-        pluginMessage: { 
-          type: 'run-full-audit', 
-          scope,
-          persona: persona || null,
+      parent.postMessage({
+        pluginMessage: {
+          type: 'run-audit',
+          mode: selectedAuditMode,
+          persona: persona,
           apiUrl: API_URL,
-          accessToken
-        } 
+          accessToken: accessToken
+        }
       }, '*');
     }
-
+    
     function updateAuditProgress(progress) {
-      document.getElementById('auditProgressFill').style.width = `${progress}%`;
+      document.getElementById('auditProgressFill').style.width = progress + '%';
     }
-
-    function handleLintResults(issues) {
-      auditResults = issues;
-      displayAuditResults();
-    }
-
-    function handleAuditComplete(issues) {
-      auditResults = issues;
-      displayAuditResults();
-    }
-
-    function displayAuditResults() {
+    
+    function hideAuditProgress() {
       document.getElementById('auditProgress').classList.add('hidden');
+      document.getElementById('auditEmpty').classList.remove('hidden');
+    }
+    
+    function showJourneyNarrative(narrative) {
+      document.getElementById('journeyNarrativeText').textContent = narrative;
+      document.getElementById('journeyNarrativeContainer').classList.remove('hidden');
+    }
+
+    function handleAuditComplete(issues, frameCount) {
+      auditResults = issues;
+      document.getElementById('auditProgress').classList.add('hidden');
+      document.getElementById('auditEmpty').classList.add('hidden');
       document.getElementById('auditResults').classList.remove('hidden');
       
-      const highCount = auditResults.filter(i => i.severity === 'high').length;
-      const mediumCount = auditResults.filter(i => i.severity === 'medium').length;
-      const lowCount = auditResults.filter(i => i.severity === 'low').length;
+      var highCount = issues.filter(function(i) { return i.severity === 'high'; }).length;
+      var mediumCount = issues.filter(function(i) { return i.severity === 'medium'; }).length;
+      var lowCount = issues.filter(function(i) { return i.severity === 'low'; }).length;
       
       document.getElementById('highCount').textContent = highCount;
       document.getElementById('mediumCount').textContent = mediumCount;
       document.getElementById('lowCount').textContent = lowCount;
       
-      const issueList = document.getElementById('issueList');
+      var issueList = document.getElementById('issueList');
       issueList.innerHTML = '';
       
-      auditResults.forEach((issue, index) => {
-        const card = document.createElement('div');
-        card.className = `issue-card ${issue.severity}`;
-        card.innerHTML = `
-          <span class="severity-badge ${issue.severity}">${issue.severity.toUpperCase()}</span>
-          <h4>${escapeHtml(issue.title)}</h4>
-          <p>${escapeHtml(issue.description)}</p>
-          <div class="issue-actions">
-            <button class="btn-secondary btn-small" onclick="navigateToIssue('${issue.nodeId}')">📍 Go to</button>
-            <button class="btn-secondary btn-small" onclick="ignoreIssue(${index})">✕ Ignore</button>
-          </div>
-        `;
+      if (frameCount && frameCount > 1) {
+        var frameInfo = document.createElement('div');
+        frameInfo.style.cssText = 'background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 11px; color: #1e40af;';
+        frameInfo.textContent = '🔗 Audited ' + frameCount + ' connected frames in prototype flow';
+        issueList.appendChild(frameInfo);
+      }
+      
+      issues.forEach(function(issue) {
+        var card = document.createElement('div');
+        card.className = 'issue-card ' + issue.severity;
+        card.innerHTML = 
+          '<span class="severity-badge ' + issue.severity + '">' + issue.severity.toUpperCase() + '</span>' +
+          '<h4>' + escapeHtml(issue.title) + '</h4>' +
+          '<p>' + escapeHtml(issue.description) + '</p>' +
+          '<div class="issue-actions">' +
+            '<button class="btn-secondary btn-small" onclick="navigateToNode(\'' + issue.nodeId + '\')">Go to element</button>' +
+          '</div>';
         issueList.appendChild(card);
       });
       
-      // Enable report section
-      document.getElementById('reportEmpty').classList.add('hidden');
-      document.getElementById('reportPreview').classList.remove('hidden');
-      generateReportPreview();
-    }
-
-    window.navigateToIssue = function(nodeId) {
-      parent.postMessage({ 
-        pluginMessage: { type: 'navigate-to-node', nodeId } 
-      }, '*');
-    };
-
-    window.ignoreIssue = function(index) {
-      auditResults.splice(index, 1);
-      displayAuditResults();
-    };
-
-    function generateReportPreview() {
-      const content = document.getElementById('reportContent');
-      const persona = cachedPersonas.find(p => p.id === auditPersonaSelect.value);
-      
-      let markdown = `# Pre-Usability Audit Report\n\n`;
-      markdown += `**Date:** ${new Date().toLocaleDateString()}\n\n`;
-      
-      if (persona) {
-        markdown += `## Persona Context\n`;
-        markdown += `**Name:** ${persona.name}\n`;
-        markdown += `**Description:** ${persona.description || 'N/A'}\n\n`;
+      if (issues.length === 0) {
+        issueList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div><p>No issues found! Great work.</p></div>';
       }
       
-      markdown += `## Summary\n`;
-      markdown += `- **High Severity:** ${auditResults.filter(i => i.severity === 'high').length}\n`;
-      markdown += `- **Medium Severity:** ${auditResults.filter(i => i.severity === 'medium').length}\n`;
-      markdown += `- **Low Severity:** ${auditResults.filter(i => i.severity === 'low').length}\n\n`;
-      
-      markdown += `## Findings\n\n`;
-      auditResults.forEach((issue, i) => {
-        markdown += `### ${i + 1}. ${issue.title}\n`;
-        markdown += `**Severity:** ${issue.severity}\n`;
-        markdown += `${issue.description}\n\n`;
-      });
-      
-      content.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${escapeHtml(markdown)}</pre>`;
+      // Show frame count message
+      if (frameCount) {
+        showStatus('Audit complete! Analyzed ' + frameCount + ' frame(s)', 'success');
+      }
+    }
+
+    function navigateToNode(nodeId) {
+      parent.postMessage({
+        pluginMessage: {
+          type: 'navigate-to-node',
+          nodeId: nodeId
+        }
+      }, '*');
     }
 
     function exportMarkdown() {
-      parent.postMessage({ 
-        pluginMessage: { 
-          type: 'export-report', 
+      if (auditResults.length === 0) {
+        showStatus('Run an audit first to generate a report', 'error');
+        return;
+      }
+      
+      var persona = cachedPersonas.find(function(p) { return p.id === auditPersonaSelect.value; });
+      
+      parent.postMessage({
+        pluginMessage: {
+          type: 'export-report',
           format: 'markdown',
-          data: { 
-            auditResults,
-            persona: cachedPersonas.find(p => p.id === auditPersonaSelect.value)
-          }
-        } 
+          data: { auditResults: auditResults, persona: persona }
+        }
       }, '*');
     }
 
     function exportPdf() {
-      parent.postMessage({ 
-        pluginMessage: { 
-          type: 'export-report', 
-          format: 'pdf',
-          data: { 
-            auditResults,
-            persona: cachedPersonas.find(p => p.id === auditPersonaSelect.value)
-          }
-        } 
+      if (auditResults.length === 0) {
+        showStatus('Run an audit first to generate a report', 'error');
+        return;
+      }
+      
+      var persona = cachedPersonas.find(function(p) { return p.id === auditPersonaSelect.value; });
+      
+      parent.postMessage({
+        pluginMessage: {
+          type: 'export-report',
+          format: 'html',
+          data: { auditResults: auditResults, persona: persona }
+        }
       }, '*');
     }
 
     function downloadExport(format, content) {
-      const blob = new Blob([content], { type: format === 'markdown' ? 'text/markdown' : 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      var blob, filename;
+      if (format === 'markdown') {
+        blob = new Blob([content], { type: 'text/markdown' });
+        filename = 'audit-report.md';
+      } else {
+        blob = new Blob([content], { type: 'text/html' });
+        filename = 'audit-report.html';
+      }
+      
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
       a.href = url;
-      a.download = `audit-report.${format === 'markdown' ? 'md' : 'html'}`;
+      a.download = filename;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showStatus('Report exported!', 'success');
-    }
-
-    function escapeHtml(text) {
-      if (!text) return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+      
+      showStatus('Report downloaded: ' + filename, 'success');
     }
 
     function showStatus(message, type) {
       status.textContent = message;
-      status.className = `status ${type}`;
+      status.className = 'status ' + type;
       status.style.display = 'block';
       
-      setTimeout(() => {
+      setTimeout(function() {
         status.style.display = 'none';
       }, 4000);
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
   </script>
 </body>
