@@ -18,9 +18,9 @@ serve(async (req) => {
       throw new Error('Image URL is required');
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('Lovable AI API key not configured');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured');
     }
 
     // Use selected heuristics or default Nielsen's 10
@@ -37,7 +37,7 @@ serve(async (req) => {
       "help_and_documentation"
     ];
 
-    console.log('Analyzing screenshot with Lovable AI...');
+    console.log('Analyzing screenshot with OpenAI...');
 
     // Prepare the image data
     let imageData = imageUrl;
@@ -49,17 +49,17 @@ serve(async (req) => {
       imageData = `data:image/jpeg;base64,${base64}`;
     }
 
-    // Call Lovable AI Gateway with vision support
+    // Call OpenAI API with vision support
     const aiResponse = await fetch(
-      'https://ai.gateway.lovable.dev/v1/chat/completions',
+      'https://api.openai.com/v1/chat/completions',
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-pro', // Best for vision + reasoning
+          model: 'gpt-4o', // Best for vision + reasoning
           messages: [
             {
               role: 'user',
@@ -120,13 +120,13 @@ Be thorough but realistic. Look for actual usability issues, not just nitpicks.`
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('Lovable AI Error:', errorText);
+      console.error('OpenAI Error:', errorText);
       
       if (aiResponse.status === 429) {
         throw new Error('Rate limit exceeded. Please try again in a moment.');
       }
       if (aiResponse.status === 402) {
-        throw new Error('Payment required. Please add credits to your Lovable workspace.');
+        throw new Error('Payment required. Please check your OpenAI billing.');
       }
       
       throw new Error(`AI analysis failed: ${aiResponse.status}`);
