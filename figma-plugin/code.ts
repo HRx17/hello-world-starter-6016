@@ -199,21 +199,37 @@ figma.ui.onmessage = async (msg) => {
   }
 };
 
-// Check if selected frames have prototype links
+// Check if selected screens have prototype links (deep recursive scan)
 function checkForPrototypeLinks(nodes: readonly SceneNode[]): boolean {
   for (const node of nodes) {
-    if ('reactions' in node && node.reactions && node.reactions.length > 0) {
+    if (hasPrototypeLinksRecursive(node)) {
       return true;
     }
-    if ('children' in node) {
-      const children = (node as FrameNode).children;
-      for (const child of children) {
-        if ('reactions' in child && child.reactions && child.reactions.length > 0) {
-          return true;
-        }
+  }
+  return false;
+}
+
+// Recursively scan all nested elements for prototype links
+function hasPrototypeLinksRecursive(node: SceneNode): boolean {
+  // Check the node itself
+  if ('reactions' in node && node.reactions && node.reactions.length > 0) {
+    // Check if any reaction has a navigation action
+    for (const reaction of node.reactions) {
+      if (reaction.action && reaction.action.type === 'NODE' && reaction.action.destinationId) {
+        return true;
       }
     }
   }
+  
+  // Recursively check all children at any depth
+  if ('children' in node) {
+    for (const child of (node as FrameNode).children) {
+      if (hasPrototypeLinksRecursive(child)) {
+        return true;
+      }
+    }
+  }
+  
   return false;
 }
 
@@ -697,52 +713,65 @@ async function createIALevel(parent: FrameNode, items: any[], x: number, y: numb
 // ============= AUDIT SYSTEM =============
 
 // Get all frames connected via prototype links starting from a frame
-async function traversePrototypeFlow(startFrame: FrameNode): Promise<FrameNode[]> {
+// Traverse all prototype connections starting from a screen
+// This deeply scans ALL nested elements (frames, groups, components, instances, etc.)
+async function traversePrototypeFlow(startScreen: FrameNode): Promise<FrameNode[]> {
   const visited = new Set<string>();
-  const frames: FrameNode[] = [];
-  const queue: FrameNode[] = [startFrame];
+  const screens: FrameNode[] = [];
+  const queue: FrameNode[] = [startScreen];
   
   while (queue.length > 0) {
     const current = queue.shift();
     if (!current || visited.has(current.id)) continue;
     
     visited.add(current.id);
-    frames.push(current);
+    screens.push(current);
     
-    // Find all prototype links in this frame
-    const linkedFrames = findPrototypeDestinations(current);
-    for (const linkedFrame of linkedFrames) {
-      if (!visited.has(linkedFrame.id)) {
-        queue.push(linkedFrame);
+    // Find all prototype links in this screen (including deeply nested elements)
+    const linkedScreens = findAllPrototypeDestinations(current);
+    for (const linkedScreen of linkedScreens) {
+      if (!visited.has(linkedScreen.id)) {
+        queue.push(linkedScreen);
       }
     }
   }
   
-  return frames;
+  return screens;
 }
 
-function findPrototypeDestinations(node: SceneNode): FrameNode[] {
+// Recursively find ALL prototype destinations from any element at any nesting level
+function findAllPrototypeDestinations(node: SceneNode): FrameNode[] {
   const destinations: FrameNode[] = [];
+  const destinationIds = new Set<string>(); // Avoid duplicates
   
-  // Check the node itself
-  if ('reactions' in node && node.reactions) {
-    for (const reaction of node.reactions) {
-      if (reaction.action && reaction.action.type === 'NODE' && reaction.action.destinationId) {
-        const dest = figma.getNodeById(reaction.action.destinationId);
-        if (dest && dest.type === 'FRAME') {
-          destinations.push(dest as FrameNode);
+  // Recursive helper to scan all elements
+  function scanNode(n: SceneNode) {
+    // Check if this node has prototype reactions
+    if ('reactions' in n && n.reactions) {
+      for (const reaction of n.reactions) {
+        if (reaction.action && reaction.action.type === 'NODE' && reaction.action.destinationId) {
+          const destId = reaction.action.destinationId;
+          if (!destinationIds.has(destId)) {
+            const dest = figma.getNodeById(destId);
+            if (dest && dest.type === 'FRAME') {
+              destinations.push(dest as FrameNode);
+              destinationIds.add(destId);
+            }
+          }
         }
       }
     }
-  }
-  
-  // Check children recursively
-  if ('children' in node) {
-    for (const child of (node as FrameNode).children) {
-      destinations.push(...findPrototypeDestinations(child));
+    
+    // Recursively scan all children (any type that can have children)
+    if ('children' in n) {
+      const container = n as FrameNode | GroupNode | ComponentNode | InstanceNode;
+      for (const child of container.children) {
+        scanNode(child);
+      }
     }
   }
   
+  scanNode(node);
   return destinations;
 }
 
@@ -751,65 +780,65 @@ async function runAudit(mode: string, persona: any, productContext: string, apiU
   
   // Validate selection
   if (selection.length === 0) {
-    figma.ui.postMessage({ type: 'audit-error', error: 'Please select a frame first' });
+    figma.ui.postMessage({ type: 'audit-error', error: 'Please select a screen first' });
     return;
   }
   
-  const startFrame = selection.find(n => n.type === 'FRAME') as FrameNode;
-  if (!startFrame) {
-    figma.ui.postMessage({ type: 'audit-error', error: 'Please select a frame (not a group or other element)' });
+  const startScreen = selection.find(n => n.type === 'FRAME') as FrameNode;
+  if (!startScreen) {
+    figma.ui.postMessage({ type: 'audit-error', error: 'Please select a screen (Frame) - not a group or other element' });
     return;
   }
   
   figma.ui.postMessage({ type: 'audit-progress', progress: 5 });
   
-  let framesToAudit: FrameNode[] = [];
+  let screensToAudit: FrameNode[] = [];
   
   if (mode === 'current') {
-    framesToAudit = [startFrame];
+    screensToAudit = [startScreen];
   } else if (mode === 'flow') {
-    // Traverse prototype links
-    figma.ui.postMessage({ type: 'audit-status', message: 'Discovering prototype flow...' });
-    framesToAudit = await traversePrototypeFlow(startFrame);
+    // Traverse all prototype links (including nested elements)
+    figma.ui.postMessage({ type: 'audit-status', message: 'Discovering prototype flow from all nested elements...' });
+    screensToAudit = await traversePrototypeFlow(startScreen);
     
-    if (framesToAudit.length === 1) {
-      figma.ui.postMessage({ type: 'audit-warning', warning: 'No prototype links found. Auditing single frame.' });
+    if (screensToAudit.length === 1) {
+      figma.ui.postMessage({ type: 'audit-warning', warning: 'No prototype links found. Auditing single screen.' });
     } else {
-      figma.ui.postMessage({ type: 'audit-status', message: 'Found ' + framesToAudit.length + ' connected frames' });
+      figma.ui.postMessage({ type: 'audit-status', message: 'Found ' + screensToAudit.length + ' connected screens' });
     }
   }
   
   figma.ui.postMessage({ type: 'audit-progress', progress: 15 });
   
   const issues: AuditIssue[] = [];
-  const frameImages: Array<{ nodeId: string; name: string; imageData: string }> = [];
+  const screenImages: Array<{ nodeId: string; name: string; imageData: string }> = [];
   
-  // Run lint checks on all frames
-  for (const frame of framesToAudit) {
-    await runLintChecks(frame, issues);
+  // Run lint checks on all screens
+  for (const screen of screensToAudit) {
+    await runLintChecks(screen, issues);
   }
   
   figma.ui.postMessage({ type: 'audit-progress', progress: 30 });
   
-  // Export all frames as images
+  // Export all screens as images
   if (persona) {
     figma.ui.postMessage({ type: 'audit-status', message: 'Capturing screenshots...' });
     
-    for (let i = 0; i < framesToAudit.length; i++) {
-      const frame = framesToAudit[i];
+    for (let i = 0; i < screensToAudit.length; i++) {
+      const screen = screensToAudit[i];
       try {
-        const imageData = await frame.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
+        const imageData = await screen.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: 1 } });
         const base64 = figma.base64Encode(imageData);
-        frameImages.push({
-          nodeId: frame.id,
-          name: frame.name,
+        screenImages.push({
+          nodeId: screen.id,
+          name: screen.name,
           imageData: 'data:image/png;base64,' + base64
         });
       } catch (e) {
-        console.error('Failed to export frame:', frame.name, e);
+        console.error('Failed to export screen:', screen.name, e);
       }
       
-      const progress = 30 + ((i + 1) / framesToAudit.length) * 20;
+      const progress = 30 + ((i + 1) / screensToAudit.length) * 20;
       figma.ui.postMessage({ type: 'audit-progress', progress });
     }
     
@@ -826,7 +855,7 @@ async function runAudit(mode: string, persona: any, productContext: string, apiU
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZXlqc3FhbHpjZGVqd3N2b3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2MDYwMDIsImV4cCI6MjA3NjE4MjAwMn0.jThP8cy8deaDkQZlTz6Bb0C1DU6praULawIej2vBghA'
         },
         body: JSON.stringify({
-          frames: frameImages,
+          frames: screenImages,
           persona: {
             name: persona.name,
             description: persona.description,
@@ -845,7 +874,7 @@ async function runAudit(mode: string, persona: any, productContext: string, apiU
         if (aiResult.issues) {
           for (const aiIssue of aiResult.issues) {
             issues.push({
-              nodeId: aiIssue.frameId || startFrame.id,
+              nodeId: aiIssue.frameId || startScreen.id,
               title: aiIssue.title,
               description: aiIssue.description,
               severity: aiIssue.severity || 'medium',
@@ -861,8 +890,8 @@ async function runAudit(mode: string, persona: any, productContext: string, apiU
       }
     } catch (error) {
       console.error('AI audit error:', error);
-      // Fallback to single-frame AI analysis
-      if (frameImages.length > 0) {
+      // Fallback to single-screen AI analysis
+      if (screenImages.length > 0) {
         try {
           const fallbackResponse = await fetch(apiUrl + '/functions/v1/figma-audit-ai', {
             method: 'POST',
@@ -872,7 +901,7 @@ async function runAudit(mode: string, persona: any, productContext: string, apiU
               'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZXlqc3FhbHpjZGVqd3N2b3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2MDYwMDIsImV4cCI6MjA3NjE4MjAwMn0.jThP8cy8deaDkQZlTz6Bb0C1DU6praULawIej2vBghA'
             },
             body: JSON.stringify({
-              imageData: frameImages[0].imageData,
+              imageData: screenImages[0].imageData,
               persona: {
                 name: persona.name,
                 description: persona.description,
@@ -887,7 +916,7 @@ async function runAudit(mode: string, persona: any, productContext: string, apiU
             if (fallbackResult.issues) {
               for (const aiIssue of fallbackResult.issues) {
                 issues.push({
-                  nodeId: startFrame.id,
+                  nodeId: startScreen.id,
                   title: aiIssue.title,
                   description: aiIssue.description,
                   severity: aiIssue.severity || 'medium',
@@ -904,7 +933,7 @@ async function runAudit(mode: string, persona: any, productContext: string, apiU
   }
   
   figma.ui.postMessage({ type: 'audit-progress', progress: 100 });
-  figma.ui.postMessage({ type: 'audit-complete', issues, frameCount: framesToAudit.length });
+  figma.ui.postMessage({ type: 'audit-complete', issues, screenCount: screensToAudit.length });
 }
 
 async function runLintChecks(node: SceneNode, issues: AuditIssue[]) {

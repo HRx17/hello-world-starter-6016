@@ -690,8 +690,8 @@
             <div class="audit-mode-option active" data-mode="current" id="currentModeOption">
               <input type="radio" name="auditMode" value="current" checked />
               <div class="mode-content">
-                <div class="mode-title">Current Selected Frame</div>
-                <div class="mode-desc">Audit the single frame you have selected</div>
+                <div class="mode-title">Current Selected Screen</div>
+                <div class="mode-desc">Audit the single screen you have selected</div>
               </div>
             </div>
             
@@ -699,7 +699,7 @@
               <input type="radio" name="auditMode" value="flow" disabled />
               <div class="mode-content">
                 <div class="mode-title">Linked Prototype Flow</div>
-                <div class="mode-desc">Walk through all connected screens via prototype links</div>
+                <div class="mode-desc">Walk through all connected screens via prototype links (nested elements included)</div>
               </div>
             </div>
           </div>
@@ -742,7 +742,7 @@
         
         <div id="auditEmpty" class="empty-state">
           <div class="empty-state-icon">🔍</div>
-          <p>Select a frame and persona, then run an audit</p>
+          <p>Select a screen and persona, then run an audit</p>
         </div>
       </div>
       
@@ -883,7 +883,7 @@
         showStatus(msg.error, 'error');
         hideAuditProgress();
       } else if (msg.type === 'audit-complete') {
-        handleAuditComplete(msg.issues, msg.frameCount);
+        handleAuditComplete(msg.issues, msg.screenCount);
       } else if (msg.type === 'journey-narrative') {
         showJourneyNarrative(msg.narrative);
       } else if (msg.type === 'export-ready') {
@@ -903,30 +903,30 @@
       var flowRadio = flowOption.querySelector('input[type="radio"]');
       
       if (info.hasFrame) {
-        selectionStatus.textContent = '✓ Selected: ' + info.selectedNodeName;
+        selectionStatus.textContent = '✓ Selected screen: ' + info.selectedNodeName;
         selectionStatus.className = 'selection-status valid';
         
         // Enable flow mode only if prototype links exist
         if (info.hasPrototypeLinks) {
           flowOption.classList.remove('disabled');
           flowRadio.disabled = false;
-          flowOption.querySelector('.mode-desc').textContent = 'Walk through all connected screens via prototype links';
+          flowOption.querySelector('.mode-desc').textContent = 'Walk through all connected screens via prototype links (nested elements included)';
         } else {
           flowOption.classList.add('disabled');
           flowRadio.disabled = true;
-          flowOption.querySelector('.mode-desc').textContent = 'No prototype links found on this frame';
+          flowOption.querySelector('.mode-desc').textContent = 'No prototype links found on this screen or its elements';
           // If flow was selected, switch to current
           if (selectedAuditMode === 'flow') {
             document.getElementById('currentModeOption').click();
           }
         }
       } else if (info.hasSelection) {
-        selectionStatus.textContent = '⚠ Please select a Frame (not ' + info.selectedNodeName + ')';
+        selectionStatus.textContent = '⚠ Please select a Screen (Frame) - not ' + info.selectedNodeName;
         selectionStatus.className = 'selection-status invalid';
         flowOption.classList.add('disabled');
         flowRadio.disabled = true;
       } else {
-        selectionStatus.textContent = 'Select a frame in Figma to begin';
+        selectionStatus.textContent = 'Select a screen in Figma to begin';
         selectionStatus.className = 'selection-status';
         flowOption.classList.add('disabled');
         flowRadio.disabled = true;
@@ -1287,7 +1287,7 @@
       document.getElementById('journeyNarrativeContainer').classList.remove('hidden');
     }
 
-    function handleAuditComplete(issues, frameCount) {
+    function handleAuditComplete(issues, screenCount) {
       auditResults = issues;
       document.getElementById('auditProgress').classList.add('hidden');
       document.getElementById('auditEmpty').classList.add('hidden');
@@ -1304,11 +1304,11 @@
       var issueList = document.getElementById('issueList');
       issueList.innerHTML = '';
       
-      if (frameCount && frameCount > 1) {
-        var frameInfo = document.createElement('div');
-        frameInfo.style.cssText = 'background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 11px; color: #1e40af;';
-        frameInfo.textContent = '🔗 Audited ' + frameCount + ' connected frames in prototype flow';
-        issueList.appendChild(frameInfo);
+      if (screenCount && screenCount > 1) {
+        var screenInfo = document.createElement('div');
+        screenInfo.style.cssText = 'background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 11px; color: #1e40af;';
+        screenInfo.textContent = '🔗 Audited ' + screenCount + ' connected screens in prototype flow';
+        issueList.appendChild(screenInfo);
       }
       
       issues.forEach(function(issue) {
@@ -1328,9 +1328,9 @@
         issueList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div><p>No issues found! Great work.</p></div>';
       }
       
-      // Show frame count message
-      if (frameCount) {
-        showStatus('Audit complete! Analyzed ' + frameCount + ' frame(s)', 'success');
+      // Show screen count message
+      if (screenCount) {
+        showStatus('Audit complete! Analyzed ' + screenCount + ' screen(s)', 'success');
       }
     }
 
