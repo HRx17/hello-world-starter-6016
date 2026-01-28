@@ -134,6 +134,14 @@ const App = () => (
             } 
           />
           <Route 
+            path="/research/persona/new" 
+            element={
+              <ProtectedRoute>
+                <PersonaBuilder />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/research/persona/:id" 
             element={
               <ProtectedRoute>
