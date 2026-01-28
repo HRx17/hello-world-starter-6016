@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
+import { AIPersonaGenerator } from "@/components/AIPersonaGenerator";
 
 export default function PersonaBuilder() {
   const { studyId, personaId } = useParams();
@@ -156,11 +157,30 @@ export default function PersonaBuilder() {
           <span>{isNew ? 'New Persona' : 'Edit Persona'}</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(studyId ? `/research/study/${studyId}` : '/research')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-4xl font-bold">{isNew ? 'Create Persona' : 'Edit Persona'}</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(studyId ? `/research/study/${studyId}` : '/research')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-4xl font-bold">{isNew ? 'Create Persona' : 'Edit Persona'}</h1>
+          </div>
+          
+          {isNew && (
+            <AIPersonaGenerator
+              initialStudyId={studyId}
+              onPersonaGenerated={(persona) => {
+                setName(persona.name);
+                setDescription(persona.description);
+                setGoals(persona.goals || []);
+                setPainPoints(persona.pain_points || []);
+                if (persona.demographics) {
+                  setAge(persona.demographics.age || "");
+                  setOccupation(persona.demographics.occupation || "");
+                  setTechSavviness(persona.demographics.tech_savviness || "");
+                }
+              }}
+            />
+          )}
         </div>
 
         <Card>
