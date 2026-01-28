@@ -16,7 +16,8 @@ export default function PersonaBuilder() {
   const { studyId, personaId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isNew = personaId === 'new';
+  // Support both /research/persona/new (no studyId) and /research/study/:studyId/persona/new
+  const isNew = !personaId || personaId === 'new';
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -68,7 +69,7 @@ export default function PersonaBuilder() {
 
       const personaData = {
         user_id: user.id,
-        study_plan_id: studyId,
+        study_plan_id: studyId || null,
         name,
         description,
         avatar_url: avatarUrl || null,
@@ -103,8 +104,10 @@ export default function PersonaBuilder() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['study-personas', studyId] });
       queryClient.invalidateQueries({ queryKey: ['persona', personaId] });
+      queryClient.invalidateQueries({ queryKey: ['personas'] });
       toast.success(isNew ? "Persona created!" : "Persona updated!");
-      navigate(`/research/study/${studyId}`);
+      // Navigate back to study if we have one, otherwise go to research
+      navigate(studyId ? `/research/study/${studyId}` : '/research');
     },
     onError: () => {
       toast.error("Failed to save persona");
@@ -141,16 +144,20 @@ export default function PersonaBuilder() {
           <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/research')}>
             Research
           </Button>
-          <span>/</span>
-          <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/research/study/${studyId}`)}>
-            Study
-          </Button>
+          {studyId && (
+            <>
+              <span>/</span>
+              <Button variant="link" className="p-0 h-auto" onClick={() => navigate(`/research/study/${studyId}`)}>
+                Study
+              </Button>
+            </>
+          )}
           <span>/</span>
           <span>{isNew ? 'New Persona' : 'Edit Persona'}</span>
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/research/study/${studyId}`)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(studyId ? `/research/study/${studyId}` : '/research')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-4xl font-bold">{isNew ? 'Create Persona' : 'Edit Persona'}</h1>
@@ -308,7 +315,7 @@ export default function PersonaBuilder() {
         </Card>
 
         <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={() => navigate(`/research/study/${studyId}`)}>
+          <Button variant="outline" onClick={() => navigate(studyId ? `/research/study/${studyId}` : '/research')}>
             Cancel
           </Button>
           <Button onClick={() => savePersonaMutation.mutate()} disabled={!name.trim() || savePersonaMutation.isPending}>
