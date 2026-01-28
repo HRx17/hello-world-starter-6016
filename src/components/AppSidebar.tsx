@@ -1,4 +1,4 @@
-import { LayoutDashboard, LogOut, GitCompare, Settings, Microscope, ImageIcon, Target, Link2 } from "lucide-react";
+import { LayoutDashboard, LogOut, GitCompare, Settings, Microscope, ImageIcon, Target, Link2, Download } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -14,6 +14,8 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { downloadFigmaPlugin } from "@/lib/figmaPluginExport";
+import { toast } from "sonner";
 
 interface AppSidebarProps {
   onSignOut: () => void;
@@ -87,7 +89,19 @@ export function AppSidebar({ onSignOut, onNavigate }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t">
+      <SidebarFooter className="p-4 border-t space-y-2">
+        <Button
+          variant="default"
+          onClick={() => {
+            downloadFigmaPlugin();
+            toast.success("✓ Plugin downloaded! Extract the ZIP and import manifest.json in Figma → Plugins → Development.");
+          }}
+          className={collapsed ? "w-full justify-center px-2" : "w-full justify-start"}
+          size={collapsed ? "icon" : "default"}
+        >
+          <Download className="h-4 w-4" />
+          {!collapsed && <span className="ml-2">Download Figma Plugin</span>}
+        </Button>
         <Button
           variant="outline"
           onClick={onSignOut}
