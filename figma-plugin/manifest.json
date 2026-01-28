@@ -10,7 +10,7 @@
       "command": "open"
     }
   ],
-  "editorType": ["figma", "figjam"],
+  "editorType": ["figma", "figjam", "dev"],
   "capabilities": ["inspect"],
   "networkAccess": {
     "allowedDomains": [
