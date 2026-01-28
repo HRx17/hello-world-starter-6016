@@ -8,7 +8,7 @@ import Index from "./pages/Index";
 import Results from "./pages/Results";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import Compare from "./pages/Compare";
+
 import NotFound from "./pages/NotFound";
 import Trends from "./pages/Trends";
 import Settings from "./pages/Settings";
@@ -57,16 +57,6 @@ const App = () => (
               <ProtectedRoute>
                 <DashboardLayout>
                   <Dashboard />
-                </DashboardLayout>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/compare" 
-            element={
-              <ProtectedRoute>
-                <DashboardLayout>
-                  <Compare />
                 </DashboardLayout>
               </ProtectedRoute>
             } 
