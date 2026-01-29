@@ -37,6 +37,40 @@
       color: #6b7280;
       line-height: 1.5;
     }
+    .signup-section {
+      text-align: center;
+      margin: 20px 0;
+      padding: 16px;
+      background: #f0f9ff;
+      border-radius: 8px;
+      border: 1px solid #bae6fd;
+    }
+    .signup-text {
+      font-size: 13px;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    .signup-link {
+      display: inline-block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #2563eb;
+      text-decoration: none;
+      padding: 8px 16px;
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #2563eb;
+      transition: all 0.2s;
+    }
+    .signup-link:hover {
+      background: #2563eb;
+      color: white;
+    }
+    .signup-hint {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
     .input-group {
       margin-bottom: 16px;
     }
@@ -598,6 +632,15 @@
     </div>
     
     <button class="btn-primary" id="loginBtn">Sign In</button>
+    
+    <div class="signup-section">
+      <p class="signup-text">Don't have an account?</p>
+      <a href="https://ux-probe.lovable.app/auth" target="_blank" class="signup-link" id="signupLink">
+        Create a free account →
+      </a>
+      <p class="signup-hint">Registration is quick and free on our web app</p>
+    </div>
+    
     <button class="btn-secondary" id="cancelBtn">Cancel</button>
   </div>
 
@@ -816,6 +859,15 @@
     loginBtn.addEventListener('click', handleLogin);
     cancelBtn.addEventListener('click', function() { parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*'); });
     logoutBtn.addEventListener('click', handleLogout);
+    
+    // Signup link - opens in browser
+    var signupLink = document.getElementById('signupLink');
+    if (signupLink) {
+      signupLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open('https://ux-probe.lovable.app/auth', '_blank');
+      });
+    }
     
     // Theme selection
     themeOptions.forEach(function(option) {

@@ -71,8 +71,9 @@ Run automated usability audits on your designs:
 
 ### Authentication
 1. Open Figma and run the plugin
-2. Sign in with your UX Probe email and password
-3. Your session is saved for future use
+2. **New users**: Click "Create a free account" to register at ux-probe.lovable.app
+3. **Existing users**: Sign in with your UX Probe email and password
+4. Your session is saved for future use
 
 ### Importing Research Data
 1. Select a **Theme** from the dropdown
