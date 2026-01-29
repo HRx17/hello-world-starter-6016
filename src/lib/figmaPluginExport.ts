@@ -75,6 +75,12 @@ export async function downloadFigmaPlugin(variant: PluginVariant = "dev") {
   const [{ manifestRaw, codeJsRaw, uiHtmlRaw, readmeRaw }, icons] =
     await Promise.all([loadPluginTextFiles(), loadPluginIcons()]);
 
+  if (variant === "community" && !icons) {
+    throw new Error(
+      "Publishing build requires icon-16.png and icon-128.png to be bundled, but they could not be loaded."
+    );
+  }
+
   zip.file("manifest.json", buildManifest(manifestRaw, variant));
   zip.file("code.js", codeJsRaw);
   zip.file("ui.html", uiHtmlRaw);

@@ -43,9 +43,22 @@ export function ExportDialog({
     }
   };
 
-  const handleDownloadPlugin = () => {
-    downloadFigmaPlugin();
-    toast.success("✓ Plugin downloaded! Follow the README to install.");
+  const handleDownloadPlugin = async (variant: 'dev' | 'community') => {
+    try {
+      await downloadFigmaPlugin(variant);
+      toast.success(
+        variant === 'community'
+          ? '✓ Publishing build downloaded! Re-import this ZIP in Figma, then publish.'
+          : '✓ Dev build downloaded! Follow the README to install.'
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        variant === 'community'
+          ? 'Failed to download publishing build. Please try again.'
+          : 'Failed to download plugin. Please try again.'
+      );
+    }
   };
 
   return (
@@ -149,15 +162,27 @@ export function ExportDialog({
               </p>
             </div>
             
-            <Button
-              onClick={handleDownloadPlugin}
-              variant="outline"
-              className="w-full justify-start text-sm"
-              size="sm"
-            >
-              <Package className="h-4 w-4 mr-2" />
-              Download Figma Plugin (ZIP)
-            </Button>
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                onClick={() => handleDownloadPlugin('dev')}
+                variant="outline"
+                className="w-full justify-start text-sm"
+                size="sm"
+              >
+                <Package className="h-4 w-4 mr-2" />
+                Download Figma Plugin (Dev)
+              </Button>
+
+              <Button
+                onClick={() => handleDownloadPlugin('community')}
+                variant="outline"
+                className="w-full justify-start text-sm"
+                size="sm"
+              >
+                <Package className="h-4 w-4 mr-2" />
+                Download Figma Plugin (For Publishing)
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
