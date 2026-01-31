@@ -414,6 +414,14 @@ export function JourneyCanvas({
           </div>
         )}
       </div>
+
+      {/* Help hint - shows when stages exist but no connections yet */}
+      {stages.length > 0 && !connectingFrom && stages.every(s => s.nextStages.length === 0) && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg shadow-lg text-sm flex items-center gap-2">
+          <GitBranch className="h-4 w-4" />
+          <span>Hover over a stage and click the <strong>🔗</strong> icon to connect stages</span>
+        </div>
+      )}
     </div>
   );
 }
