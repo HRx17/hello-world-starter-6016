@@ -56,6 +56,36 @@ export function JourneyCanvas({
     return connections;
   }, [stages]);
 
+  // Calculate stage order based on connections (BFS from entry points)
+  const getStageOrder = useCallback((stages: JourneyStage[], stageId: string): number | null => {
+    // Find entry points (stages with no incoming connections)
+    const entryPoints = stages.filter(s => !stages.some(other => other.nextStages.includes(s.id)));
+    if (entryPoints.length === 0) return null;
+    
+    // BFS to find order
+    const visited = new Set<string>();
+    const queue: { id: string; order: number }[] = entryPoints.map(s => ({ id: s.id, order: 1 }));
+    
+    while (queue.length > 0) {
+      const { id, order } = queue.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      
+      if (id === stageId) return order;
+      
+      const stage = stages.find(s => s.id === id);
+      if (stage) {
+        stage.nextStages.forEach(nextId => {
+          if (!visited.has(nextId)) {
+            queue.push({ id: nextId, order: order + 1 });
+          }
+        });
+      }
+    }
+    
+    return null;
+  }, []);
+
   const handleAddStage = (template?: typeof STAGE_TEMPLATES[0]) => {
     const name = template?.name || customStageName || "New Stage";
     if (!template && !customStageName.trim()) {
@@ -293,41 +323,119 @@ export function JourneyCanvas({
           backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
         }}
       >
-        {/* SVG for connection lines */}
+        {/* Stage nodes - render first so connections appear below */}
+        <div
+          className="relative z-10"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+          }}
+        >
+          {stages.map((stage, index) => {
+            // Calculate hierarchy - find stages with no incoming connections (entry points)
+            const hasIncoming = stages.some(s => s.nextStages.includes(stage.id));
+            const isEntryPoint = !hasIncoming && stages.length > 1;
+            const stageOrder = getStageOrder(stages, stage.id);
+            
+            return (
+              <div
+                key={stage.id}
+                className="absolute"
+                style={{
+                  left: stage.position.x,
+                  top: stage.position.y,
+                }}
+              >
+                <JourneyStageNode
+                  stage={stage}
+                  isSelected={selectedStageId === stage.id}
+                  isConnecting={!!connectingFrom}
+                  connectionMode={
+                    connectingFrom 
+                      ? connectingFrom === stage.id ? 'from' : 'to'
+                      : null
+                  }
+                  isEntryPoint={isEntryPoint}
+                  stageOrder={stageOrder}
+                  onSelect={() => {
+                    if (connectingFrom && connectingFrom !== stage.id) {
+                      handleCompleteConnection(stage.id);
+                    } else {
+                      onSelectStage(stage.id);
+                    }
+                  }}
+                  onStartConnection={() => handleStartConnection(stage.id)}
+                  onDelete={() => handleDeleteStage(stage.id)}
+                  onConnectTo={
+                    connectingFrom && connectingFrom !== stage.id
+                      ? () => handleCompleteConnection(stage.id)
+                      : undefined
+                  }
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* SVG for connection lines - render after nodes with lower z-index */}
         <svg 
-          className="absolute inset-0 pointer-events-none" 
+          className="absolute inset-0 pointer-events-none z-0" 
           style={{ 
             width: '100%', 
             height: '100%',
             overflow: 'visible',
           }}
         >
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon 
+                points="0 0, 10 3.5, 0 7" 
+                fill="hsl(var(--primary) / 0.6)"
+              />
+            </marker>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
           <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-            {connections.map(({ from, to, label }, index) => {
+            {connections.map(({ from, to, label }) => {
               const startX = from.position.x + 112; // Center of node
-              const startY = from.position.y + 80; // Bottom of node
+              const startY = from.position.y + 100; // Below the node
               const endX = to.position.x + 112;
-              const endY = to.position.y;
+              const endY = to.position.y - 8; // Above the target node
               
-              // Calculate control points for curved line
-              const midY = (startY + endY) / 2;
+              // Calculate control points for smooth S-curve
+              const deltaY = endY - startY;
+              const controlOffset = Math.min(Math.abs(deltaY) * 0.5, 80);
               
               return (
                 <g key={`${from.id}-${to.id}`}>
                   <path
-                    d={`M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`}
+                    d={`M ${startX} ${startY} C ${startX} ${startY + controlOffset}, ${endX} ${endY - controlOffset}, ${endX} ${endY}`}
                     fill="none"
-                    stroke="hsl(var(--primary))"
+                    stroke="hsl(var(--primary) / 0.4)"
                     strokeWidth="2"
-                    strokeDasharray={from.nextStages.length > 1 ? "5,5" : "none"}
+                    strokeDasharray={from.nextStages.length > 1 ? "6,4" : "none"}
                     markerEnd="url(#arrowhead)"
+                    className="transition-all duration-300"
                   />
                   {label && (
                     <text
                       x={(startX + endX) / 2}
-                      y={midY - 10}
+                      y={(startY + endY) / 2 - 10}
                       textAnchor="middle"
-                      className="fill-muted-foreground text-xs"
+                      className="fill-muted-foreground text-xs font-medium"
                     >
                       {label}
                     </text>
@@ -335,69 +443,8 @@ export function JourneyCanvas({
                 </g>
               );
             })}
-            {/* Arrow marker definition */}
-            <defs>
-              <marker
-                id="arrowhead"
-                markerWidth="10"
-                markerHeight="7"
-                refX="9"
-                refY="3.5"
-                orient="auto"
-              >
-                <polygon 
-                  points="0 0, 10 3.5, 0 7" 
-                  fill="hsl(var(--primary))"
-                />
-              </marker>
-            </defs>
           </g>
         </svg>
-
-        {/* Stage nodes */}
-        <div
-          className="relative"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
-          }}
-        >
-          {stages.map((stage) => (
-            <div
-              key={stage.id}
-              className="absolute"
-              style={{
-                left: stage.position.x,
-                top: stage.position.y,
-              }}
-            >
-              <JourneyStageNode
-                stage={stage}
-                isSelected={selectedStageId === stage.id}
-                isConnecting={!!connectingFrom}
-                connectionMode={
-                  connectingFrom 
-                    ? connectingFrom === stage.id ? 'from' : 'to'
-                    : null
-                }
-                onSelect={() => {
-                  if (connectingFrom && connectingFrom !== stage.id) {
-                    handleCompleteConnection(stage.id);
-                  } else {
-                    onSelectStage(stage.id);
-                  }
-                }}
-                onStartConnection={() => handleStartConnection(stage.id)}
-                onDelete={() => handleDeleteStage(stage.id)}
-                onConnectTo={
-                  connectingFrom && connectingFrom !== stage.id
-                    ? () => handleCompleteConnection(stage.id)
-                    : undefined
-                }
-              />
-            </div>
-          ))}
-        </div>
 
         {/* Empty state */}
         {stages.length === 0 && (
