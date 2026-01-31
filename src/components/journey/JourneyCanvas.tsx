@@ -3,6 +3,7 @@ import { JourneyStage, STAGE_TEMPLATES } from "./types";
 import { JourneyStageNode } from "./JourneyStageNode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { 
   Plus, ZoomIn, ZoomOut, Maximize, 
   LayoutGrid, GitBranch, X 
@@ -37,6 +38,11 @@ export function JourneyCanvas({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [customStageName, setCustomStageName] = useState("");
+  
+  // Drag and drop state
+  const [draggingStageId, setDraggingStageId] = useState<string | null>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Calculate SVG lines for connections
   const getConnections = useCallback(() => {
@@ -185,6 +191,39 @@ export function JourneyCanvas({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Drag stage handlers
+  const handleStageDragStart = (stageId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const stage = stages.find(s => s.id === stageId);
+    if (!stage) return;
+    
+    setDraggingStageId(stageId);
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setDragOffset({ x: stage.position.x, y: stage.position.y });
+  };
+
+  const handleStageDragMove = useCallback((e: React.MouseEvent) => {
+    if (!draggingStageId) return;
+    
+    const deltaX = (e.clientX - dragStart.x) / zoom;
+    const deltaY = (e.clientY - dragStart.y) / zoom;
+    
+    const newX = Math.max(0, dragOffset.x + deltaX);
+    const newY = Math.max(0, dragOffset.y + deltaY);
+    
+    onStagesChange(stages.map(s => 
+      s.id === draggingStageId 
+        ? { ...s, position: { x: newX, y: newY } }
+        : s
+    ));
+  }, [draggingStageId, dragStart, dragOffset, zoom, stages, onStagesChange]);
+
+  const handleStageDragEnd = () => {
+    if (draggingStageId) {
+      setDraggingStageId(null);
+    }
+  };
+
   // Panning handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains('canvas-bg')) {
@@ -195,13 +234,16 @@ export function JourneyCanvas({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
+    if (draggingStageId) {
+      handleStageDragMove(e);
+    } else if (isPanning) {
       setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
     }
   };
 
   const handleMouseUp = () => {
     setIsPanning(false);
+    handleStageDragEnd();
   };
 
   const autoLayout = () => {
@@ -340,16 +382,21 @@ export function JourneyCanvas({
             return (
               <div
                 key={stage.id}
-                className="absolute"
+                className={cn(
+                  "absolute transition-shadow",
+                  draggingStageId === stage.id && "z-50"
+                )}
                 style={{
                   left: stage.position.x,
                   top: stage.position.y,
+                  cursor: draggingStageId === stage.id ? 'grabbing' : 'grab',
                 }}
               >
                 <JourneyStageNode
                   stage={stage}
                   isSelected={selectedStageId === stage.id}
                   isConnecting={!!connectingFrom}
+                  isDragging={draggingStageId === stage.id}
                   connectionMode={
                     connectingFrom 
                       ? connectingFrom === stage.id ? 'from' : 'to'
@@ -358,12 +405,14 @@ export function JourneyCanvas({
                   isEntryPoint={isEntryPoint}
                   stageOrder={stageOrder}
                   onSelect={() => {
+                    if (draggingStageId) return; // Don't select while dragging
                     if (connectingFrom && connectingFrom !== stage.id) {
                       handleCompleteConnection(stage.id);
                     } else {
                       onSelectStage(stage.id);
                     }
                   }}
+                  onDragStart={(e) => handleStageDragStart(stage.id, e)}
                   onStartConnection={() => handleStartConnection(stage.id)}
                   onDelete={() => handleDeleteStage(stage.id)}
                   onConnectTo={

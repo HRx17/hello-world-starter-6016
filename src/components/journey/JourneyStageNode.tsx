@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   Smile, Meh, Frown, GitBranch, Plus, Trash2, 
-  Circle, Diamond, Square, Flag, Target, Link
+  Circle, Diamond, Square, Flag, Target, Link, GripVertical
 } from "lucide-react";
 import { JourneyStage, EMOTION_LABELS } from "./types";
 import {
@@ -17,9 +17,11 @@ interface JourneyStageNodeProps {
   stage: JourneyStage;
   isSelected: boolean;
   isConnecting: boolean;
+  isDragging?: boolean;
   onSelect: () => void;
   onStartConnection: () => void;
   onDelete: () => void;
+  onDragStart?: (e: React.MouseEvent) => void;
   onConnectTo?: () => void;
   connectionMode?: 'from' | 'to' | null;
   isEntryPoint?: boolean;
@@ -30,9 +32,11 @@ export function JourneyStageNode({
   stage,
   isSelected,
   isConnecting,
+  isDragging,
   onSelect,
   onStartConnection,
   onDelete,
+  onDragStart,
   onConnectTo,
   connectionMode,
   isEntryPoint,
@@ -71,12 +75,19 @@ export function JourneyStageNode({
     <TooltipProvider>
       <div
         className={cn(
-          "relative w-56 rounded-xl border-2 p-4 cursor-pointer transition-all duration-200 shadow-sm hover:shadow-lg group bg-background",
+          "relative w-56 rounded-xl border-2 p-4 transition-all duration-200 shadow-sm hover:shadow-lg group bg-background select-none",
           getTypeColor(),
           isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
-          connectionMode === 'to' && "ring-2 ring-green-500/70 cursor-pointer"
+          connectionMode === 'to' && "ring-2 ring-green-500/70",
+          isDragging && "shadow-2xl scale-105 opacity-90 cursor-grabbing",
+          !isDragging && "cursor-grab"
         )}
         onClick={onSelect}
+        onMouseDown={(e) => {
+          // Only start drag if not clicking on buttons
+          if ((e.target as HTMLElement).closest('button')) return;
+          onDragStart?.(e);
+        }}
       >
         {/* Entry point / Order indicator */}
         {(isEntryPoint || stageOrder) && (
@@ -93,6 +104,11 @@ export function JourneyStageNode({
             )}
           </div>
         )}
+
+        {/* Drag handle indicator */}
+        <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-40 transition-opacity">
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
 
         {/* Header */}
         <div className="flex items-center justify-between mb-2 mt-1">
