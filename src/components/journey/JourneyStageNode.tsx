@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   Smile, Meh, Frown, GitBranch, Plus, Trash2, 
-  Circle, Diamond, Square, Flag, Target, Link, Edit2
+  Circle, Diamond, Square, Flag, Target, Link
 } from "lucide-react";
 import { JourneyStage, EMOTION_LABELS } from "./types";
 import {
@@ -22,6 +22,8 @@ interface JourneyStageNodeProps {
   onDelete: () => void;
   onConnectTo?: () => void;
   connectionMode?: 'from' | 'to' | null;
+  isEntryPoint?: boolean;
+  stageOrder?: number | null;
 }
 
 export function JourneyStageNode({
@@ -33,6 +35,8 @@ export function JourneyStageNode({
   onDelete,
   onConnectTo,
   connectionMode,
+  isEntryPoint,
+  stageOrder,
 }: JourneyStageNodeProps) {
   const getEmotionIcon = (level: number) => {
     if (level >= 4) return <Smile className="h-4 w-4 text-green-500" />;
@@ -52,10 +56,10 @@ export function JourneyStageNode({
 
   const getTypeColor = () => {
     switch (stage.type) {
-      case 'start': return 'border-green-500 bg-green-500/10';
-      case 'end': return 'border-blue-500 bg-blue-500/10';
-      case 'decision': return 'border-amber-500 bg-amber-500/10';
-      case 'touchpoint': return 'border-purple-500 bg-purple-500/10';
+      case 'start': return 'border-green-500/50 bg-green-500/5';
+      case 'end': return 'border-blue-500/50 bg-blue-500/5';
+      case 'decision': return 'border-amber-500/50 bg-amber-500/5';
+      case 'touchpoint': return 'border-purple-500/50 bg-purple-500/5';
       default: return 'border-border bg-card';
     }
   };
@@ -67,15 +71,31 @@ export function JourneyStageNode({
     <TooltipProvider>
       <div
         className={cn(
-          "relative w-56 rounded-lg border-2 p-3 cursor-pointer transition-all shadow-sm hover:shadow-md group",
+          "relative w-56 rounded-xl border-2 p-4 cursor-pointer transition-all duration-200 shadow-sm hover:shadow-lg group bg-background",
           getTypeColor(),
-          isSelected && "ring-2 ring-primary ring-offset-2",
-          connectionMode === 'to' && "ring-2 ring-green-500 animate-pulse cursor-pointer"
+          isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+          connectionMode === 'to' && "ring-2 ring-green-500/70 cursor-pointer"
         )}
         onClick={onSelect}
       >
+        {/* Entry point / Order indicator */}
+        {(isEntryPoint || stageOrder) && (
+          <div className="absolute -top-3 left-4 flex items-center gap-1.5">
+            {isEntryPoint && (
+              <span className="bg-green-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                Entry
+              </span>
+            )}
+            {stageOrder && (
+              <span className="bg-muted text-muted-foreground text-[10px] font-medium px-2 py-0.5 rounded-full">
+                Step {stageOrder}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 mt-1">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">{getTypeIcon()}</span>
             <h4 className="font-semibold text-sm truncate max-w-[120px]">{stage.name}</h4>
@@ -85,7 +105,7 @@ export function JourneyStageNode({
 
         {/* Description */}
         {stage.description && (
-          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
             {stage.description}
           </p>
         )}
@@ -93,47 +113,50 @@ export function JourneyStageNode({
         {/* Quick stats */}
         <div className="flex flex-wrap gap-1 mb-2">
           {stage.actions.length > 0 && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
               {stage.actions.length} action{stage.actions.length !== 1 ? 's' : ''}
             </Badge>
           )}
           {stage.painPoints.length > 0 && (
-            <Badge variant="destructive" className="text-xs">
+            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
               {stage.painPoints.length} pain point{stage.painPoints.length !== 1 ? 's' : ''}
             </Badge>
           )}
           {stage.opportunities.length > 0 && (
-            <Badge className="text-xs bg-green-600">
+            <Badge className="text-[10px] px-1.5 py-0 bg-green-600">
               {stage.opportunities.length} opp.
             </Badge>
           )}
         </div>
 
         {/* Emotion label */}
-        <div className="text-xs text-muted-foreground">
+        <div className="text-[10px] text-muted-foreground font-medium">
           {EMOTION_LABELS[stage.emotionLevel]}
         </div>
 
-        {/* Branch indicator */}
+        {/* Branch indicator - now cleaner, in corner */}
         {stage.nextStages.length > 1 && (
-          <div className="absolute -right-2 top-1/2 -translate-y-1/2">
-            <div className="bg-amber-500 text-white rounded-full p-1" title="Branches to multiple paths">
-              <GitBranch className="h-3 w-3" />
-            </div>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="absolute -top-2 -right-2 bg-amber-500 text-white rounded-full p-1 shadow-sm">
+                <GitBranch className="h-3 w-3" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Branches to {stage.nextStages.length} paths</p>
+            </TooltipContent>
+          </Tooltip>
         )}
 
-        {/* Connection count indicator */}
+        {/* Connection output indicator - subtle dot at bottom */}
         {stage.nextStages.length > 0 && (
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-            {stage.nextStages.length} →
-          </div>
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary/60 border-2 border-background" />
         )}
 
         {/* Action buttons - visible on hover or when selected */}
         {!isConnecting && (
           <div className={cn(
-            "absolute -right-2 top-2 flex flex-col gap-1 transition-opacity",
+            "absolute -right-2 top-8 flex flex-col gap-1 transition-opacity duration-200",
             isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           )}>
             <Tooltip>
@@ -176,18 +199,18 @@ export function JourneyStageNode({
           </div>
         )}
 
-        {/* Connect target indicator - more prominent */}
+        {/* Connect target indicator - cleaner overlay */}
         {connectionMode === 'to' && onConnectTo && (
           <div 
-            className="absolute inset-0 bg-green-500/20 rounded-lg flex items-center justify-center"
+            className="absolute inset-0 bg-green-500/10 rounded-xl flex items-center justify-center backdrop-blur-[1px]"
             onClick={(e) => {
               e.stopPropagation();
               onConnectTo();
             }}
           >
-            <div className="bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1 shadow-lg">
-              <Link className="h-4 w-4" />
-              Click to connect
+            <div className="bg-green-500 text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-lg">
+              <Plus className="h-3 w-3" />
+              Connect here
             </div>
           </div>
         )}
