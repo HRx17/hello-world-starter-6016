@@ -8,19 +8,14 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, Save, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Save, Edit2 } from "lucide-react";
 import { ExportDialog } from "@/components/ExportDialog";
 import { downloadJSON, downloadHTML, generateIAHTML } from "@/lib/exportHelpers";
-
-interface IANode {
-  id: string;
-  label: string;
-  parentId: string | null;
-  description?: string;
-  type?: string;
-}
+import { SitemapCanvas } from "@/components/sitemap/SitemapCanvas";
+import { SitemapNode } from "@/components/sitemap/types";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function InformationArchitecture() {
   const navigate = useNavigate();
@@ -29,13 +24,12 @@ export default function InformationArchitecture() {
   const queryClient = useQueryClient();
 
   const [title, setTitle] = useState("");
-  const [nodes, setNodes] = useState<IANode[]>([
-    { id: '1', label: 'Home', parentId: null, description: 'Main entry point', type: 'page' }
+  const [nodes, setNodes] = useState<SitemapNode[]>([
+    { id: '1', label: 'Home', parentId: null, description: 'Main entry point', type: 'page', position: { x: 100, y: 200 } }
   ]);
-  const [newNodeLabel, setNewNodeLabel] = useState("");
-  const [newNodeDescription, setNewNodeDescription] = useState("");
-  const [newNodeType, setNewNodeType] = useState("page");
-  const [selectedParentId, setSelectedParentId] = useState<string>('1');
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
   const { data: architectures, isLoading } = useQuery({
     queryKey: ['information-architectures', studyId],
@@ -55,46 +49,8 @@ export default function InformationArchitecture() {
     },
   });
 
-  const addNode = () => {
-    if (!newNodeLabel.trim()) {
-      toast.error("Please enter a node label");
-      return;
-    }
-    
-    const newNode: IANode = {
-      id: Date.now().toString(),
-      label: newNodeLabel,
-      parentId: selectedParentId,
-      description: newNodeDescription || undefined,
-      type: newNodeType
-    };
-    
-    setNodes([...nodes, newNode]);
-    setNewNodeLabel('');
-    setNewNodeDescription('');
-    toast.success("Node added!");
-  };
-
-  const removeNode = (nodeId: string) => {
-    if (nodeId === '1') {
-      toast.error("Cannot remove root node");
-      return;
-    }
-    
-    const removeNodeAndChildren = (id: string): string[] => {
-      const childIds = nodes.filter(n => n.parentId === id).map(n => n.id);
-      return [id, ...childIds.flatMap(removeNodeAndChildren)];
-    };
-    
-    const idsToRemove = removeNodeAndChildren(nodeId);
-    setNodes(nodes.filter(n => !idsToRemove.includes(n.id)));
-    toast.success("Node removed");
-  };
-
-  const getNodeLevel = (nodeId: string): number => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node || !node.parentId) return 0;
-    return 1 + getNodeLevel(node.parentId);
+  const updateNode = (nodeId: string, updates: Partial<SitemapNode>) => {
+    setNodes(nodes.map(n => n.id === nodeId ? { ...n, ...updates } : n));
   };
 
   const saveMutation = useMutation({
@@ -102,9 +58,19 @@ export default function InformationArchitecture() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Convert to legacy format for storage
+      const legacyNodes = nodes.map(n => ({
+        id: n.id,
+        label: n.label,
+        parentId: n.parentId,
+        description: n.description,
+        type: n.type,
+      }));
+
       const iaStructure = {
         title: title || 'Untitled IA',
-        nodes: nodes
+        nodes: legacyNodes,
+        canvasNodes: nodes, // Store full canvas data
       };
 
       const { error } = await supabase
@@ -137,230 +103,182 @@ export default function InformationArchitecture() {
   };
 
   const handleDownloadHTML = () => {
+    const legacyNodes = nodes.map(n => ({
+      id: n.id,
+      label: n.label,
+      parentId: n.parentId,
+      description: n.description,
+      type: n.type,
+    }));
     const iaStructure = {
       title: title || 'Information Architecture',
-      nodes: nodes
+      nodes: legacyNodes
     };
     const html = generateIAHTML(iaStructure);
     downloadHTML(html, `ia-${Date.now()}.html`);
   };
 
   const loadIA = (ia: any) => {
-    if (ia.structure?.nodes) {
-      setNodes(ia.structure.nodes);
-      setTitle(ia.structure.title || ia.title);
-      toast.success("IA loaded!");
+    if (ia.structure?.canvasNodes) {
+      // Load canvas format
+      setNodes(ia.structure.canvasNodes);
+    } else if (ia.structure?.nodes) {
+      // Convert legacy format to canvas format
+      const legacyNodes = ia.structure.nodes;
+      const canvasNodes: SitemapNode[] = legacyNodes.map((n: any, index: number) => ({
+        ...n,
+        type: n.type || 'page',
+        position: { x: 100 + (index % 4) * 220, y: 100 + Math.floor(index / 4) * 120 }
+      }));
+      setNodes(canvasNodes);
     }
+    setTitle(ia.structure?.title || ia.title);
+    toast.success("IA loaded!");
   };
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/research')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-4xl font-bold">Information Architecture</h1>
-            <p className="text-muted-foreground mt-2">
-              Build your sitemap structure by adding pages and organizing hierarchically
-            </p>
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b bg-background">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/research')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Information Architecture</h1>
+              <p className="text-sm text-muted-foreground">
+                Build your sitemap visually with drag and drop
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Project title..."
+              className="w-48"
+            />
+            <Button 
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || nodes.length === 0}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Save
+            </Button>
+            <ExportDialog
+              data={{ title, nodes }}
+              title="Information Architecture"
+              exportType="information_architecture"
+              onDownloadJSON={handleDownloadJSON}
+              onDownloadHTML={handleDownloadHTML}
+              disabled={nodes.length === 0}
+            />
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Build IA Structure</CardTitle>
-                <CardDescription>Create a sitemap by adding pages and sections</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+        {/* Main content */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Canvas */}
+          <div className="flex-1 p-4">
+            <SitemapCanvas
+              nodes={nodes}
+              onNodesChange={setNodes}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+            />
+          </div>
+
+          {/* Sidebar - Saved IAs */}
+          <div className="w-64 border-l bg-background p-4 overflow-y-auto">
+            <h3 className="font-semibold mb-3">Saved IAs</h3>
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : architectures && architectures.length > 0 ? (
+              <div className="space-y-2">
+                {architectures.map((ia) => (
+                  <div 
+                    key={ia.id} 
+                    className="p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                    onClick={() => loadIA(ia)}
+                  >
+                    <p className="font-medium text-sm truncate">{ia.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(ia.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No saved IAs yet</p>
+            )}
+          </div>
+        </div>
+
+        {/* Node Edit Sheet */}
+        <Sheet open={!!selectedNode} onOpenChange={(open) => !open && setSelectedNodeId(null)}>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <Edit2 className="h-4 w-4" />
+                Edit Node
+              </SheetTitle>
+              <SheetDescription>
+                Update the details for this page/section
+              </SheetDescription>
+            </SheetHeader>
+            
+            {selectedNode && (
+              <div className="space-y-4 mt-6">
                 <div>
-                  <Label htmlFor="title">Project Title</Label>
+                  <Label>Label</Label>
                   <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="E.g., E-commerce Website IA"
+                    value={selectedNode.label}
+                    onChange={(e) => updateNode(selectedNode.id, { label: e.target.value })}
+                    placeholder="Page name"
+                  />
+                </div>
+                
+                <div>
+                  <Label>Type</Label>
+                  <Select 
+                    value={selectedNode.type} 
+                    onValueChange={(v) => updateNode(selectedNode.id, { type: v as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="page">📄 Page</SelectItem>
+                      <SelectItem value="section">📁 Section</SelectItem>
+                      <SelectItem value="category">🏷️ Category</SelectItem>
+                      <SelectItem value="feature">⚡ Feature</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label>Description</Label>
+                  <Textarea
+                    value={selectedNode.description || ''}
+                    onChange={(e) => updateNode(selectedNode.id, { description: e.target.value })}
+                    placeholder="Brief description of this page..."
+                    rows={3}
                   />
                 </div>
 
-                <div className="border-t pt-4 space-y-3">
-                  <h4 className="font-semibold">Add New Page/Section</h4>
-                  
-                  <div>
-                    <Label htmlFor="nodeLabel">Page Name *</Label>
-                    <Input
-                      id="nodeLabel"
-                      value={newNodeLabel}
-                      onChange={(e) => setNewNodeLabel(e.target.value)}
-                      placeholder="E.g., Products, About Us, Contact"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="nodeType">Type</Label>
-                    <Select value={newNodeType} onValueChange={setNewNodeType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="page">Page</SelectItem>
-                        <SelectItem value="section">Section</SelectItem>
-                        <SelectItem value="category">Category</SelectItem>
-                        <SelectItem value="feature">Feature</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="nodeDescription">Description (optional)</Label>
-                    <Input
-                      id="nodeDescription"
-                      value={newNodeDescription}
-                      onChange={(e) => setNewNodeDescription(e.target.value)}
-                      placeholder="Brief description"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="parentSelect">Parent Page</Label>
-                    <Select value={selectedParentId} onValueChange={setSelectedParentId}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {nodes.map(node => (
-                          <SelectItem key={node.id} value={node.id}>
-                            {node.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <Button 
-                    onClick={addNode}
-                    className="w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Page
-                  </Button>
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Parent:</strong> {nodes.find(n => n.id === selectedNode.parentId)?.label || 'None (Root)'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Children:</strong> {nodes.filter(n => n.parentId === selectedNode.id).length}
+                  </p>
                 </div>
-
-                <div className="border-t pt-4 flex gap-2">
-                  <Button 
-                    onClick={() => saveMutation.mutate()}
-                    disabled={saveMutation.isPending || nodes.length === 0}
-                    className="flex-1"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save
-                  </Button>
-                </div>
-
-                <ExportDialog
-                  data={{ title, nodes }}
-                  title="Information Architecture"
-                  exportType="information_architecture"
-                  onDownloadJSON={handleDownloadJSON}
-                  onDownloadHTML={handleDownloadHTML}
-                  disabled={nodes.length === 0}
-                />
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>IA Structure</CardTitle>
-                <CardDescription>{nodes.length} node{nodes.length !== 1 ? 's' : ''}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {nodes.map((node) => {
-                    const parent = nodes.find(n => n.id === node.parentId);
-                    const children = nodes.filter(n => n.parentId === node.id);
-                    const level = getNodeLevel(node.id);
-                    
-                    return (
-                      <div 
-                        key={node.id} 
-                        className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                        style={{ marginLeft: `${level * 16}px` }}
-                      >
-                        <ChevronRight className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{node.label}</span>
-                            {node.type && (
-                              <Badge variant="outline" className="text-xs">
-                                {node.type}
-                              </Badge>
-                            )}
-                            {children.length > 0 && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                {children.length}
-                              </span>
-                            )}
-                          </div>
-                          {node.description && (
-                            <p className="text-sm text-muted-foreground mt-1">{node.description}</p>
-                          )}
-                          {parent && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Under: {parent.label}
-                            </p>
-                          )}
-                        </div>
-                        {node.id !== '1' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeNode(node.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Saved IAs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <p>Loading...</p>
-                ) : architectures && architectures.length > 0 ? (
-                  <div className="space-y-2">
-                    {architectures.map((ia) => (
-                      <div 
-                        key={ia.id} 
-                        className="p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                        onClick={() => loadIA(ia)}
-                      >
-                        <p className="font-medium">{ia.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(ia.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No saved IAs yet</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
       </div>
     </DashboardLayout>
   );
