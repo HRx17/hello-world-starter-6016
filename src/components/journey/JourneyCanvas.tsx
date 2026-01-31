@@ -377,9 +377,9 @@ export function JourneyCanvas({
           })}
         </div>
 
-        {/* SVG for connection lines - render after nodes with lower z-index */}
+        {/* SVG for connection lines */}
         <svg 
-          className="absolute inset-0 pointer-events-none z-0" 
+          className="absolute inset-0 z-0" 
           style={{ 
             width: '100%', 
             height: '100%',
@@ -400,42 +400,81 @@ export function JourneyCanvas({
                 fill="hsl(var(--primary) / 0.6)"
               />
             </marker>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
+            <marker
+              id="arrowhead-hover"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon 
+                points="0 0, 10 3.5, 0 7" 
+                fill="hsl(var(--destructive))"
+              />
+            </marker>
           </defs>
           <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
             {connections.map(({ from, to, label }) => {
-              const startX = from.position.x + 112; // Center of node
-              const startY = from.position.y + 100; // Below the node
+              const startX = from.position.x + 112;
+              const startY = from.position.y + 100;
               const endX = to.position.x + 112;
-              const endY = to.position.y - 8; // Above the target node
+              const endY = to.position.y - 8;
               
-              // Calculate control points for smooth S-curve
               const deltaY = endY - startY;
               const controlOffset = Math.min(Math.abs(deltaY) * 0.5, 80);
+              const midX = (startX + endX) / 2;
+              const midY = (startY + endY) / 2;
+              const pathD = `M ${startX} ${startY} C ${startX} ${startY + controlOffset}, ${endX} ${endY - controlOffset}, ${endX} ${endY}`;
               
               return (
-                <g key={`${from.id}-${to.id}`}>
+                <g key={`${from.id}-${to.id}`} className="group/connection">
+                  {/* Invisible wider path for easier clicking */}
                   <path
-                    d={`M ${startX} ${startY} C ${startX} ${startY + controlOffset}, ${endX} ${endY - controlOffset}, ${endX} ${endY}`}
+                    d={pathD}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth="16"
+                    className="cursor-pointer pointer-events-auto"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveConnection(from.id, to.id);
+                    }}
+                  />
+                  {/* Visible path */}
+                  <path
+                    d={pathD}
                     fill="none"
                     stroke="hsl(var(--primary) / 0.4)"
                     strokeWidth="2"
                     strokeDasharray={from.nextStages.length > 1 ? "6,4" : "none"}
                     markerEnd="url(#arrowhead)"
-                    className="transition-all duration-300"
+                    className="transition-all duration-300 pointer-events-none group-hover/connection:stroke-destructive group-hover/connection:[marker-end:url(#arrowhead-hover)]"
                   />
+                  {/* Delete button on hover */}
+                  <g 
+                    className="opacity-0 group-hover/connection:opacity-100 transition-opacity pointer-events-auto cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveConnection(from.id, to.id);
+                    }}
+                  >
+                    <circle
+                      cx={midX}
+                      cy={midY}
+                      r="12"
+                      fill="hsl(var(--destructive))"
+                      className="drop-shadow-md"
+                    />
+                    <line x1={midX - 4} y1={midY - 4} x2={midX + 4} y2={midY + 4} stroke="white" strokeWidth="2" strokeLinecap="round" />
+                    <line x1={midX + 4} y1={midY - 4} x2={midX - 4} y2={midY + 4} stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  </g>
                   {label && (
                     <text
-                      x={(startX + endX) / 2}
-                      y={(startY + endY) / 2 - 10}
+                      x={midX}
+                      y={midY - 20}
                       textAnchor="middle"
-                      className="fill-muted-foreground text-xs font-medium"
+                      className="fill-muted-foreground text-xs font-medium pointer-events-none"
                     >
                       {label}
                     </text>
