@@ -43,6 +43,7 @@ export function JourneyCanvas({
   const [draggingStageId, setDraggingStageId] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [hasDragged, setHasDragged] = useState(false);
 
   // Calculate SVG lines for connections
   const getConnections = useCallback(() => {
@@ -200,6 +201,7 @@ export function JourneyCanvas({
     setDraggingStageId(stageId);
     setDragStart({ x: e.clientX, y: e.clientY });
     setDragOffset({ x: stage.position.x, y: stage.position.y });
+    setHasDragged(false);
   };
 
   const handleStageDragMove = useCallback((e: React.MouseEvent) => {
@@ -207,6 +209,11 @@ export function JourneyCanvas({
     
     const deltaX = (e.clientX - dragStart.x) / zoom;
     const deltaY = (e.clientY - dragStart.y) / zoom;
+    
+    // Only consider it a drag if moved more than 5px
+    if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+      setHasDragged(true);
+    }
     
     const newX = Math.max(0, dragOffset.x + deltaX);
     const newY = Math.max(0, dragOffset.y + deltaY);
@@ -221,6 +228,18 @@ export function JourneyCanvas({
   const handleStageDragEnd = () => {
     if (draggingStageId) {
       setDraggingStageId(null);
+      // Reset hasDragged after a small delay to prevent click from firing
+      setTimeout(() => setHasDragged(false), 50);
+    }
+  };
+
+  // Handler for stage selection - checks if we just finished dragging
+  const handleStageSelect = (stageId: string) => {
+    if (hasDragged) return; // Don't select if we just dragged
+    if (connectingFrom && connectingFrom !== stageId) {
+      handleCompleteConnection(stageId);
+    } else {
+      onSelectStage(stageId);
     }
   };
 
@@ -404,14 +423,7 @@ export function JourneyCanvas({
                   }
                   isEntryPoint={isEntryPoint}
                   stageOrder={stageOrder}
-                  onSelect={() => {
-                    if (draggingStageId) return; // Don't select while dragging
-                    if (connectingFrom && connectingFrom !== stage.id) {
-                      handleCompleteConnection(stage.id);
-                    } else {
-                      onSelectStage(stage.id);
-                    }
-                  }}
+                  onSelect={() => handleStageSelect(stage.id)}
                   onDragStart={(e) => handleStageDragStart(stage.id, e)}
                   onStartConnection={() => handleStartConnection(stage.id)}
                   onDelete={() => handleDeleteStage(stage.id)}
